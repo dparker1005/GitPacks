@@ -34,11 +34,19 @@
     .search-container input { width:420px; max-width:80vw; padding:14px 20px; border:2px solid #2a2a4a; border-radius:12px; background:rgba(20,20,40,0.8); color:#e0e0e0; font-size:1.05rem; font-family:'Rajdhani',sans-serif; transition:border-color 0.3s,box-shadow 0.3s; outline:none; }
     .search-container input:focus { border-color:#7873f5; box-shadow:0 0 20px rgba(120,115,245,0.2); }
     .search-container input::placeholder { color:#555; }
-    .popular-repos { text-align:center; padding:0 20px 10px; }
-    .popular-list { display:flex; flex-wrap:wrap; justify-content:center; gap:6px; }
-    .popular-list button { padding:6px 14px; border:1px solid rgba(120,115,245,0.15); border-radius:20px; background:rgba(120,115,245,0.05); color:#777; font-family:'Rajdhani',sans-serif; font-size:0.8rem; cursor:pointer; transition:all 0.2s; }
-    .popular-list button:hover { border-color:rgba(120,115,245,0.4); color:#bbb; background:rgba(120,115,245,0.1); }
-    .top-bar { position:fixed; top:16px; right:20px; z-index:9000; display:flex; gap:10px; }
+    .popular-section { text-align:center; padding:20px 20px 40px; max-width:600px; margin:0 auto; }
+    .popular-title { font-family:'Orbitron',sans-serif; font-size:0.7rem; color:#555; letter-spacing:3px; text-transform:uppercase; margin-bottom:16px; }
+    .popular-hint { color:#555; font-size:0.95rem; }
+    .popular-grid { display:flex; flex-direction:column; gap:8px; }
+    .popular-repo-btn { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; border:1px solid #2a2a4a; border-radius:12px; background:rgba(20,20,40,0.6); color:#e0e0e0; font-family:'Rajdhani',sans-serif; font-size:1rem; cursor:pointer; transition:all 0.2s; text-align:left; }
+    .popular-repo-btn:hover { border-color:#7873f5; background:rgba(120,115,245,0.08); transform:translateY(-1px); }
+    .popular-repo-name { font-weight:600; }
+    .popular-repo-cards { font-size:0.8rem; color:#666; font-family:'Orbitron',sans-serif; letter-spacing:1px; }
+    .top-bar { display:flex; justify-content:flex-end; gap:10px; padding:12px 20px 0; }
+    .top-bar-btn.repo-only { display:none; }
+    .repo-loaded .top-bar-btn.repo-only { display:inline-block; }
+    .btn-share { padding:10px 24px; border:none; border-radius:10px; background:linear-gradient(135deg,#7873f5,#4adede); color:#fff; font-family:'Orbitron',sans-serif; font-size:0.7rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; cursor:pointer; transition:transform 0.2s,box-shadow 0.3s; }
+    .btn-share:hover { transform:translateY(-2px); box-shadow:0 6px 25px rgba(120,115,245,0.35); }
     .top-bar-btn { padding:10px 22px; border:1px solid #3a3a5a; border-radius:10px; background:rgba(15,15,35,0.9); backdrop-filter:blur(10px); color:#999; cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.7rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; transition:all 0.2s; }
     .top-bar-btn:hover { border-color:#7873f5; color:#fff; background:rgba(120,115,245,0.15); }
     #loading { display:none; text-align:center; padding:60px 20px; }
@@ -59,7 +67,10 @@
 
     /* === REPO INFO === */
     #repo-info { display:none; text-align:center; padding:10px 20px 20px; }
+    .repo-info-row { display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; }
     .repo-info-inner { display:inline-flex; align-items:center; gap:20px; padding:12px 28px; border:1px solid rgba(120,115,245,0.15); border-radius:14px; background:rgba(120,115,245,0.03); }
+    .switch-repo-btn { padding:5px 12px; border:1px solid #3a3a5a; border-radius:8px; background:rgba(15,15,35,0.9); color:#777; cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.55rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; transition:all 0.2s; }
+    .switch-repo-btn:hover { border-color:#7873f5; color:#fff; background:rgba(120,115,245,0.15); }
     #repo-info h2 { font-family:'Orbitron',sans-serif; font-size:1rem; color:#ccc; letter-spacing:2px; margin:0; }
     #repo-info h2 span { color:#4adede; }
     .repo-info-sep { width:1px; height:24px; background:rgba(120,115,245,0.2); }
@@ -263,7 +274,7 @@
     @keyframes burstExpand { 0% { width:10px; height:10px; opacity:1; border-width:3px; } 100% { width:600px; height:600px; opacity:0; border-width:1px; } }
 
     /* Card reveal — single row */
-    .reveal-area { display:flex; gap:16px; justify-content:center; flex-wrap:nowrap; max-width:1200px; margin:0 auto; padding:0 20px; }
+    .reveal-area { display:flex; gap:16px; row-gap:36px; justify-content:center; flex-wrap:wrap; max-width:1200px; margin:0 auto; padding:0 20px; }
 
     /* Reveal slots */
     .reveal-slot { perspective:1200px; width:190px; height:293px; position:relative; flex-shrink:0; transition:transform 0.4s ease, filter 0.3s; }
@@ -566,7 +577,6 @@
     .fs-stat-row.fs-highlight .fs-stat-value { color:#fff; font-weight:700; }
     .fs-stat-row.fs-highlight .fs-stat-label { font-weight:600; }
     @media (max-width: 800px) {
-      .top-bar { position:static; justify-content:flex-end; padding:12px 20px 0; }
       header { padding-top:8px; }
       .fullscreen-overlay { overflow-y:auto; -webkit-overflow-scrolling:touch; justify-content:flex-start; padding:60px 0 30px; }
       .fullscreen-layout { flex-direction:column; gap:20px; align-items:center; }

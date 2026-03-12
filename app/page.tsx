@@ -12,8 +12,8 @@ export default function Home() {
   return (
     <div id="gallery-screen">
       <div className="top-bar">
-        <button className="top-bar-btn" id="clear-cache-btn">Clear Cache</button>
-        <button className="top-bar-btn" id="share-btn">Share</button>
+        <button className="top-bar-btn repo-only" id="clear-cache-btn">Clear Cache</button>
+        <button className="btn-share" id="share-btn">Share</button>
       </div>
       <header>
         <h1>
@@ -33,10 +33,11 @@ export default function Home() {
         </h1>
         <p>Collect the contributors behind the code.</p>
       </header>
-      <div className="search-container" id="search-container" style={{ display: "none" }}>
-        <input type="text" id="repo-input" defaultValue="strangerstudios/paid-memberships-pro" />
+      <div className="search-container" id="search-container">
+        <input type="text" id="repo-input" placeholder="owner/repo" />
         <button id="generate-btn" className="btn-primary">Load Repo</button>
       </div>
+      <div id="popular-repos"></div>
       <div id="error"></div>
       <div id="loading">
         <div className="progress-container">

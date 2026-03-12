@@ -19,6 +19,7 @@ let showMissing = false;
 let cardSearch = '';
 
 const searchContainer = document.getElementById('search-container');
+const popularRepos = document.getElementById('popular-repos');
 
 // Bind button events (replaces inline onclick handlers)
 btn.addEventListener('click', () => loadRepo());
@@ -42,10 +43,41 @@ input.addEventListener('keydown', e => { if (e.key === 'Enter') loadRepo(); });
 
 function quickLoad(repo) { input.value = repo; loadRepo(); }
 
-// Auto-load from URL param or default to PMPro
+// Fetch and display popular repos
+async function loadPopularRepos() {
+  try {
+    const res = await fetch('/api/repos');
+    if (!res.ok) return;
+    const repos = await res.json();
+    if (!repos.length) {
+      popularRepos.innerHTML = `<div class="popular-section">
+        <p class="popular-hint">Enter a GitHub repo above to get started!</p>
+      </div>`;
+      return;
+    }
+    popularRepos.innerHTML = `<div class="popular-section">
+      <h3 class="popular-title">Popular Repos</h3>
+      <div class="popular-grid">${repos.map(r => `
+        <button class="popular-repo-btn" data-repo="${r.name}">
+          <span class="popular-repo-name">${r.name}</span>
+          <span class="popular-repo-cards">${r.cards} cards</span>
+        </button>`).join('')}
+      </div>
+    </div>`;
+    popularRepos.querySelectorAll('.popular-repo-btn').forEach(b => {
+      b.addEventListener('click', () => quickLoad(b.dataset.repo));
+    });
+  } catch (e) { /* silent */ }
+}
+
+// Auto-load from URL param, otherwise show repo browser
 const urlRepo = new URLSearchParams(window.location.search).get('repo');
-if (urlRepo) { input.value = urlRepo; }
-loadRepo();
+if (urlRepo) {
+  input.value = urlRepo;
+  loadRepo();
+} else {
+  loadPopularRepos();
+}
 function saveLibrary() {
   if (!currentRepoName) return;
   try { localStorage.setItem('ghtc_lib_' + currentRepoName.toLowerCase(), JSON.stringify(library)); } catch (e) { }
@@ -65,6 +97,7 @@ async function loadRepo() {
   if (!match) return showError('Enter a valid repo like owner/repo');
   const [, owner, repo] = match;
   showError(''); grid.innerHTML = ''; repoInfo.style.display = 'none';
+  popularRepos.style.display = 'none';
   loading.style.display = 'block'; btn.disabled = true;
   try {
     loading.innerHTML = `<div style="text-align:center;padding:60px 20px">
@@ -86,6 +119,7 @@ async function loadRepo() {
     loadLibrary();
     loading.style.display = 'none';
     searchContainer.style.display = 'none';
+    document.getElementById('gallery-screen').classList.add('repo-loaded');
     history.replaceState(null, '', `?repo=${owner}/${repo}`);
     renderRepoInfo(owner, repo);
     renderLibrary();
@@ -97,10 +131,13 @@ function renderRepoInfo(owner, repo) {
   repoInfo.style.display = 'block';
   const collected = Object.keys(library).length;
   const total = allContributors.length;
-  repoInfo.innerHTML = `<div class="repo-info-inner">
-      <h2><span>${owner || ''}</span> / <span>${repo || ''}</span></h2>
-      <div class="repo-info-sep"></div>
-      <div class="collection-progress"><span>${collected}</span> / <span>${total}</span> collected</div>
+  repoInfo.innerHTML = `<div class="repo-info-row">
+      <div class="repo-info-inner">
+        <h2><span>${owner || ''}</span> / <span>${repo || ''}</span></h2>
+        <div class="repo-info-sep"></div>
+        <div class="collection-progress"><span>${collected}</span> / <span>${total}</span> collected</div>
+      </div>
+      <button class="switch-repo-btn" id="switch-repo-btn">Switch Repo</button>
     </div>
     <div class="action-buttons">
       <button class="btn-secondary" onclick="openPack()" ${total === 0 ? 'disabled' : ''}>Open Pack</button>
@@ -125,6 +162,9 @@ function renderRepoInfo(owner, repo) {
   if (searchInput) {
     searchInput.addEventListener('input', e => { cardSearch = e.target.value; renderLibrary(); const el = document.getElementById('card-search'); if (el) { el.focus(); el.setSelectionRange(cardSearch.length, cardSearch.length); } });
   }
+  // Wire up switch repo button
+  const switchBtn = document.getElementById('switch-repo-btn');
+  if (switchBtn) switchBtn.addEventListener('click', () => newRepo());
 }
 
 function setFilter(rarity) {
@@ -479,9 +519,12 @@ function newRepo() {
   grid.innerHTML = '';
   repoInfo.style.display = 'none';
   searchContainer.style.display = '';
+  popularRepos.style.display = '';
+  document.getElementById('gallery-screen').classList.remove('repo-loaded');
   input.value = '';
   input.focus();
   history.replaceState(null, '', window.location.pathname);
+  loadPopularRepos();
 }
 
 // ===== RENDER LIBRARY =====

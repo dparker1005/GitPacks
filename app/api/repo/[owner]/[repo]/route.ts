@@ -71,7 +71,7 @@ async function fetchAllIssues(
     const totalItems = Object.values(stats).reduce((s, v) => s + v.prsMerged + v.issues, 0);
     onProgress(totalItems, page);
     page++;
-    if (page > 200) break;
+    if (page > 50) break;
   }
 
   return stats;
