@@ -226,7 +226,7 @@
     /* === PACK OPENING OVERLAY === */
     .pack-overlay { position:fixed; inset:0; z-index:9000; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.92); backdrop-filter:blur(10px); animation:fadeIn 0.3s ease; overflow-y:auto; -webkit-overflow-scrolling:touch; }
     @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
-    .pack-container { text-align:center; position:relative; }
+    .pack-container { text-align:center; position:relative; width:100%; }
     .pack-wrapper { width:180px; height:260px; margin:0 auto 30px; position:relative; cursor:pointer; perspective:800px; }
     .pack-face { width:100%; height:100%; border-radius:4px 4px 6px 6px; position:relative; background:linear-gradient(170deg, #1a1a40 0%, #2d1b69 40%, #1a1a40 60%, #2d1b69 100%); border:2px solid rgba(120,115,245,0.4); display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:0 0 40px rgba(120,115,245,0.2), 0 20px 60px rgba(0,0,0,0.5); transition:transform 0.3s, box-shadow 0.3s; overflow:hidden; }
     .pack-face:hover { transform:translateY(-4px) scale(1.02); box-shadow:0 0 60px rgba(120,115,245,0.35), 0 25px 70px rgba(0,0,0,0.6); }
@@ -585,15 +585,20 @@
 
     @media (max-width:600px) {
       header h1 { font-size:1.5rem; }
-      .card-wrapper { width:290px; height:450px; }
+      /* Scale gallery cards down instead of changing dimensions, so content stays proportional */
+      #cards-grid { gap:12px; padding:10px 10px 60px; }
+      #cards-grid .card-wrapper { width:320px; height:480px; transform:scale(0.82); transform-origin:top center; margin-bottom:-86px; animation:cardEnterMobile 0.5s ease forwards; }
       .reveal-area { gap:8px; padding:0 8px; flex-wrap:wrap; justify-content:center; }
       .reveal-slot { width:calc(33.33% - 6px); max-width:130px; height:auto; aspect-ratio:190/293; flex-shrink:1; }
       .reveal-slot.hoverable:hover .reveal-card { transform:rotateY(0deg) scale(1.08) !important; }
       .pack-container { overflow-y:auto; max-height:100vh; max-height:100dvh; padding:10px 0; }
       .fullscreen-card-container { width:240px; }
-      .fullscreen-card-container .card-wrapper { width:320px; height:480px; transform:scale(0.72) !important; transform-origin:top center; margin-bottom:-100px; }
+      .fullscreen-card-container .card-wrapper { width:320px; height:480px; transform:scale(0.72) !important; transform-origin:top center; margin-bottom:-134px; }
     }
+    @keyframes cardEnterMobile { from { opacity:0; transform:scale(0.82) translateY(30px); } to { opacity:1; transform:scale(0.82) translateY(0); } }
+    @keyframes cardEnterSmall { from { opacity:0; transform:scale(0.75) translateY(30px); } to { opacity:1; transform:scale(0.75) translateY(0); } }
     @media (max-width:400px) {
+      #cards-grid .card-wrapper { transform:scale(0.75); margin-bottom:-120px; animation:cardEnterSmall 0.5s ease forwards; }
       .reveal-slot { width:calc(33.33% - 6px); max-width:105px; }
     }
 

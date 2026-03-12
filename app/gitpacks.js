@@ -226,11 +226,17 @@ function revealCards(overlay, picks) {
   let flipped = 0;
   let revealComplete = false;
 
+  // Force reflow so percentage-based slot widths resolve before measuring
+  area.offsetHeight;
+
   // Dynamically scale gallery cards (320x480) to fit actual slot dimensions
   slots.forEach(s => {
-    const slotW = s.offsetWidth || 190;
-    const slotH = s.offsetHeight || 293;
-    const cardScale = Math.min(slotW / 320, slotH / 480);
+    const slotW = s.offsetWidth;
+    const slotH = s.offsetHeight;
+    // Fallback to default desktop size if layout hasn't resolved
+    const w = slotW > 10 ? slotW : 190;
+    const h = slotH > 10 ? slotH : 293;
+    const cardScale = Math.min(w / 320, h / 480);
     const cw = s.querySelector('.reveal-card-front .card-wrapper');
     if (cw) cw.style.transform = `scale(${cardScale})`;
   });
