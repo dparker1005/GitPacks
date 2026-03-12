@@ -135,8 +135,10 @@ function setFilter(rarity) {
 
 
 // ===== OPEN PACK =====
+let packOpen = false;
 async function openPack() {
-  if (!allContributors.length) return;
+  if (!allContributors.length || packOpen) return;
+  packOpen = true;
   const [owner, repo] = currentRepoName.split('/');
   const response = await fetch(`/api/repo/${owner}/${repo}/pack`);
   if (!response.ok) throw new Error('Failed to draw pack');
@@ -178,7 +180,7 @@ async function openPack() {
   document.addEventListener('keydown', packSpaceHandler);
 
   // Close button and Escape key to exit pack opening
-  function closePack() { overlay.remove(); document.removeEventListener('keydown', packSpaceHandler); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); }
+  function closePack() { packOpen = false; overlay.remove(); document.removeEventListener('keydown', packSpaceHandler); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); }
   overlay._escHandler = e => { if (e.code === 'Escape') closePack(); };
   document.addEventListener('keydown', overlay._escHandler);
   overlay.querySelector('#pack-close-btn').addEventListener('click', closePack);
@@ -189,10 +191,6 @@ function revealCards(overlay, picks) {
   area.style.display = 'flex';
   const rarityOrder = { common:0, rare:1, epic:2, legendary:3, mythic:4 };
   const sorted = [...picks].sort((a, b) => rarityOrder[a.rarity] - rarityOrder[b.rarity]);
-
-  // Compute scale to fit gallery card (320x480) into reveal slot (190x293)
-  const scaleX = 190 / 320, scaleY = 293 / 480;
-  const cardScale = Math.min(scaleX, scaleY);
 
   sorted.forEach((c, i) => {
     const isNew = !library[c.login];
@@ -213,7 +211,7 @@ function revealCards(overlay, picks) {
           <div class="reveal-card-back-brand">GitPacks</div>
         </div>
         <div class="reveal-card-front">
-          <div class="card-wrapper" data-rarity="${c.rarity}" style="transform:scale(${cardScale});opacity:1">${cardHTML}</div>
+          <div class="card-wrapper" data-rarity="${c.rarity}" style="opacity:1">${cardHTML}</div>
         </div>
       </div>`;
 
@@ -227,6 +225,15 @@ function revealCards(overlay, picks) {
   const slots = Array.from(area.querySelectorAll('.reveal-slot'));
   let flipped = 0;
   let revealComplete = false;
+
+  // Dynamically scale gallery cards (320x480) to fit actual slot dimensions
+  slots.forEach(s => {
+    const slotW = s.offsetWidth || 190;
+    const slotH = s.offsetHeight || 293;
+    const cardScale = Math.min(slotW / 320, slotH / 480);
+    const cw = s.querySelector('.reveal-card-front .card-wrapper');
+    if (cw) cw.style.transform = `scale(${cardScale})`;
+  });
 
   // Mark all as unflipped and stagger entrance
   // Force a layout so the unflipped styles (back face visible) are computed before fading in
@@ -363,11 +370,23 @@ function revealCards(overlay, picks) {
           });
         });
 
-        function openAnother() { overlay.remove(); document.removeEventListener('keydown', doneSpaceHandler); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); openPack(); }
+        let anotherOpened = false;
+        function openAnother() {
+          if (anotherOpened) return;
+          anotherOpened = true;
+          packOpen = false;
+          overlay.remove();
+          document.removeEventListener('keydown', doneSpaceHandler);
+          document.removeEventListener('keydown', overlay._escHandler);
+          renderRepoInfoFromCurrent(); renderLibrary(); openPack();
+        }
 
-        // Space to open another pack
+        // Space to open another pack — delay registration so a space press that
+        // triggered the last flip can't immediately trigger this handler too
         const doneSpaceHandler = e => { if (e.code === 'Space') { e.preventDefault(); openAnother(); } };
-        document.addEventListener('keydown', doneSpaceHandler);
+        setTimeout(() => {
+          if (!anotherOpened) document.addEventListener('keydown', doneSpaceHandler);
+        }, 200);
 
         // Show action buttons
         const btnWrap = document.createElement('div');
@@ -375,7 +394,7 @@ function revealCards(overlay, picks) {
         const doneBtn = document.createElement('button');
         doneBtn.className = 'reveal-done-btn';
         doneBtn.textContent = 'View Library';
-        doneBtn.onclick = () => { overlay.remove(); document.removeEventListener('keydown', doneSpaceHandler); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); };
+        doneBtn.onclick = () => { packOpen = false; overlay.remove(); document.removeEventListener('keydown', doneSpaceHandler); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); };
         const anotherBtn = document.createElement('button');
         anotherBtn.className = 'reveal-another-btn';
         anotherBtn.textContent = 'Open Another';
@@ -397,17 +416,17 @@ function revealCards(overlay, picks) {
   // Spacebar flips all remaining cards one at a time
   let spaceQueued = false;
   const spaceHandler = e => {
-    if (e.code === 'Space' && flipped < slots.length && !spaceQueued) {
-      e.preventDefault();
-      spaceQueued = true;
-      function flipAll() {
-        const next = getNextUnflipped();
-        if (!next) { spaceQueued = false; return; }
-        flipSlot(next);
-        setTimeout(flipAll, 150);
-      }
-      flipAll();
+    if (e.code !== 'Space') return;
+    e.preventDefault();
+    if (revealComplete || spaceQueued) return;
+    spaceQueued = true;
+    function flipAll() {
+      const next = getNextUnflipped();
+      if (!next) { spaceQueued = false; return; }
+      flipSlot(next);
+      setTimeout(flipAll, 150);
     }
+    flipAll();
   };
   document.addEventListener('keydown', spaceHandler);
 }
