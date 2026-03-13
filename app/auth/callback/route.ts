@@ -36,7 +36,8 @@ export async function GET(request: NextRequest) {
           id: user.id,
           github_username: meta.user_name || meta.preferred_username || '',
           avatar_url: meta.avatar_url || '',
-        }, { onConflict: 'id' });
+          ready_packs: 10,
+        }, { onConflict: 'id', ignoreDuplicates: true });
       }
       return NextResponse.redirect(`${origin}${next}`);
     }

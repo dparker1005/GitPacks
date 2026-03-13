@@ -68,3 +68,33 @@ CREATE POLICY "Users can delete own collections" ON user_collections FOR DELETE 
 CREATE POLICY "Users can view own packs" ON user_packs FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own packs" ON user_packs FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own packs" ON user_packs FOR UPDATE USING (auth.uid() = user_id);
+
+-- Self-card grants (permanent, one per user per repo)
+CREATE TABLE IF NOT EXISTS user_self_cards (
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  owner_repo TEXT NOT NULL,
+  granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, owner_repo)
+);
+
+-- Achievement milestones
+CREATE TABLE IF NOT EXISTS user_achievements (
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  owner_repo TEXT NOT NULL,
+  stat_type TEXT NOT NULL,
+  threshold INTEGER NOT NULL,
+  unlocked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, owner_repo, stat_type, threshold)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_self_cards_user ON user_self_cards(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_achievements_user_repo ON user_achievements(user_id, owner_repo);
+
+ALTER TABLE user_self_cards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_achievements ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own self cards" ON user_self_cards FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Allow insert self cards" ON user_self_cards FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Users can view own achievements" ON user_achievements FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Allow insert achievements" ON user_achievements FOR INSERT WITH CHECK (true);

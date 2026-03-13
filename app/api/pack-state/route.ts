@@ -5,74 +5,90 @@ const REGEN_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 hours
 const MAX_PACKS = 2;
 
 export async function GET() {
-  const supabase = await getSupabaseServer();
-  const { data: { user } } = await supabase.auth.getUser();
+  try {
+    const supabase = await getSupabaseServer();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-  if (!user) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  }
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Not authenticated', detail: authError?.message }, { status: 401 });
+    }
 
-  let { data: profile } = await supabase
-    .from('profiles')
-    .select('ready_packs, last_regen_at')
-    .eq('id', user.id)
-    .single();
-
-  if (!profile) {
-    // Auto-create profile
-    const meta = user.user_metadata || {};
-    const { error: upsertError } = await supabase.from('profiles').upsert({
-      id: user.id,
-      github_username: meta.user_name || meta.preferred_username || '',
-      avatar_url: meta.avatar_url || '',
-    }, { onConflict: 'id' });
-    console.error('[pack-state] profile upsert for', user.id, 'error:', upsertError?.message || 'none');
-    const { data: newProfile, error: fetchError } = await supabase
+    let { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('ready_packs, last_regen_at')
       .eq('id', user.id)
       .single();
-    console.error('[pack-state] profile re-fetch error:', fetchError?.message || 'none', 'data:', newProfile);
-    profile = newProfile;
+
     if (!profile) {
-      return NextResponse.json({ error: 'Failed to create profile', detail: upsertError?.message }, { status: 500 });
+      // Auto-create profile
+      const meta = user.user_metadata || {};
+      const { error: upsertError } = await supabase.from('profiles').upsert({
+        id: user.id,
+        github_username: meta.user_name || meta.preferred_username || '',
+        avatar_url: meta.avatar_url || '',
+        ready_packs: 10,
+      }, { onConflict: 'id', ignoreDuplicates: true });
+
+      if (upsertError) {
+        return NextResponse.json({
+          error: 'Profile creation failed',
+          detail: upsertError.message,
+          code: upsertError.code,
+          userId: user.id,
+        }, { status: 500 });
+      }
+
+      const { data: newProfile, error: refetchError } = await supabase
+        .from('profiles')
+        .select('ready_packs, last_regen_at')
+        .eq('id', user.id)
+        .single();
+
+      if (!newProfile) {
+        return NextResponse.json({
+          error: 'Profile created but fetch failed',
+          detail: refetchError?.message,
+          profileError: profileError?.message,
+          userId: user.id,
+        }, { status: 500 });
+      }
+      profile = newProfile;
     }
-  }
 
-  let readyPacks = profile.ready_packs;
-  let lastRegenAt = new Date(profile.last_regen_at).getTime();
-  let updated = false;
+    let readyPacks = profile.ready_packs;
+    let lastRegenAt = new Date(profile.last_regen_at).getTime();
+    let updated = false;
 
-  // Compute regen: if below max, check timer
-  while (readyPacks < MAX_PACKS) {
-    const elapsed = Date.now() - lastRegenAt;
-    if (elapsed >= REGEN_INTERVAL_MS) {
-      readyPacks++;
-      lastRegenAt = lastRegenAt + REGEN_INTERVAL_MS;
-      updated = true;
-    } else {
-      break;
+    while (readyPacks < MAX_PACKS) {
+      const elapsed = Date.now() - lastRegenAt;
+      if (elapsed >= REGEN_INTERVAL_MS) {
+        readyPacks++;
+        lastRegenAt = lastRegenAt + REGEN_INTERVAL_MS;
+        updated = true;
+      } else {
+        break;
+      }
     }
-  }
 
-  // Cap and persist if changed
-  if (readyPacks > MAX_PACKS) readyPacks = MAX_PACKS;
-  if (updated) {
-    await supabase
-      .from('profiles')
-      .update({ ready_packs: readyPacks, last_regen_at: new Date(lastRegenAt).toISOString() })
-      .eq('id', user.id);
-  }
+    if (readyPacks > MAX_PACKS) readyPacks = MAX_PACKS;
+    if (updated) {
+      await supabase
+        .from('profiles')
+        .update({ ready_packs: readyPacks, last_regen_at: new Date(lastRegenAt).toISOString() })
+        .eq('id', user.id);
+    }
 
-  // Calculate next regen time
-  let nextRegenAt: number | null = null;
-  if (readyPacks < MAX_PACKS) {
-    nextRegenAt = lastRegenAt + REGEN_INTERVAL_MS;
-  }
+    let nextRegenAt: number | null = null;
+    if (readyPacks < MAX_PACKS) {
+      nextRegenAt = lastRegenAt + REGEN_INTERVAL_MS;
+    }
 
-  return NextResponse.json({
-    readyPacks,
-    maxPacks: MAX_PACKS,
-    nextRegenAt,
-  });
+    return NextResponse.json({
+      readyPacks,
+      maxPacks: MAX_PACKS,
+      nextRegenAt,
+    });
+  } catch (e: any) {
+    return NextResponse.json({ error: 'Unexpected error', detail: e?.message }, { status: 500 });
+  }
 }

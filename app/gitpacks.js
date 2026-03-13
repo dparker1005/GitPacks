@@ -34,6 +34,7 @@ let cardSearch = '';
 let packState = null; // { readyPacks, maxPacks, nextRegenAt }
 let packCountdownInterval = null;
 let guestPacksRemaining = 5; // for logged-out users
+let lastAchievementData = null; // achievement data for current repo
 
 const searchContainer = document.getElementById('search-container');
 const popularRepos = document.getElementById('popular-repos');
@@ -286,12 +287,29 @@ async function loadRepo() {
       await loadPackState();
     }
 
+    // Check achievements for logged-in users
+    lastAchievementData = null;
+    if (_currentUser) {
+      try {
+        const achRes = await fetch(`/api/achievements/${owner}/${repo}`);
+        if (achRes.ok) lastAchievementData = await achRes.json();
+      } catch { /* silent */ }
+    }
+
     loading.style.display = 'none';
     searchContainer.style.display = 'none';
     document.getElementById('gallery-screen').classList.add('repo-loaded');
     history.replaceState(null, '', `?repo=${owner}/${repo}`);
     renderRepoInfo(owner, repo);
     renderLibrary();
+
+    // Self-card reveal (still auto-grants on GET)
+    if (lastAchievementData && lastAchievementData.selfCard) {
+      revealSelfCard(lastAchievementData.selfCard, () => {
+        // Refresh library since self-card was added to collection
+        if (_currentUser) loadLibraryFromDB().then(() => { renderRepoInfoFromCurrent(); renderLibrary(); });
+      });
+    }
   } catch (err) { console.error('[GHTC] loadRepo error:', err.message, err.stack); showError(err.message); loading.style.display = 'none'; }
   btn.disabled = false;
 }
@@ -321,6 +339,80 @@ function renderRepoInfo(owner, repo) {
     authNudge = `<div class="auth-nudge"><span class="auth-nudge-icon">&#x1f512;</span> Sign in to save your collection across devices</div>`;
   }
 
+  // Achievement panel for contributors
+  let achievementHTML = '';
+  if (_currentUser && lastAchievementData && lastAchievementData.isContributor) {
+    const stats = lastAchievementData.contributor;
+    const milestones = lastAchievementData.milestones;
+    const statLabels = {
+      commits: { label: 'Commits', icon: '\u{1F4BB}', value: stats.commits },
+      prs_merged: { label: 'PRs Merged', icon: '\u{1F500}', value: stats.prsMerged },
+      issues: { label: 'Issues', icon: '\u{1F41B}', value: stats.issues },
+      active_weeks: { label: 'Active Weeks', icon: '\u{1F4C5}', value: stats.activeWeeks },
+      streak: { label: 'Streak', icon: '\u{1F525}', value: stats.maxStreak },
+      peak_week: { label: 'Peak Week', icon: '\u{26A1}', value: stats.peak },
+    };
+    const milestoneDefClient = {
+      commits: { fixed: [1,10,50,100,250], increment: 250 },
+      prs_merged: { fixed: [1,5,25,50,100], increment: 50 },
+      issues: { fixed: [1,5,25,50,100], increment: 50 },
+      active_weeks: { fixed: [1,4,12,26,52], increment: 26 },
+      streak: { fixed: [1,2,4,8,16], increment: 8 },
+      peak_week: { fixed: [1,5,10,20,40], increment: 20 },
+    };
+
+    let rows = '';
+    for (const [key, info] of Object.entries(statLabels)) {
+      const m = milestones[key];
+      if (!m) continue;
+
+      let markers = '';
+
+      // Claimed milestones (checkmark)
+      for (const t of m.claimed) {
+        markers += `<span class="ach-milestone claimed" title="Claimed: ${t}">\u2705 ${t}</span>`;
+      }
+
+      // Claimable milestones (button)
+      for (const t of m.claimable) {
+        markers += `<button class="ach-milestone claimable" data-claim="${key}-${t}" title="Claim pack for reaching ${t}">\u{1F381} ${t}</button>`;
+      }
+
+      // Next unearned milestone (grayed)
+      const allEarned = [...m.claimed, ...m.claimable];
+      const maxEarned = allEarned.length > 0 ? Math.max(...allEarned) : 0;
+      const def = milestoneDefClient[key];
+      if (def) {
+        let nextTarget = null;
+        for (const t of def.fixed) {
+          if (t > maxEarned && t > info.value) { nextTarget = t; break; }
+        }
+        if (!nextTarget && def.fixed.length > 0) {
+          let t = def.fixed[def.fixed.length - 1] + def.increment;
+          while (t <= maxEarned || t <= info.value) t += def.increment;
+          nextTarget = t;
+        }
+        if (nextTarget) {
+          markers += `<span class="ach-milestone future" title="Next: ${nextTarget}">\u2B1C ${nextTarget}</span>`;
+        }
+      }
+
+      rows += `<div class="ach-row">
+        <div class="ach-stat-info">
+          <span class="ach-icon">${info.icon}</span>
+          <span class="ach-label">${info.label}</span>
+          <span class="ach-value">${info.value}</span>
+        </div>
+        <div class="ach-milestones">${markers}</div>
+      </div>`;
+    }
+
+    achievementHTML = `<div class="achievement-panel">
+      <div class="achievement-header">\u{1F3C6} Your Achievements</div>
+      ${rows}
+    </div>`;
+  }
+
   repoInfo.innerHTML = `<div class="repo-info-row">
       <div class="repo-info-inner">
         <h2><span>${owner || ''}</span> / <span>${repo || ''}</span></h2>
@@ -334,6 +426,7 @@ function renderRepoInfo(owner, repo) {
       <button class="btn-secondary" id="open-pack-btn" ${total === 0 ? 'disabled' : ''} ${_currentUser && packState && packState.readyPacks <= 0 ? 'disabled' : ''} ${!_currentUser && localStorage.getItem('gp_guest_limit_reached') ? 'disabled' : ''}>${!_currentUser && localStorage.getItem('gp_guest_limit_reached') ? 'Sign In to Open Packs' : 'Open Pack'}</button>
       ${packHTML}
     </div>
+    ${achievementHTML}
     <div class="filter-bar" id="filter-bar">
       <button class="filter-btn ${filterRarity==='all'?'active':''}" data-rarity="all" onclick="setFilter('all')">All</button>
       <button class="filter-btn ${filterRarity==='mythic'?'active':''}" data-rarity="mythic" onclick="setFilter('mythic')">Mythic</button>
@@ -359,6 +452,14 @@ function renderRepoInfo(owner, repo) {
   // Wire up switch repo button
   const switchBtn = document.getElementById('switch-repo-btn');
   if (switchBtn) switchBtn.addEventListener('click', () => newRepo());
+
+  // Wire up achievement claim buttons
+  repoInfo.querySelectorAll('[data-claim]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const [statType, threshold] = btn.dataset.claim.split('-');
+      claimMilestone(statType, parseInt(threshold, 10));
+    });
+  });
 
   // Start countdown timer if needed
   if (_currentUser && packState && packState.nextRegenAt) {
@@ -813,6 +914,177 @@ function revealCards(overlay, picks, onComplete) {
     flipAll();
   };
   document.addEventListener('keydown', spaceHandler);
+}
+
+// ===== SELF-CARD REVEAL =====
+function revealSelfCard(contributor, onDone) {
+  const overlay = document.createElement('div');
+  overlay.className = 'self-card-overlay';
+
+  const cardNum = allContributors.indexOf(contributor) + 1;
+  const cardHTML = buildGalleryCard(contributor, cardNum, allContributors.length);
+
+  overlay.innerHTML = `
+    <button class="pack-close-btn" id="self-card-close-btn">&times;</button>
+    <div class="self-card-container">
+      <div class="self-card-message">You're a contributor!</div>
+      <div class="self-card-slot">
+        <div class="rarity-glow"></div>
+        <div class="reveal-card">
+          <div class="reveal-card-back">
+            <div class="reveal-card-back-logo">${GP_ICON}</div>
+            <div class="reveal-card-back-repo"><span class="repo-owner">${currentRepoName.split('/')[0]}</span><span class="repo-name">${currentRepoName.split('/')[1] || ''}</span></div>
+            <div class="reveal-card-back-brand">GitPacks</div>
+          </div>
+          <div class="reveal-card-front">
+            <div class="card-wrapper" data-rarity="${contributor.rarity}" style="opacity:1">${cardHTML}</div>
+          </div>
+        </div>
+      </div>
+      <div class="self-card-subtitle">Your card has been added to your collection</div>
+      <button class="btn-primary self-card-continue" id="self-card-continue">Continue</button>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  // Scale the card to fit
+  const slot = overlay.querySelector('.self-card-slot');
+  const cw = slot.querySelector('.reveal-card-front .card-wrapper');
+  if (cw) {
+    const slotW = slot.offsetWidth || 220;
+    const slotH = slot.offsetHeight || 340;
+    const cardScale = Math.min(slotW / 320, slotH / 480);
+    cw.style.transform = `scale(${cardScale})`;
+  }
+
+  // Start face-down, auto-flip after a delay
+  slot.classList.add('unflipped');
+  const card = slot.querySelector('.reveal-card');
+  const rarity = contributor.rarity;
+
+  setTimeout(() => {
+    slot.classList.remove('unflipped');
+    card.classList.add('flip-' + rarity);
+
+    const glowDelay = { common:400, rare:600, epic:800, legendary:1000, mythic:1400 }[rarity] || 400;
+    setTimeout(() => {
+      if (rarity !== 'common') slot.classList.add('revealed');
+    }, glowDelay * 0.5);
+
+    // Add rarity effects
+    if (rarity === 'mythic') {
+      overlay.classList.add('shake-screen');
+      setTimeout(() => overlay.classList.remove('shake-screen'), 600);
+      slot.insertAdjacentHTML('beforeend', '<div class="mythic-flash"></div><div class="mythic-ring"></div>');
+      let particles = '<div class="leg-particles">';
+      const colors = ['#ff0040','#ff6600','#fff','#ff00ff'];
+      for (let i = 0; i < 20; i++) {
+        const angle = (Math.PI * 2 / 20) * i;
+        const dist = 80 + Math.random() * 120;
+        const px = Math.cos(angle) * dist;
+        const py = Math.sin(angle) * dist;
+        const col = colors[Math.floor(Math.random() * colors.length)];
+        particles += `<div class="leg-particle" style="width:5px;height:5px;background:${col};--px:${px}px;--py:${py}px;--pdur:${0.8 + Math.random() * 0.6}s;--pdelay:${Math.random() * 0.2}s"></div>`;
+      }
+      particles += '</div>';
+      slot.insertAdjacentHTML('beforeend', particles);
+    } else if (rarity === 'legendary') {
+      overlay.classList.add('shake-screen');
+      setTimeout(() => overlay.classList.remove('shake-screen'), 500);
+      slot.insertAdjacentHTML('beforeend', '<div class="legendary-flash"></div><div class="legendary-ring"></div>');
+      let particles = '<div class="leg-particles">';
+      const colors = ['#ffd700','#ff6ec7','#fff'];
+      for (let i = 0; i < 15; i++) {
+        const angle = (Math.PI * 2 / 15) * i;
+        const dist = 60 + Math.random() * 100;
+        const px = Math.cos(angle) * dist;
+        const py = Math.sin(angle) * dist;
+        const col = colors[Math.floor(Math.random() * colors.length)];
+        particles += `<div class="leg-particle" style="width:4px;height:4px;background:${col};--px:${px}px;--py:${py}px;--pdur:${0.6 + Math.random() * 0.5}s;--pdelay:${Math.random() * 0.2}s"></div>`;
+      }
+      particles += '</div>';
+      slot.insertAdjacentHTML('beforeend', particles);
+    } else if (rarity === 'epic') {
+      slot.insertAdjacentHTML('beforeend', '<div class="epic-flash"></div><div class="epic-ring"></div>');
+    } else if (rarity === 'rare') {
+      slot.insertAdjacentHTML('beforeend', '<div class="rare-flash"></div>');
+    }
+  }, 800);
+
+  function closeOverlay() {
+    overlay.remove();
+    document.removeEventListener('keydown', escHandler);
+    if (onDone) onDone();
+  }
+
+  const escHandler = e => { if (e.key === 'Escape') closeOverlay(); };
+  document.addEventListener('keydown', escHandler);
+  overlay.querySelector('#self-card-close-btn').addEventListener('click', closeOverlay);
+  overlay.querySelector('#self-card-continue').addEventListener('click', closeOverlay);
+}
+
+// ===== CLAIM MILESTONE =====
+async function claimMilestone(statType, threshold) {
+  const [owner, repo] = currentRepoName.split('/');
+  const btn = document.querySelector(`[data-claim="${statType}-${threshold}"]`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Claiming...'; }
+
+  try {
+    const res = await fetch(`/api/achievements/${owner}/${repo}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stat_type: statType, threshold }),
+    });
+    if (!res.ok) {
+      if (btn) { btn.disabled = false; btn.textContent = '\u{1F381} ' + threshold; }
+      return;
+    }
+    const data = await res.json();
+
+    // Mark as claimed in local achievement data
+    if (lastAchievementData && lastAchievementData.milestones && lastAchievementData.milestones[statType]) {
+      lastAchievementData.milestones[statType].claimed.push(threshold);
+      lastAchievementData.milestones[statType].claimable =
+        lastAchievementData.milestones[statType].claimable.filter(t => t !== threshold);
+    }
+
+    // Update the achievements panel
+    renderRepoInfoFromCurrent();
+
+    // Open the pack reveal with the drawn cards
+    revealMilestonePack(data.cards);
+  } catch (err) {
+    console.error('[GHTC] claimMilestone error:', err);
+    if (btn) { btn.disabled = false; btn.textContent = '\u{1F381} ' + threshold; }
+  }
+}
+
+function revealMilestonePack(cards) {
+  packOpen = true;
+  const overlay = document.createElement('div');
+  overlay.className = 'pack-overlay';
+  overlay.innerHTML = `
+    <button class="pack-close-btn" id="pack-close-btn">&times;</button>
+    <div class="pack-container">
+      <div class="reveal-area" id="reveal-area" style="display:flex"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  function closePack() {
+    packOpen = false;
+    overlay.remove();
+    document.removeEventListener('keydown', escHandler);
+    // Refresh collection from DB
+    if (_currentUser) loadLibraryFromDB().then(() => { renderRepoInfoFromCurrent(); renderLibrary(); });
+  }
+  const escHandler = e => { if (e.code === 'Escape') closePack(); };
+  document.addEventListener('keydown', escHandler);
+  overlay.querySelector('#pack-close-btn').addEventListener('click', closePack);
+
+  // Go directly to card reveal (no pack tearing animation)
+  revealCards(overlay, cards, () => {
+    // Cards revealed - collection already saved server-side
+  });
 }
 
 // ===== COMPLETE LIBRARY =====

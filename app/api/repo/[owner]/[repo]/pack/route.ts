@@ -161,7 +161,8 @@ export async function GET(
       id: user.id,
       github_username: meta.user_name || meta.preferred_username || '',
       avatar_url: meta.avatar_url || '',
-    }, { onConflict: 'id' });
+      ready_packs: 10,
+    }, { onConflict: 'id', ignoreDuplicates: true });
     // Re-fetch with defaults applied
     const { data: newProfile } = await supabase
       .from('profiles')
