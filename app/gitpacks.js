@@ -189,10 +189,38 @@ async function loadPopularRepos() {
         </button>`;
     }
 
+    // For logged-in users, also fetch repos they contribute to on GitHub
+    let contributedRepos = [];
+    if (_currentUser) {
+      try {
+        const crRes = await fetch('/api/user-contributed-repos');
+        if (crRes.ok) contributedRepos = await crRes.json();
+      } catch { /* silent */ }
+    }
+
+    // Filter out contributed repos that are already in the cached repo list
+    const cachedNames = new Set(repos.map(r => r.name.toLowerCase()));
+    const newContributed = contributedRepos.filter(r => !cachedNames.has(r.name.toLowerCase()));
+
+    function contribBtn(r) {
+      return `<button class="popular-repo-btn contributed-repo-btn" data-repo="${r.name}">
+          <span class="popular-repo-name">${r.name}</span>
+          <span class="popular-repo-meta">
+            <span class="popular-repo-stars">${r.stars > 0 ? '\u2B50 ' + (r.stars >= 1000 ? (r.stars/1000).toFixed(1) + 'k' : r.stars) : ''}</span>
+          </span>
+        </button>`;
+    }
+
     let html = '';
+    if (newContributed.length) {
+      html += `<div class="popular-section">
+        <h3 class="popular-title">Repos You Contribute To</h3>
+        <div class="popular-grid">${newContributed.map(contribBtn).join('')}</div>
+      </div>`;
+    }
     if (yourRepos.length) {
       html += `<div class="popular-section">
-        <h3 class="popular-title">Your Repos</h3>
+        <h3 class="popular-title">Your Collection</h3>
         <div class="popular-grid">${yourRepos.map(repoBtn).join('')}</div>
       </div>`;
     }
