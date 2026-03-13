@@ -122,6 +122,15 @@
     .repo-info-sep { width:1px; height:24px; background:rgba(120,115,245,0.2); }
     .collection-progress { color:#888; font-size:0.75rem; font-family:'Orbitron',sans-serif; letter-spacing:1px; }
     .collection-progress span { color:#4adede; }
+    .collection-progress.complete { background:linear-gradient(135deg,#7873f5,#4adede); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .collection-progress.complete span { -webkit-text-fill-color:transparent; }
+
+    /* === COLLECTION COMPLETE BANNER === */
+    .collection-complete-banner { text-align:center; padding:20px 24px; margin:12px 0; border:2px solid rgba(120,115,245,0.4); border-radius:14px; background:linear-gradient(135deg,rgba(120,115,245,0.08),rgba(74,222,222,0.08)); position:relative; overflow:hidden; }
+    .collection-complete-banner::before { content:''; position:absolute; inset:-2px; border-radius:16px; background:linear-gradient(135deg,#7873f5,#4adede,#7873f5); z-index:-1; animation:completeBorderRotate 3s linear infinite; background-size:300% 300%; }
+    @keyframes completeBorderRotate { 0% { background-position:0% 50%; } 50% { background-position:100% 50%; } 100% { background-position:0% 50%; } }
+    .complete-title { font-family:'Orbitron',sans-serif; font-size:1.2rem; font-weight:900; letter-spacing:3px; text-transform:uppercase; background:linear-gradient(135deg,#7873f5,#4adede); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .complete-subtitle { font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:#aaa; letter-spacing:1px; margin-top:4px; }
     .action-buttons { display:flex; gap:10px; justify-content:center; margin-top:14px; flex-wrap:wrap; align-items:center; }
 
     /* === FILTERS === */

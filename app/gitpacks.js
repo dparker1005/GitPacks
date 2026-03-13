@@ -519,14 +519,21 @@ function renderRepoInfo(owner, repo) {
     </div>`;
   }
 
+  const isComplete = total > 0 && collected >= total;
+  const completeBanner = isComplete ? `<div class="collection-complete-banner">
+    <div class="complete-title">Collection Complete</div>
+    <div class="complete-subtitle">${total} / ${total} contributors collected</div>
+  </div>` : '';
+
   repoInfo.innerHTML = `<div class="repo-info-row">
       <div class="repo-info-inner">
         <h2><span>${owner || ''}</span> / <span>${repo || ''}</span></h2>
         <div class="repo-info-sep"></div>
-        <div class="collection-progress"><span>${collected}</span> / <span>${total}</span> collected</div>
+        <div class="collection-progress${isComplete ? ' complete' : ''}"><span>${collected}</span> / <span>${total}</span> collected</div>
       </div>
       <button class="switch-repo-btn" id="switch-repo-btn">Switch Repo</button>
     </div>
+    ${completeBanner}
     ${authNudge}
     <div class="action-buttons">
       <button class="btn-secondary" id="open-pack-btn" ${total === 0 ? 'disabled' : ''} ${_currentUser && packState && packState.readyPacks <= 0 ? 'disabled' : ''} ${!_currentUser && localStorage.getItem('gp_guest_limit_reached') ? 'disabled' : ''}>${!_currentUser && localStorage.getItem('gp_guest_limit_reached') ? 'Sign In to Open Packs' : 'Open Pack'}</button>
@@ -1251,6 +1258,9 @@ function revealMilestonePack(cards) {
 
           // Space to open next
           setTimeout(() => setSpaceAction(() => nextBtn.onclick()), 200);
+        } else {
+          // No more achievement packs — space closes
+          setTimeout(() => setSpaceAction(closePack), 200);
         }
 
         overlay.querySelector('.pack-container').appendChild(btnWrap);
