@@ -59,23 +59,24 @@ export async function GET() {
     let lastRegenAt = new Date(profile.last_regen_at).getTime();
     let updated = false;
 
-    while (readyPacks < MAX_PACKS) {
-      const elapsed = Date.now() - lastRegenAt;
-      if (elapsed >= REGEN_INTERVAL_MS) {
-        readyPacks++;
-        lastRegenAt = lastRegenAt + REGEN_INTERVAL_MS;
-        updated = true;
-      } else {
-        break;
+    // Only regen if below MAX_PACKS (don't touch starter/bonus packs above cap)
+    if (readyPacks < MAX_PACKS) {
+      while (readyPacks < MAX_PACKS) {
+        const elapsed = Date.now() - lastRegenAt;
+        if (elapsed >= REGEN_INTERVAL_MS) {
+          readyPacks++;
+          lastRegenAt = lastRegenAt + REGEN_INTERVAL_MS;
+          updated = true;
+        } else {
+          break;
+        }
       }
-    }
-
-    if (readyPacks > MAX_PACKS) readyPacks = MAX_PACKS;
-    if (updated) {
-      await supabase
-        .from('profiles')
-        .update({ ready_packs: readyPacks, last_regen_at: new Date(lastRegenAt).toISOString() })
-        .eq('id', user.id);
+      if (updated) {
+        await supabase
+          .from('profiles')
+          .update({ ready_packs: readyPacks, last_regen_at: new Date(lastRegenAt).toISOString() })
+          .eq('id', user.id);
+      }
     }
 
     let nextRegenAt: number | null = null;

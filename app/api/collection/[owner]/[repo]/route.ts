@@ -17,7 +17,7 @@ export async function GET(
   const ownerRepo = `${owner}/${repo}`.toLowerCase();
   const { data, error } = await supabase
     .from('user_collections')
-    .select('login, count')
+    .select('contributor_login, count')
     .eq('user_id', user.id)
     .eq('owner_repo', ownerRepo);
 
@@ -28,7 +28,7 @@ export async function GET(
   // Convert to { login: count } map
   const collection: Record<string, number> = {};
   (data || []).forEach((row: any) => {
-    collection[row.login] = row.count;
+    collection[row.contributor_login] = row.count;
   });
 
   return NextResponse.json(collection);
@@ -62,7 +62,7 @@ export async function POST(
       .select('count')
       .eq('user_id', user.id)
       .eq('owner_repo', ownerRepo)
-      .eq('login', login)
+      .eq('contributor_login', login)
       .single();
 
     if (existing) {
@@ -71,11 +71,11 @@ export async function POST(
         .update({ count: existing.count + 1 })
         .eq('user_id', user.id)
         .eq('owner_repo', ownerRepo)
-        .eq('login', login);
+        .eq('contributor_login', login);
     } else {
       await supabase
         .from('user_collections')
-        .insert({ user_id: user.id, owner_repo: ownerRepo, login, count: 1 });
+        .insert({ user_id: user.id, owner_repo: ownerRepo, contributor_login: login, count: 1 });
     }
   }
 

@@ -14,7 +14,7 @@ export async function GET() {
   // Get all repos the user has cards in, with total collected count
   const { data: collections, error } = await supabase
     .from('user_collections')
-    .select('owner_repo, login')
+    .select('owner_repo, contributor_login')
     .eq('user_id', user.id);
 
   if (error) {

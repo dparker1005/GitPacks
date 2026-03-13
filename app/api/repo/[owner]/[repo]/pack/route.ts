@@ -178,17 +178,18 @@ export async function GET(
   let readyPacks = profile.ready_packs;
   let lastRegenAt = new Date(profile.last_regen_at).getTime();
 
-  // Compute regen
-  while (readyPacks < MAX_PACKS) {
-    const elapsed = Date.now() - lastRegenAt;
-    if (elapsed >= REGEN_INTERVAL_MS) {
-      readyPacks++;
-      lastRegenAt = lastRegenAt + REGEN_INTERVAL_MS;
-    } else {
-      break;
+  // Only regen if below MAX_PACKS (don't touch starter/bonus packs above cap)
+  if (readyPacks < MAX_PACKS) {
+    while (readyPacks < MAX_PACKS) {
+      const elapsed = Date.now() - lastRegenAt;
+      if (elapsed >= REGEN_INTERVAL_MS) {
+        readyPacks++;
+        lastRegenAt = lastRegenAt + REGEN_INTERVAL_MS;
+      } else {
+        break;
+      }
     }
   }
-  if (readyPacks > MAX_PACKS) readyPacks = MAX_PACKS;
 
   if (readyPacks <= 0) {
     // Calculate next regen time for the response
@@ -202,12 +203,12 @@ export async function GET(
   // 2. Get pity state for this repo
   const { data: pityData } = await supabase
     .from('user_packs')
-    .select('packs_opened, packs_since_legendary, packs_since_mythic')
+    .select('total_opened, packs_since_legendary, packs_since_mythic')
     .eq('user_id', user.id)
     .eq('owner_repo', cacheKey)
     .single();
 
-  const packsOpened = pityData?.packs_opened ?? 0;
+  const packsOpened = pityData?.total_opened ?? 0;
   const packsSinceLegendary = pityData?.packs_since_legendary ?? 0;
   const packsSinceMythic = pityData?.packs_since_mythic ?? 0;
 
@@ -253,7 +254,7 @@ export async function GET(
   const newPityData = {
     user_id: user.id,
     owner_repo: cacheKey,
-    packs_opened: packsOpened + 1,
+    total_opened: packsOpened + 1,
     packs_since_legendary: gotLegendary ? 0 : packsSinceLegendary + 1,
     packs_since_mythic: gotMythic ? 0 : packsSinceMythic + 1,
   };
@@ -284,7 +285,7 @@ export async function GET(
       .select('count')
       .eq('user_id', user.id)
       .eq('owner_repo', cacheKey)
-      .eq('login', card.login)
+      .eq('contributor_login', card.login)
       .single();
 
     if (existing) {
@@ -293,11 +294,11 @@ export async function GET(
         .update({ count: existing.count + 1 })
         .eq('user_id', user.id)
         .eq('owner_repo', cacheKey)
-        .eq('login', card.login);
+        .eq('contributor_login', card.login);
     } else {
       await supabase
         .from('user_collections')
-        .insert({ user_id: user.id, owner_repo: cacheKey, login: card.login, count: 1 });
+        .insert({ user_id: user.id, owner_repo: cacheKey, contributor_login: card.login, count: 1 });
     }
   }
 

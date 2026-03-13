@@ -17,10 +17,10 @@ interface Contributor {
 const MILESTONE_DEFS: Record<string, { fixed: number[]; increment: number; statKey: string }> = {
   commits:      { fixed: [1, 10, 50, 100, 250],  increment: 250, statKey: 'commits' },
   prs_merged:   { fixed: [1, 5, 25, 50, 100],    increment: 50,  statKey: 'prsMerged' },
-  issues:       { fixed: [1, 5, 25, 50, 100],     increment: 50,  statKey: 'issues' },
+  issues:       { fixed: [1, 3, 10, 25, 50],       increment: 25,  statKey: 'issues' },
   active_weeks: { fixed: [1, 4, 12, 26, 52],      increment: 26,  statKey: 'activeWeeks' },
-  streak:       { fixed: [1, 2, 4, 8, 16],         increment: 8,   statKey: 'maxStreak' },
-  peak_week:    { fixed: [1, 5, 10, 20, 40],       increment: 20,  statKey: 'peak' },
+  streak:       { fixed: [1, 2, 4, 8, 12],          increment: 4,   statKey: 'maxStreak' },
+  peak_week:    { fixed: [1, 3, 5, 10, 20],         increment: 10,  statKey: 'peak' },
 };
 
 function getEarnedThresholds(statValue: number, fixed: number[], increment: number): number[] {
@@ -208,7 +208,7 @@ export async function GET(
         .select('count')
         .eq('user_id', user.id)
         .eq('owner_repo', ownerRepo)
-        .eq('login', contributor.login)
+        .eq('contributor_login', contributor.login)
         .single();
 
       if (existing) {
@@ -217,11 +217,11 @@ export async function GET(
           .update({ count: existing.count + 1 })
           .eq('user_id', user.id)
           .eq('owner_repo', ownerRepo)
-          .eq('login', contributor.login);
+          .eq('contributor_login', contributor.login);
       } else {
         await supabase
           .from('user_collections')
-          .insert({ user_id: user.id, owner_repo: ownerRepo, login: contributor.login, count: 1 });
+          .insert({ user_id: user.id, owner_repo: ownerRepo, contributor_login: contributor.login, count: 1 });
       }
 
       selfCard = contributor;
@@ -381,7 +381,7 @@ export async function POST(
         .select('count')
         .eq('user_id', user.id)
         .eq('owner_repo', ownerRepo)
-        .eq('login', card.login)
+        .eq('contributor_login', card.login)
         .single();
 
       if (existing) {
@@ -390,11 +390,11 @@ export async function POST(
           .update({ count: existing.count + 1 })
           .eq('user_id', user.id)
           .eq('owner_repo', ownerRepo)
-          .eq('login', card.login);
+          .eq('contributor_login', card.login);
       } else {
         await supabase
           .from('user_collections')
-          .insert({ user_id: user.id, owner_repo: ownerRepo, login: card.login, count: 1 });
+          .insert({ user_id: user.id, owner_repo: ownerRepo, contributor_login: card.login, count: 1 });
       }
     }
 
