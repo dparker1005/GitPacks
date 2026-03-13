@@ -327,7 +327,7 @@ function renderRepoInfo(owner, repo) {
       <div class="pack-count">
         <span class="pack-count-icon">${GP_ICON}</span>
         <span class="pack-count-num">${readyPacks}</span>
-        <span class="pack-count-label">pack${readyPacks !== 1 ? 's' : ''} ready</span>
+        <span class="pack-count-label">pack${readyPacks !== 1 ? 's' : ''} <span class="pack-any-repo">usable on any repo</span></span>
       </div>
       ${readyPacks < maxPacks && nextRegenAt ? `<div class="pack-regen"><span class="pack-regen-label">Next pack in</span><span class="pack-regen-time" id="pack-countdown">--:--</span></div>` : ''}
     </div>`;
@@ -1219,7 +1219,7 @@ async function claimAllMilestones() {
     <button class="pack-close-btn" id="pack-close-btn">&times;</button>
     <div class="pack-container claim-all-container">
       <div class="claim-all-header">${claimable.length} Achievement Pack${claimable.length !== 1 ? 's' : ''}</div>
-      <div class="reveal-area claim-all-area" id="reveal-area" style="display:flex"></div>
+      <div class="reveal-area claim-all-area no-card-effects" id="reveal-area" style="display:flex"></div>
     </div>`;
   document.body.appendChild(overlay);
 
@@ -1324,9 +1324,16 @@ async function claimAllMilestones() {
   function addEffectsPass() {
     const effectSlots = slots.filter(s => s._rarity === 'legendary' || s._rarity === 'mythic');
 
+    // If no legendary/mythic, just remove the effects lock and show buttons
+    if (effectSlots.length === 0) {
+      area.classList.remove('no-card-effects');
+    }
+
     let idx = 0;
     function addNextEffect() {
       if (idx >= effectSlots.length) {
+        // All effects done — re-enable card shimmer/sparkles for all cards
+        area.classList.remove('no-card-effects');
         // Done — show buttons
         const btnWrap = document.createElement('div');
         btnWrap.className = 'reveal-buttons';

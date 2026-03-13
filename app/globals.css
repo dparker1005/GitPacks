@@ -85,6 +85,7 @@
     .pack-count-icon svg { width:20px; height:20px; }
     .pack-count-num { font-family:'Orbitron',sans-serif; font-size:1.2rem; font-weight:900; color:#4adede; }
     .pack-count-label { font-family:'Orbitron',sans-serif; font-size:0.6rem; color:#666; letter-spacing:1px; text-transform:uppercase; }
+    .pack-any-repo { display:block; font-family:'Rajdhani',sans-serif; font-size:0.7rem; color:#4adede; letter-spacing:0.5px; text-transform:none; margin-top:2px; }
     .pack-regen { display:flex; align-items:center; gap:8px; border-left:1px solid rgba(120,115,245,0.15); padding-left:16px; }
     .pack-regen-label { font-family:'Orbitron',sans-serif; font-size:0.55rem; color:#555; letter-spacing:1px; text-transform:uppercase; }
     .pack-regen-time { font-family:'Orbitron',sans-serif; font-size:0.8rem; color:#7873f5; letter-spacing:1px; font-weight:700; }
@@ -682,10 +683,15 @@
     .claim-all-container { overflow-y:auto; max-height:100vh; padding-top:20px; }
     .claim-all-header { font-family:'Orbitron',sans-serif; font-size:1.1rem; font-weight:900; letter-spacing:2px; text-transform:uppercase; text-align:center; margin-bottom:16px; background:linear-gradient(135deg,#7873f5,#4adede); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
     .claim-all-area { flex-wrap:wrap; justify-content:center; gap:42px 10px; padding:0 10px 20px; }
-    .claim-all-area .reveal-slot { will-change:transform; overflow:visible; }
+    .claim-all-area .reveal-slot { overflow:visible; }
     .claim-all-area .reveal-badge { z-index:50; }
     .claim-all-area .leg-particles { will-change:transform, opacity; }
     .claim-all-area .leg-particle { will-change:transform, opacity; }
+    /* Kill all continuous card animations during bulk flip (re-enabled per-card during effects pass) */
+    .claim-all-area.no-card-effects .card-sparkles { display:none !important; }
+    .claim-all-area.no-card-effects .card-holo { animation:none !important; opacity:0 !important; }
+    .claim-all-area.no-card-effects .card-rainbow { animation:none !important; opacity:0 !important; }
+    .claim-all-area.no-card-effects .card::after { animation:none !important; }
     .ach-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
     .ach-row:last-child { border-bottom:none; }
     .ach-stat-info { display:flex; align-items:center; gap:8px; min-width:140px; }
