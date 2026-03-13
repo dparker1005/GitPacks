@@ -12,14 +12,29 @@ export async function GET() {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
-  const { data: profile } = await supabase
+  let { data: profile } = await supabase
     .from('profiles')
     .select('ready_packs, last_regen_at')
     .eq('id', user.id)
     .single();
 
   if (!profile) {
-    return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    // Auto-create profile
+    const meta = user.user_metadata || {};
+    await supabase.from('profiles').upsert({
+      id: user.id,
+      github_username: meta.user_name || meta.preferred_username || '',
+      avatar_url: meta.avatar_url || '',
+    }, { onConflict: 'id' });
+    const { data: newProfile } = await supabase
+      .from('profiles')
+      .select('ready_packs, last_regen_at')
+      .eq('id', user.id)
+      .single();
+    profile = newProfile;
+    if (!profile) {
+      return NextResponse.json({ error: 'Failed to create profile' }, { status: 500 });
+    }
   }
 
   let readyPacks = profile.ready_packs;

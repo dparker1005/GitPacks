@@ -30,9 +30,10 @@ let filterRarity = 'all';
 let showMissing = false;
 let cardSearch = '';
 
-// Pack state for logged-in users
+// Pack state for all users
 let packState = null; // { readyPacks, maxPacks, nextRegenAt }
 let packCountdownInterval = null;
+let guestPacksRemaining = 5; // for logged-out users
 
 const searchContainer = document.getElementById('search-container');
 const popularRepos = document.getElementById('popular-repos');
@@ -58,7 +59,14 @@ function quickLoad(repo) { input.value = repo; loadRepo(); }
 
 // ===== PACK STATE =====
 async function loadPackState() {
-  if (!_currentUser) { packState = null; renderTopBarPacks(); return; }
+  if (!_currentUser) {
+    // Guest: check localStorage for remaining packs
+    const stored = localStorage.getItem('gp_guest_packs_remaining');
+    if (stored !== null) guestPacksRemaining = parseInt(stored, 10) || 0;
+    packState = null;
+    renderTopBarPacks();
+    return;
+  }
   try {
     const res = await fetch('/api/pack-state');
     if (res.ok) {
@@ -71,7 +79,19 @@ async function loadPackState() {
 function renderTopBarPacks() {
   const el = document.getElementById('top-bar-packs');
   if (!el) return;
-  if (!_currentUser || !packState) { el.innerHTML = ''; return; }
+
+  if (!_currentUser) {
+    // Guest packs display
+    const limitReached = localStorage.getItem('gp_guest_limit_reached');
+    const count = limitReached ? 0 : guestPacksRemaining;
+    el.innerHTML = `<div class="topbar-packs">
+      <span class="topbar-packs-icon">${GP_ICON}</span>
+      <span class="topbar-packs-count">${count}</span>
+    </div>`;
+    return;
+  }
+
+  if (!packState) { el.innerHTML = ''; return; }
   const { readyPacks, maxPacks, nextRegenAt } = packState;
   const timerHTML = readyPacks < maxPacks && nextRegenAt
     ? `<span class="topbar-pack-timer" id="topbar-pack-timer"></span>`
@@ -188,8 +208,8 @@ async function loadPopularRepos() {
   } catch { /* silent */ }
 }
 
-// Load pack state for top bar (logged-in users)
-if (_currentUser) loadPackState();
+// Load pack state for top bar (all users)
+loadPackState();
 
 // Auto-load from URL param, otherwise show repo browser
 const urlRepo = new URLSearchParams(window.location.search).get('repo');
@@ -374,7 +394,10 @@ async function openPack() {
       if (response.status === 429) {
         if (errData.requiresAuth) {
           // Guest pack limit reached
+          guestPacksRemaining = 0;
           localStorage.setItem('gp_guest_limit_reached', '1');
+          localStorage.setItem('gp_guest_packs_remaining', '0');
+          renderTopBarPacks();
           renderRepoInfoFromCurrent();
         } else {
           // No packs available (logged-in user)
@@ -393,7 +416,7 @@ async function openPack() {
     return;
   }
 
-  // Handle authenticated response (has cards + packState) vs unauthenticated (just array)
+  // Handle response: authenticated (cards + packState) or guest (cards + guestPacksRemaining)
   let picks;
   if (Array.isArray(data)) {
     picks = data;
@@ -402,7 +425,12 @@ async function openPack() {
     if (data.packState) {
       packState = data.packState;
     }
+    if (data.guestPacksRemaining !== undefined) {
+      guestPacksRemaining = data.guestPacksRemaining;
+      localStorage.setItem('gp_guest_packs_remaining', String(guestPacksRemaining));
+    }
   }
+  renderTopBarPacks();
 
   const overlay = document.createElement('div');
   overlay.className = 'pack-overlay';

@@ -129,14 +129,15 @@ export async function GET(
 
     if (guestPacksOpened >= 5) {
       return NextResponse.json(
-        { error: 'Sign in to open more packs', requiresAuth: true },
+        { error: 'Sign in to open more packs', requiresAuth: true, guestPacksRemaining: 0 },
         { status: 429 }
       );
     }
 
     const cards = selectPackCards(allContributors, count);
+    const remaining = 5 - (guestPacksOpened + 1);
 
-    const response = NextResponse.json(cards);
+    const response = NextResponse.json({ cards, guestPacksRemaining: remaining });
     response.cookies.set('gp_packs_opened', String(guestPacksOpened + 1), {
       httpOnly: true,
       path: '/',
@@ -147,15 +148,30 @@ export async function GET(
 
   // --- Authenticated flow ---
 
-  // 1. Check/regen pack count
-  const { data: profile } = await supabase
+  // 1. Check/regen pack count (auto-create profile if missing)
+  let { data: profile } = await supabase
     .from('profiles')
     .select('ready_packs, last_regen_at')
     .eq('id', user.id)
     .single();
 
   if (!profile) {
-    return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    const meta = user.user_metadata || {};
+    await supabase.from('profiles').upsert({
+      id: user.id,
+      github_username: meta.user_name || meta.preferred_username || '',
+      avatar_url: meta.avatar_url || '',
+    }, { onConflict: 'id' });
+    // Re-fetch with defaults applied
+    const { data: newProfile } = await supabase
+      .from('profiles')
+      .select('ready_packs, last_regen_at')
+      .eq('id', user.id)
+      .single();
+    profile = newProfile;
+    if (!profile) {
+      return NextResponse.json({ error: 'Failed to create profile' }, { status: 500 });
+    }
   }
 
   let readyPacks = profile.ready_packs;
