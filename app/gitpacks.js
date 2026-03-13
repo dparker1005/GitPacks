@@ -429,13 +429,7 @@ async function openPack() {
   if (packSignInBtn) {
     packSignInBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      import('./lib/supabase-browser').then(({ getSupabaseBrowser }) => {
-        const supabase = getSupabaseBrowser();
-        supabase.auth.signInWithOAuth({
-          provider: 'github',
-          options: { redirectTo: `${window.location.origin}/auth/callback` },
-        });
-      });
+      if (window.__gpLogin) window.__gpLogin();
     });
   }
 }
