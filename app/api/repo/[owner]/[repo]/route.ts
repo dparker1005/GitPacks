@@ -359,10 +359,10 @@ function processAllContributors(
     });
   }
 
-  // Cap at 500 contributors — keep highest activity
-  if (rawEntries.length > 500) {
+  // Cap at 128 contributors — keep highest activity
+  if (rawEntries.length > 128) {
     rawEntries.sort((a: any, b: any) => b.commits + b.prsMerged + b.issues - (a.commits + a.prsMerged + a.issues));
-    rawEntries.length = 500;
+    rawEntries.length = 128;
   }
 
   // Build percentile rank function: returns 0-1 where 1 = best in repo
@@ -454,16 +454,19 @@ function processAllContributors(
   });
 
   // Sort by power descending to assign rarity by rank
+  // Target distribution for 128 cards: 4 mythic, 8 legendary, 16 epic, 32 rare, 68 common
+  // Scale proportionally for smaller sets
   const byPower = [...withPower].sort((a: any, b: any) => b.power - a.power);
   const n = byPower.length;
+  const mythicSlots = Math.max(0, Math.round(n * (4 / 128)));
+  const legendarySlots = Math.max(0, Math.round(n * (8 / 128)));
+  const epicSlots = Math.max(0, Math.round(n * (16 / 128)));
+  const rareSlots = Math.max(0, Math.round(n * (32 / 128)));
   byPower.forEach((e: any, i: number) => {
-    const pct = i / Math.max(n - 1, 1);
-    // Mythic: 1 per 100 contributors, only if 100+ exist
-    const mythicSlots = Math.floor(n / 100);
-    if (mythicSlots > 0 && i < mythicSlots) e.rarity = 'mythic';
-    else if (pct <= 0.05) e.rarity = 'legendary';
-    else if (pct <= 0.15) e.rarity = 'epic';
-    else if (pct <= 0.43) e.rarity = 'rare';
+    if (i < mythicSlots) e.rarity = 'mythic';
+    else if (i < mythicSlots + legendarySlots) e.rarity = 'legendary';
+    else if (i < mythicSlots + legendarySlots + epicSlots) e.rarity = 'epic';
+    else if (i < mythicSlots + legendarySlots + epicSlots + rareSlots) e.rarity = 'rare';
     else e.rarity = 'common';
   });
 

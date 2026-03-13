@@ -4,7 +4,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
-export const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+export const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 // Get cached repo data from Supabase
 export async function getCachedRepo(ownerRepo: string): Promise<any | null> {
@@ -27,7 +27,12 @@ export async function setCachedRepo(ownerRepo: string, repoData: any): Promise<v
   await supabase
     .from('repo_cache')
     .upsert(
-      { owner_repo: ownerRepo, data: repoData, fetched_at: new Date().toISOString() },
+      {
+        owner_repo: ownerRepo,
+        data: repoData,
+        card_count: Array.isArray(repoData) ? repoData.length : 0,
+        fetched_at: new Date().toISOString(),
+      },
       { onConflict: 'owner_repo' }
     );
 }

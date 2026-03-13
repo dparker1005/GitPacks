@@ -1,6 +1,20 @@
-export function initGitPacks() {
+let _initialized = false;
+let _currentUser = null;
+
+export function initGitPacks(user) {
+// Prevent double-init — just update user reference on re-calls
+if (_initialized) {
+  _currentUser = user || null;
+  // Re-render repo info to update pack state / auth messaging
+  if (repoLoaded) {
+    loadPackState().then(() => renderRepoInfoFromCurrent());
+  }
+  return;
+}
+_initialized = true;
+_currentUser = user || null;
+
 const GH_ICON = `<svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`;
-// GitPacks logo — stylized card/pack icon
 const GP_ICON = `<svg viewBox="0 0 32 32"><defs><linearGradient id="gp-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#7873f5"/><stop offset="100%" style="stop-color:#4adede"/></linearGradient></defs><rect x="4" y="2" width="18" height="26" rx="3" fill="none" stroke="url(#gp-grad)" stroke-width="2" opacity="0.4" transform="rotate(-6 13 15)"/><rect x="8" y="3" width="18" height="26" rx="3" fill="none" stroke="url(#gp-grad)" stroke-width="2" opacity="0.7" transform="rotate(3 17 16)"/><rect x="6" y="2.5" width="18" height="26" rx="3" fill="none" stroke="url(#gp-grad)" stroke-width="2.5"/><text x="15" y="20.5" font-family="sans-serif" font-weight="900" font-size="14" fill="url(#gp-grad)" text-anchor="middle">G</text></svg>`;
 
 const input = document.getElementById('repo-input');
@@ -18,15 +32,16 @@ let filterRarity = 'all';
 let showMissing = false;
 let cardSearch = '';
 
+// Pack state for logged-in users
+let packState = null; // { readyPacks, maxPacks, nextRegenAt }
+let packCountdownInterval = null;
+
 const searchContainer = document.getElementById('search-container');
 const popularRepos = document.getElementById('popular-repos');
 
-// Bind button events (replaces inline onclick handlers)
 btn.addEventListener('click', () => loadRepo());
-document.getElementById('clear-cache-btn').addEventListener('click', () => clearRepoCache());
 document.getElementById('share-btn').addEventListener('click', () => shareRepo());
 
-// Progress bar helpers
 function setProgress(step, pct, detail) {
   ['step-commits','step-issues','step-processing'].forEach(id => {
     document.getElementById(id).className = 'progress-step';
@@ -43,7 +58,40 @@ input.addEventListener('keydown', e => { if (e.key === 'Enter') loadRepo(); });
 
 function quickLoad(repo) { input.value = repo; loadRepo(); }
 
-// Fetch and display popular repos
+// ===== PACK STATE =====
+async function loadPackState() {
+  if (!_currentUser) { packState = null; return; }
+  try {
+    const res = await fetch('/api/pack-state');
+    if (res.ok) {
+      packState = await res.json();
+    }
+  } catch { packState = null; }
+}
+
+function startPackCountdown() {
+  if (packCountdownInterval) clearInterval(packCountdownInterval);
+  packCountdownInterval = setInterval(() => {
+    const el = document.getElementById('pack-countdown');
+    if (!el || !packState || !packState.nextRegenAt) {
+      if (packCountdownInterval) clearInterval(packCountdownInterval);
+      return;
+    }
+    const remaining = packState.nextRegenAt - Date.now();
+    if (remaining <= 0) {
+      // Regen happened — refresh state
+      loadPackState().then(() => renderRepoInfoFromCurrent());
+      clearInterval(packCountdownInterval);
+      return;
+    }
+    const h = Math.floor(remaining / 3600000);
+    const m = Math.floor((remaining % 3600000) / 60000);
+    const s = Math.floor((remaining % 60000) / 1000);
+    el.textContent = `${h}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+  }, 1000);
+}
+
+// ===== POPULAR REPOS =====
 async function loadPopularRepos() {
   try {
     const res = await fetch('/api/repos');
@@ -55,14 +103,34 @@ async function loadPopularRepos() {
       </div>`;
       return;
     }
-    // Add collection progress from localStorage
-    repos.forEach(r => {
+
+    // For logged-in users, fetch their repos from DB
+    let userRepos = [];
+    if (_currentUser) {
       try {
-        const lib = JSON.parse(localStorage.getItem('ghtc_lib_' + r.name.toLowerCase()) || '{}');
-        r.collected = Object.keys(lib).length;
-      } catch (e) { r.collected = 0; }
-      r.pct = r.cards > 0 ? r.collected / r.cards : 0;
-    });
+        const urRes = await fetch('/api/user-repos');
+        if (urRes.ok) userRepos = await urRes.json();
+      } catch { /* silent */ }
+    }
+
+    // For logged-out users, use localStorage
+    if (!_currentUser) {
+      repos.forEach(r => {
+        try {
+          const lib = JSON.parse(localStorage.getItem('ghtc_lib_' + r.name.toLowerCase()) || '{}');
+          r.collected = Object.keys(lib).length;
+        } catch { r.collected = 0; }
+        r.pct = r.cards > 0 ? r.collected / r.cards : 0;
+      });
+    } else {
+      // Merge user repo data with all repos
+      repos.forEach(r => {
+        const ur = userRepos.find(u => u.name === r.name.toLowerCase());
+        r.collected = ur ? ur.collected : 0;
+        r.pct = r.cards > 0 ? r.collected / r.cards : 0;
+      });
+    }
+
     const yourRepos = repos.filter(r => r.collected > 0).sort((a, b) => b.pct - a.pct || b.cards - a.cards);
     const otherRepos = repos.filter(r => r.collected === 0).sort((a, b) => b.cards - a.cards);
 
@@ -94,7 +162,7 @@ async function loadPopularRepos() {
     popularRepos.querySelectorAll('.popular-repo-btn').forEach(b => {
       b.addEventListener('click', () => quickLoad(b.dataset.repo));
     });
-  } catch (e) { /* silent */ }
+  } catch { /* silent */ }
 }
 
 // Auto-load from URL param, otherwise show repo browser
@@ -105,17 +173,33 @@ if (urlRepo) {
 } else {
   loadPopularRepos();
 }
+
 function saveLibrary() {
   if (!currentRepoName) return;
-  try { localStorage.setItem('ghtc_lib_' + currentRepoName.toLowerCase(), JSON.stringify(library)); } catch (e) { }
+  // Always save to localStorage (works for both logged-in and logged-out)
+  try { localStorage.setItem('ghtc_lib_' + currentRepoName.toLowerCase(), JSON.stringify(library)); } catch { }
 }
+
 function loadLibrary() {
   if (!currentRepoName) return;
   var libKey = 'ghtc_lib_' + currentRepoName.toLowerCase();
   var libData = localStorage.getItem(libKey);
   if (libData) {
-    try { library = JSON.parse(libData); } catch (e2) { library = {}; }
+    try { library = JSON.parse(libData); } catch { library = {}; }
   }
+}
+
+async function loadLibraryFromDB() {
+  if (!_currentUser || !currentRepoName) return;
+  const [owner, repo] = currentRepoName.split('/');
+  try {
+    const res = await fetch(`/api/collection/${owner}/${repo}`);
+    if (res.ok) {
+      library = await res.json();
+      // Also sync to localStorage for fast access
+      saveLibrary();
+    }
+  } catch { /* fall back to localStorage */ }
 }
 
 async function loadRepo() {
@@ -143,7 +227,19 @@ async function loadRepo() {
     library = {};
     repoLoaded = true;
     currentRepoName = `${owner}/${repo}`;
-    loadLibrary();
+
+    // Load collection: DB for logged-in, localStorage for logged-out
+    if (_currentUser) {
+      await loadLibraryFromDB();
+    } else {
+      loadLibrary();
+    }
+
+    // Load pack state for logged-in users
+    if (_currentUser) {
+      await loadPackState();
+    }
+
     loading.style.display = 'none';
     searchContainer.style.display = 'none';
     document.getElementById('gallery-screen').classList.add('repo-loaded');
@@ -158,6 +254,27 @@ function renderRepoInfo(owner, repo) {
   repoInfo.style.display = 'block';
   const collected = Object.keys(library).length;
   const total = allContributors.length;
+
+  // Pack state UI for logged-in users
+  let packHTML = '';
+  if (_currentUser && packState) {
+    const { readyPacks, maxPacks, nextRegenAt } = packState;
+    packHTML = `<div class="pack-state">
+      <div class="pack-count">
+        <span class="pack-count-icon">${GP_ICON}</span>
+        <span class="pack-count-num">${readyPacks}</span>
+        <span class="pack-count-label">pack${readyPacks !== 1 ? 's' : ''} ready</span>
+      </div>
+      ${readyPacks < maxPacks && nextRegenAt ? `<div class="pack-regen"><span class="pack-regen-label">Next pack in</span><span class="pack-regen-time" id="pack-countdown">--:--</span></div>` : ''}
+    </div>`;
+  }
+
+  // Sign-in nudge for logged-out users
+  let authNudge = '';
+  if (!_currentUser) {
+    authNudge = `<div class="auth-nudge"><span class="auth-nudge-icon">&#x1f512;</span> Sign in to save your collection across devices</div>`;
+  }
+
   repoInfo.innerHTML = `<div class="repo-info-row">
       <div class="repo-info-inner">
         <h2><span>${owner || ''}</span> / <span>${repo || ''}</span></h2>
@@ -166,8 +283,10 @@ function renderRepoInfo(owner, repo) {
       </div>
       <button class="switch-repo-btn" id="switch-repo-btn">Switch Repo</button>
     </div>
+    ${authNudge}
     <div class="action-buttons">
-      <button class="btn-secondary" onclick="openPack()" ${total === 0 ? 'disabled' : ''}>Open Pack</button>
+      <button class="btn-secondary" id="open-pack-btn" ${total === 0 ? 'disabled' : ''} ${_currentUser && packState && packState.readyPacks <= 0 ? 'disabled' : ''} ${!_currentUser && localStorage.getItem('gp_guest_limit_reached') ? 'disabled' : ''}>${!_currentUser && localStorage.getItem('gp_guest_limit_reached') ? 'Sign In to Open Packs' : 'Open Pack'}</button>
+      ${packHTML}
     </div>
     <div class="filter-bar" id="filter-bar">
       <button class="filter-btn ${filterRarity==='all'?'active':''}" data-rarity="all" onclick="setFilter('all')">All</button>
@@ -180,10 +299,12 @@ function renderRepoInfo(owner, repo) {
       <button class="filter-btn ${showMissing?'active':''}" style="${showMissing?'background:linear-gradient(135deg,#7873f5,#4adede);color:#fff':''}" onclick="toggleMissing()">Show Missing</button>
       <div class="filter-sep"></div>
       <input type="text" class="card-search" id="card-search" placeholder="Search cards..." value="${cardSearch}" />
-      <div class="filter-sep"></div>
-      <button class="filter-btn" onclick="fillLibrary()">Fill All</button>
-      <button class="filter-btn" onclick="clearLibrary()">Clear All</button>
     </div>`;
+
+  // Wire up open pack button
+  const openPackBtn = document.getElementById('open-pack-btn');
+  if (openPackBtn) openPackBtn.addEventListener('click', () => openPack());
+
   // Wire up search input
   const searchInput = document.getElementById('card-search');
   if (searchInput) {
@@ -192,6 +313,11 @@ function renderRepoInfo(owner, repo) {
   // Wire up switch repo button
   const switchBtn = document.getElementById('switch-repo-btn');
   if (switchBtn) switchBtn.addEventListener('click', () => newRepo());
+
+  // Start countdown timer if needed
+  if (_currentUser && packState && packState.nextRegenAt) {
+    startPackCountdown();
+  }
 }
 
 function setFilter(rarity) {
@@ -205,15 +331,62 @@ function setFilter(rarity) {
 let packOpen = false;
 async function openPack() {
   if (!allContributors.length || packOpen) return;
+
+  // Check pack availability for logged-in users
+  if (_currentUser && packState && packState.readyPacks <= 0) {
+    return; // No packs available
+  }
+
   packOpen = true;
   const [owner, repo] = currentRepoName.split('/');
-  const response = await fetch(`/api/repo/${owner}/${repo}/pack`);
-  if (!response.ok) throw new Error('Failed to draw pack');
-  const picks = await response.json();
+  let response, data;
+  try {
+    response = await fetch(`/api/repo/${owner}/${repo}/pack`);
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      if (response.status === 429) {
+        if (errData.requiresAuth) {
+          // Guest pack limit reached
+          localStorage.setItem('gp_guest_limit_reached', '1');
+          renderRepoInfoFromCurrent();
+        } else {
+          // No packs available (logged-in user)
+          packState = { readyPacks: 0, maxPacks: 2, nextRegenAt: errData.nextRegenAt };
+          renderRepoInfoFromCurrent();
+        }
+      }
+      packOpen = false;
+      return;
+    }
+
+    data = await response.json();
+  } catch (err) {
+    console.error('[GHTC] openPack fetch error:', err);
+    packOpen = false;
+    return;
+  }
+
+  // Handle authenticated response (has cards + packState) vs unauthenticated (just array)
+  let picks;
+  if (Array.isArray(data)) {
+    picks = data;
+  } else {
+    picks = data.cards;
+    if (data.packState) {
+      packState = data.packState;
+    }
+  }
+
   const overlay = document.createElement('div');
   overlay.className = 'pack-overlay';
+
+  // Sign-in banner for logged-out users — persistent across all pack stages
+  const packAuthBanner = !_currentUser ? `<div class="pack-auth-banner"><span class="pack-auth-banner-icon">&#x1f512;</span> Sign in to save your cards across devices <button class="login-btn pack-auth-banner-btn" id="pack-sign-in-btn"><svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg> Sign In</button></div>` : '';
+
   overlay.innerHTML = `
     <button class="pack-close-btn" id="pack-close-btn">&times;</button>
+    ${packAuthBanner}
     <div class="pack-container">
       <div class="pack-wrapper" id="pack-wrapper">
         <div class="pack-face">
@@ -246,11 +419,25 @@ async function openPack() {
   const packSpaceHandler = e => { if (e.code === 'Space') { e.preventDefault(); tearPack(); } };
   document.addEventListener('keydown', packSpaceHandler);
 
-  // Close button and Escape key to exit pack opening
   function closePack() { packOpen = false; overlay.remove(); document.removeEventListener('keydown', packSpaceHandler); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); }
   overlay._escHandler = e => { if (e.code === 'Escape') closePack(); };
   document.addEventListener('keydown', overlay._escHandler);
   overlay.querySelector('#pack-close-btn').addEventListener('click', closePack);
+
+  // Wire up sign-in button in auth banner
+  const packSignInBtn = overlay.querySelector('#pack-sign-in-btn');
+  if (packSignInBtn) {
+    packSignInBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      import('./lib/supabase-browser').then(({ getSupabaseBrowser }) => {
+        const supabase = getSupabaseBrowser();
+        supabase.auth.signInWithOAuth({
+          provider: 'github',
+          options: { redirectTo: `${window.location.origin}/auth/callback` },
+        });
+      });
+    });
+  }
 }
 
 function revealCards(overlay, picks) {
@@ -265,7 +452,6 @@ function revealCards(overlay, picks) {
     slot.className = 'reveal-slot';
     slot.dataset.rarity = c.rarity;
 
-    // Build the full gallery card HTML (same as library)
     const cardNum = allContributors.indexOf(c) + 1;
     const cardHTML = buildGalleryCard(c, cardNum, allContributors.length);
 
@@ -282,7 +468,6 @@ function revealCards(overlay, picks) {
         </div>
       </div>`;
 
-    // Store metadata for animation and contributor data
     slot._isNew = isNew;
     slot._rarity = c.rarity;
     slot._contributor = c;
@@ -293,14 +478,11 @@ function revealCards(overlay, picks) {
   let flipped = 0;
   let revealComplete = false;
 
-  // Force reflow so percentage-based slot widths resolve before measuring
   area.offsetHeight;
 
-  // Dynamically scale gallery cards (320x480) to fit actual slot dimensions
   slots.forEach(s => {
     const slotW = s.offsetWidth;
     const slotH = s.offsetHeight;
-    // Fallback to default desktop size if layout hasn't resolved
     const w = slotW > 10 ? slotW : 190;
     const h = slotH > 10 ? slotH : 293;
     const cardScale = Math.min(w / 320, h / 480);
@@ -308,20 +490,16 @@ function revealCards(overlay, picks) {
     if (cw) cw.style.transform = `scale(${cardScale})`;
   });
 
-  // Mark all as unflipped and stagger entrance
-  // Force a layout so the unflipped styles (back face visible) are computed before fading in
   slots.forEach(s => {
     s.classList.add('unflipped');
     s.style.opacity = '0';
     s.style.transform = 'translateY(30px)';
   });
-  // Force reflow so unflipped styles are applied before we start the entrance animation
   area.offsetHeight;
   slots.forEach((s, i) => {
     setTimeout(() => { s.style.transition = 'opacity 0.4s ease, transform 0.4s ease'; s.style.opacity = '1'; s.style.transform = 'translateY(0)'; }, i * 100);
   });
 
-  // Add instruction
   const flipInstruction = document.createElement('div');
   flipInstruction.className = 'pack-instruction';
   flipInstruction.textContent = 'Click a card or press Space';
@@ -339,28 +517,21 @@ function revealCards(overlay, picks) {
     const card = slot.querySelector('.reveal-card');
     const isNew = slot._isNew;
 
-    // Add rarity-specific flip class
     card.classList.add('flip-' + rarity);
 
-    // Activate persistent rarity glow after flip animation
     const glowDelay = { common:400, rare:600, epic:800, legendary:1000, mythic:1400 }[rarity] || 400;
     setTimeout(() => {
       if (rarity !== 'common') slot.classList.add('revealed');
     }, glowDelay * 0.5);
 
-    // Rarity-specific effects
     if (rarity === 'mythic') {
-      // Double screen shake
       overlay.classList.add('shake-screen');
       setTimeout(() => { overlay.classList.remove('shake-screen'); setTimeout(() => overlay.classList.add('shake-screen'), 100); setTimeout(() => overlay.classList.remove('shake-screen'), 600); }, 500);
-      // Massive screen flash
       const flash = document.createElement('div');
       flash.className = 'screen-flash mythic-screen';
       overlay.appendChild(flash);
       setTimeout(() => flash.remove(), 1500);
-      // Triple rings + flash
       slot.insertAdjacentHTML('beforeend', '<div class="mythic-flash"></div><div class="mythic-ring"></div><div class="mythic-ring2"></div><div class="mythic-ring3"></div>');
-      // Extra particles — more, bigger, red/orange/white
       let particles = '<div class="leg-particles">';
       const colors = ['#ff0040','#ff6600','#fff','#ff00ff','#ff0040','#fff','#ff6600'];
       for (let i = 0; i < 35; i++) {
@@ -412,7 +583,6 @@ function revealCards(overlay, picks) {
       slot.insertAdjacentHTML('beforeend', particles);
     }
 
-    // NEW badge for new cards only
     if (isNew) {
       const badgeDelay = rarity === 'mythic' ? 1200 : rarity === 'legendary' ? 800 : rarity === 'epic' ? 500 : 300;
       setTimeout(() => {
@@ -420,21 +590,25 @@ function revealCards(overlay, picks) {
       }, badgeDelay);
     }
 
-    // Add to library (increment count)
-    library[slot._contributor.login] = (library[slot._contributor.login] || 0) + 1;
-    saveLibrary();
+    // For logged-out users, save to localStorage
+    if (!_currentUser) {
+      library[slot._contributor.login] = (library[slot._contributor.login] || 0) + 1;
+      saveLibrary();
+    } else {
+      // For logged-in users, cards are already saved server-side by the pack endpoint
+      // Just update the local cache
+      library[slot._contributor.login] = (library[slot._contributor.login] || 0) + 1;
+      saveLibrary(); // sync localStorage cache
+    }
 
     flipped++;
 
-    // Check completion after animation settles
     setTimeout(() => {
-      // All cards flipped?
       if (flipped >= slots.length && !revealComplete) {
         revealComplete = true;
         flipInstruction.remove();
         document.removeEventListener('keydown', spaceHandler);
 
-        // Enable hover + click-to-fullscreen
         slots.forEach(s => {
           s.classList.add('hoverable');
           s.addEventListener('click', () => {
@@ -444,24 +618,90 @@ function revealCards(overlay, picks) {
         });
 
         let anotherOpened = false;
-        function openAnother() {
+        async function openAnother() {
           if (anotherOpened) return;
           anotherOpened = true;
-          packOpen = false;
-          overlay.remove();
           document.removeEventListener('keydown', doneSpaceHandler);
+
+          // Fade out current content, keeping the overlay visible
+          const container = overlay.querySelector('.pack-container');
+          container.style.transition = 'opacity 0.25s ease';
+          container.style.opacity = '0';
+
+          // Fetch next pack while fading
+          const [ow, rp] = currentRepoName.split('/');
+          let nextPicks = null;
+          try {
+            const res = await fetch(`/api/repo/${ow}/${rp}/pack`);
+            if (res.ok) {
+              const d = await res.json();
+              if (Array.isArray(d)) { nextPicks = d; }
+              else { nextPicks = d.cards; if (d.packState) packState = d.packState; }
+            } else if (res.status === 429) {
+              const errData = await res.json().catch(() => ({}));
+              packState = { readyPacks: 0, maxPacks: 2, nextRegenAt: errData.nextRegenAt };
+            }
+          } catch { /* handled below */ }
+
+          if (!nextPicks) {
+            // Failed to get pack — close overlay gracefully
+            packOpen = false;
+            overlay.remove();
+            document.removeEventListener('keydown', overlay._escHandler);
+            renderRepoInfoFromCurrent(); renderLibrary();
+            return;
+          }
+
+          // Reset the overlay content with the new pack (no blink)
+          container.innerHTML = `
+            <div class="pack-wrapper" id="pack-wrapper">
+              <div class="pack-face">
+                <div class="pack-seal-left"></div>
+                <div class="pack-seal-right"></div>
+                <div class="pack-logo"><div class="pack-logo-ring">${GP_ICON}</div></div>
+                <div class="pack-title"><span class="pack-owner">${currentRepoName.split('/')[0]}</span><span class="pack-repo">${currentRepoName.split('/')[1] || ''}</span></div>
+                <div class="pack-subtitle">5 Contributors</div>
+                <div class="pack-stripe"><span>GitPacks</span></div>
+              </div>
+              <div class="pack-burst" id="pack-burst"></div>
+            </div>
+            <div class="pack-instruction">Click to open</div>
+            <div class="reveal-area" id="reveal-area" style="display:none"></div>`;
+
+          // Fade in the new pack
+          void container.offsetHeight;
+          container.style.opacity = '1';
+
+          // Wire up the new pack wrapper
+          const newWrapper = container.querySelector('#pack-wrapper');
+          const newInstruction = container.querySelector('.pack-instruction');
+          function tearNewPack() {
+            if (newWrapper.classList.contains('tearing')) return;
+            newWrapper.classList.add('tearing');
+            newInstruction.style.display = 'none';
+            container.querySelector('#pack-burst').innerHTML = '<div class="burst-ring"></div>';
+            setTimeout(() => { newWrapper.style.display = 'none'; revealCards(overlay, nextPicks); }, 700);
+            document.removeEventListener('keydown', newSpaceHandler);
+          }
+          newWrapper.addEventListener('click', tearNewPack);
+          const newSpaceHandler = e => { if (e.code === 'Space') { e.preventDefault(); tearNewPack(); } };
+          document.addEventListener('keydown', newSpaceHandler);
+
+          // Update close handler to clean up new listeners
           document.removeEventListener('keydown', overlay._escHandler);
-          renderRepoInfoFromCurrent(); renderLibrary(); openPack();
+          function closeNewPack() { packOpen = false; overlay.remove(); document.removeEventListener('keydown', newSpaceHandler); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); }
+          overlay._escHandler = e => { if (e.code === 'Escape') closeNewPack(); };
+          document.addEventListener('keydown', overlay._escHandler);
+          overlay.querySelector('#pack-close-btn').onclick = closeNewPack;
+
+          renderRepoInfoFromCurrent(); renderLibrary();
         }
 
-        // Space to open another pack — delay registration so a space press that
-        // triggered the last flip can't immediately trigger this handler too
         const doneSpaceHandler = e => { if (e.code === 'Space') { e.preventDefault(); openAnother(); } };
         setTimeout(() => {
           if (!anotherOpened) document.addEventListener('keydown', doneSpaceHandler);
         }, 200);
 
-        // Show action buttons
         const btnWrap = document.createElement('div');
         btnWrap.className = 'reveal-buttons';
         const doneBtn = document.createElement('button');
@@ -470,7 +710,14 @@ function revealCards(overlay, picks) {
         doneBtn.onclick = () => { packOpen = false; overlay.remove(); document.removeEventListener('keydown', doneSpaceHandler); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); };
         const anotherBtn = document.createElement('button');
         anotherBtn.className = 'reveal-another-btn';
-        anotherBtn.textContent = 'Open Another';
+
+        // Show pack count on the button for logged-in users
+        if (_currentUser && packState) {
+          anotherBtn.textContent = packState.readyPacks > 0 ? `Open Another (${packState.readyPacks})` : 'No Packs Left';
+          anotherBtn.disabled = packState.readyPacks <= 0;
+        } else {
+          anotherBtn.textContent = 'Open Another';
+        }
         anotherBtn.onclick = openAnother;
         btnWrap.appendChild(doneBtn);
         btnWrap.appendChild(anotherBtn);
@@ -479,14 +726,12 @@ function revealCards(overlay, picks) {
     }, glowDelay);
   }
 
-  // Click a card to flip that specific card
   slots.forEach(slot => {
     slot.addEventListener('click', () => {
       if (slot.classList.contains('unflipped')) flipSlot(slot);
     });
   });
 
-  // Spacebar flips all remaining cards one at a time
   let spaceQueued = false;
   const spaceHandler = e => {
     if (e.code !== 'Space') return;
@@ -502,20 +747,6 @@ function revealCards(overlay, picks) {
     flipAll();
   };
   document.addEventListener('keydown', spaceHandler);
-}
-
-function fillLibrary() {
-  allContributors.forEach(c => { if (!library[c.login]) library[c.login] = 1; });
-  saveLibrary();
-  renderRepoInfoFromCurrent();
-  renderLibrary();
-}
-
-function clearLibrary() {
-  library = {};
-  saveLibrary();
-  renderRepoInfoFromCurrent();
-  renderLibrary();
 }
 
 // ===== COMPLETE LIBRARY =====
@@ -541,8 +772,9 @@ function newRepo() {
   library = {};
   currentRepoName = '';
   filterRarity = 'all';
-
   showMissing = false;
+  packState = null;
+  if (packCountdownInterval) clearInterval(packCountdownInterval);
   grid.innerHTML = '';
   repoInfo.style.display = 'none';
   searchContainer.style.display = '';
@@ -567,7 +799,6 @@ function renderLibrary() {
     return;
   }
 
-  // Build display list: collected + optionally missing
   let pool = showMissing ? [...allContributors] : [...allCollected];
   if (filterRarity !== 'all') pool = pool.filter(c => c.rarity === filterRarity);
   if (cardSearch) { const q = cardSearch.toLowerCase(); pool = pool.filter(c => c.login.toLowerCase().includes(q) || (c.title && c.title.toLowerCase().includes(q))); }
@@ -580,7 +811,6 @@ function renderLibrary() {
   }
 
   const totalCards = allContributors.length;
-  // Create lightweight placeholders — real card HTML is built lazily on scroll
   pool.forEach((c, i) => {
     const owned = !!library[c.login];
     const w = document.createElement('div');
@@ -594,7 +824,6 @@ function renderLibrary() {
     grid.appendChild(w);
   });
 
-  // Event delegation for mousemove — one listener instead of 400
   grid.addEventListener('mousemove', e => {
     const card = e.target.closest('.card');
     if (!card || card._lastMove && Date.now() - card._lastMove < 16) return;
@@ -611,13 +840,11 @@ function renderLibrary() {
     if (card) card.style.transform = '';
   }, true);
 
-  // Lazy render + pause offscreen animations via IntersectionObserver
   if (window._cardObserver) window._cardObserver.disconnect();
   window._cardObserver = new IntersectionObserver(entries => {
     entries.forEach(e => {
       const w = e.target;
       if (e.isIntersecting) {
-        // Lazy-render card HTML on first appearance
         if (!w._rendered) {
           w._rendered = true;
           w.innerHTML = buildGalleryCard(w._cardData, w._cardNum, w._totalCards);
@@ -643,18 +870,6 @@ function renderRepoInfoFromCurrent() {
 // ===== HELPERS =====
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 function showError(m) { errorEl.textContent = m; errorEl.style.display = m ? 'block' : 'none'; }
-
-async function clearRepoCache() {
-  const name = currentRepoName || input.value.trim().replace(/^https?:\/\/github\.com\//, '');
-  const match = name.match(/^([^\/]+)\/([^\/]+)/);
-  if (!match) return;
-  const btn = document.getElementById('clear-cache-btn');
-  if (btn) { btn.textContent = 'Clearing...'; btn.disabled = true; }
-  await fetch(`/api/repo/${match[1]}/${match[2]}?refresh=true`);
-  if (btn) { btn.textContent = 'Cache Cleared!'; }
-  await loadRepo();
-  if (btn) { btn.textContent = 'Clear Cache'; btn.disabled = false; }
-}
 
 // ===== FULLSCREEN CARD VIEW =====
 function openFullscreenCard(c) {
@@ -703,7 +918,6 @@ function openFullscreenCard(c) {
     <a class="fullscreen-profile" href="https://github.com/${c.login}" target="_blank" rel="noopener">${GH_ICON} View Profile</a>`;
   document.body.appendChild(overlay);
 
-  // 3D tilt on mousemove — only on the card itself
   const container = overlay.querySelector('.fullscreen-card-container');
   const cardWrapper = container.querySelector('.card-wrapper');
   const card = container.querySelector('.card');
@@ -722,14 +936,9 @@ function openFullscreenCard(c) {
     if (shine) shine.style.opacity = '0';
   });
 
-  // Close button
   overlay.querySelector('.fullscreen-close').addEventListener('click', e => { e.stopPropagation(); closeOverlay(); });
-
-  // Close on click outside card or ESC
   overlay.addEventListener('click', e => { if (e.target === overlay) closeOverlay(); });
   document.addEventListener('keydown', escHandler);
-
-  // Prevent card/stats/profile click from closing overlay
   overlay.querySelector('.fullscreen-layout').addEventListener('click', e => e.stopPropagation());
   overlay.querySelector('.fullscreen-profile').addEventListener('click', e => e.stopPropagation());
 }
@@ -742,8 +951,6 @@ function powerGrad(r) { return {mythic:'linear-gradient(90deg,#ff0040,#ff6600,#f
 window.openPack = openPack;
 window.setFilter = setFilter;
 window.toggleMissing = toggleMissing;
-window.fillLibrary = fillLibrary;
-window.clearLibrary = clearLibrary;
 window.quickLoad = quickLoad;
 
 function buildGalleryCard(c, idx, total) {
