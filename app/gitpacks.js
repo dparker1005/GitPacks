@@ -1287,25 +1287,13 @@ async function claimAllMilestones() {
 
   let flipped = 0;
 
+  // Phase 1: Flip all cards quickly with NO particles (smooth performance)
   function flipNext() {
     if (flipped >= slots.length) {
-      const btnWrap = document.createElement('div');
-      btnWrap.className = 'reveal-buttons';
-      const doneBtn = document.createElement('button');
-      doneBtn.className = 'reveal-done-btn';
-      doneBtn.textContent = 'View Library';
-      doneBtn.onclick = closePack;
-      btnWrap.appendChild(doneBtn);
-      overlay.querySelector('.pack-container').appendChild(btnWrap);
-      slots.forEach(s => {
-        s.classList.add('hoverable');
-        s.addEventListener('click', () => { if (s._contributor) openFullscreenCard(s._contributor); });
-      });
+      // Phase 2: All flipped — now add effects to rare+ cards
+      addEffectsPass();
       return;
     }
-
-    // Clean up particles from cards that are 5+ behind (done animating)
-    if (flipped >= 5) cleanupSlot(slots[flipped - 5]);
 
     const slot = slots[flipped];
     const rarity = slot._rarity;
@@ -1314,41 +1302,9 @@ async function claimAllMilestones() {
     slot.classList.remove('unflipped');
     card.classList.add('flip-' + rarity);
 
-    const glowDelay = { common: 100, rare: 150, epic: 250, legendary: 350, mythic: 500 }[rarity] || 100;
+    // Glow only (no particles yet)
+    const glowDelay = { common: 80, rare: 120, epic: 180, legendary: 250, mythic: 350 }[rarity] || 80;
     setTimeout(() => { if (rarity !== 'common') slot.classList.add('revealed'); }, glowDelay * 0.5);
-
-    // Full effects for all rarities, but with reduced particle counts for performance
-    if (rarity === 'mythic') {
-      overlay.classList.add('shake-screen');
-      setTimeout(() => overlay.classList.remove('shake-screen'), 400);
-      slot.insertAdjacentHTML('beforeend', '<div class="mythic-flash"></div><div class="mythic-ring"></div>');
-      let particles = '<div class="leg-particles">';
-      const colors = ['#ff0040','#ff6600','#fff','#ff00ff'];
-      for (let i = 0; i < 16; i++) {
-        const angle = (Math.PI * 2 / 16) * i;
-        const dist = 80 + Math.random() * 100;
-        particles += `<div class="leg-particle" style="width:5px;height:5px;background:${colors[i%colors.length]};--px:${Math.cos(angle)*dist}px;--py:${Math.sin(angle)*dist}px;--pdur:${0.6+Math.random()*0.4}s;--pdelay:${Math.random()*0.15}s"></div>`;
-      }
-      particles += '</div>';
-      slot.insertAdjacentHTML('beforeend', particles);
-    } else if (rarity === 'legendary') {
-      overlay.classList.add('shake-screen');
-      setTimeout(() => overlay.classList.remove('shake-screen'), 300);
-      slot.insertAdjacentHTML('beforeend', '<div class="legendary-flash"></div><div class="legendary-ring"></div>');
-      let particles = '<div class="leg-particles">';
-      const colors = ['#ffd700','#ff6ec7','#fff'];
-      for (let i = 0; i < 10; i++) {
-        const angle = (Math.PI * 2 / 10) * i;
-        const dist = 60 + Math.random() * 80;
-        particles += `<div class="leg-particle" style="width:4px;height:4px;background:${colors[i%colors.length]};--px:${Math.cos(angle)*dist}px;--py:${Math.sin(angle)*dist}px;--pdur:${0.5+Math.random()*0.4}s;--pdelay:${Math.random()*0.1}s"></div>`;
-      }
-      particles += '</div>';
-      slot.insertAdjacentHTML('beforeend', particles);
-    } else if (rarity === 'epic') {
-      slot.insertAdjacentHTML('beforeend', '<div class="epic-flash"></div><div class="epic-ring"></div>');
-    } else if (rarity === 'rare') {
-      slot.insertAdjacentHTML('beforeend', '<div class="rare-flash"></div>');
-    }
 
     if (slot._isNew) {
       setTimeout(() => { slot.insertAdjacentHTML('beforeend', '<div class="reveal-badge is-new">NEW</div>'); }, glowDelay);
@@ -1360,11 +1316,77 @@ async function claimAllMilestones() {
     slot.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
     flipped++;
-    const delay = { common: 60, rare: 100, epic: 200, legendary: 400, mythic: 700 }[rarity] || 60;
+    const delay = { common: 50, rare: 80, epic: 150, legendary: 300, mythic: 500 }[rarity] || 50;
     setTimeout(flipNext, delay);
   }
 
-  // Start immediately
+  // Phase 2: Add particle effects after all cards are flipped
+  function addEffectsPass() {
+    const effectSlots = slots.filter(s => s._rarity === 'legendary' || s._rarity === 'mythic');
+
+    let idx = 0;
+    function addNextEffect() {
+      if (idx >= effectSlots.length) {
+        // Done — show buttons
+        const btnWrap = document.createElement('div');
+        btnWrap.className = 'reveal-buttons';
+        const doneBtn = document.createElement('button');
+        doneBtn.className = 'reveal-done-btn';
+        doneBtn.textContent = 'View Library';
+        doneBtn.onclick = closePack;
+        btnWrap.appendChild(doneBtn);
+        overlay.querySelector('.pack-container').appendChild(btnWrap);
+        slots.forEach(s => {
+          s.classList.add('hoverable');
+          s.addEventListener('click', () => { if (s._contributor) openFullscreenCard(s._contributor); });
+        });
+        return;
+      }
+
+      const slot = effectSlots[idx];
+      const rarity = slot._rarity;
+
+      slot.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      if (rarity === 'mythic') {
+        overlay.classList.add('shake-screen');
+        setTimeout(() => overlay.classList.remove('shake-screen'), 500);
+        slot.insertAdjacentHTML('beforeend', '<div class="mythic-flash"></div><div class="mythic-ring"></div>');
+        let particles = '<div class="leg-particles">';
+        const colors = ['#ff0040','#ff6600','#fff','#ff00ff'];
+        for (let i = 0; i < 16; i++) {
+          const angle = (Math.PI * 2 / 16) * i;
+          const dist = 80 + Math.random() * 100;
+          particles += `<div class="leg-particle" style="width:5px;height:5px;background:${colors[i%colors.length]};--px:${Math.cos(angle)*dist}px;--py:${Math.sin(angle)*dist}px;--pdur:${0.6+Math.random()*0.4}s;--pdelay:${Math.random()*0.15}s"></div>`;
+        }
+        particles += '</div>';
+        slot.insertAdjacentHTML('beforeend', particles);
+      } else if (rarity === 'legendary') {
+        overlay.classList.add('shake-screen');
+        setTimeout(() => overlay.classList.remove('shake-screen'), 400);
+        slot.insertAdjacentHTML('beforeend', '<div class="legendary-flash"></div><div class="legendary-ring"></div>');
+        let particles = '<div class="leg-particles">';
+        const colors = ['#ffd700','#ff6ec7','#fff'];
+        for (let i = 0; i < 10; i++) {
+          const angle = (Math.PI * 2 / 10) * i;
+          const dist = 60 + Math.random() * 80;
+          particles += `<div class="leg-particle" style="width:4px;height:4px;background:${colors[i%colors.length]};--px:${Math.cos(angle)*dist}px;--py:${Math.sin(angle)*dist}px;--pdur:${0.5+Math.random()*0.4}s;--pdelay:${Math.random()*0.1}s"></div>`;
+        }
+        particles += '</div>';
+        slot.insertAdjacentHTML('beforeend', particles);
+      }
+
+      idx++;
+      // Clean up previous effect slot's particles
+      if (idx >= 2) cleanupSlot(effectSlots[idx - 2]);
+      setTimeout(addNextEffect, rarity === 'mythic' ? 800 : 500);
+    }
+
+    // Small pause before the effects celebration
+    setTimeout(addNextEffect, 400);
+  }
+
+  // Start flipping immediately
   setTimeout(flipNext, 200);
 }
 

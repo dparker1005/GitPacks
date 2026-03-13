@@ -681,7 +681,7 @@
     .ach-claim-all:disabled { opacity:0.5; cursor:default; transform:none; box-shadow:none; }
     .claim-all-container { overflow-y:auto; max-height:100vh; padding-top:20px; }
     .claim-all-header { font-family:'Orbitron',sans-serif; font-size:1.1rem; font-weight:900; letter-spacing:2px; text-transform:uppercase; text-align:center; margin-bottom:16px; background:linear-gradient(135deg,#7873f5,#4adede); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-    .claim-all-area { flex-wrap:wrap; justify-content:center; gap:10px 10px; padding:0 10px 20px; row-gap:36px; }
+    .claim-all-area { flex-wrap:wrap; justify-content:center; gap:42px 10px; padding:0 10px 20px; }
     .claim-all-area .reveal-slot { will-change:transform; overflow:visible; }
     .claim-all-area .reveal-badge { z-index:50; }
     .claim-all-area .leg-particles { will-change:transform, opacity; }

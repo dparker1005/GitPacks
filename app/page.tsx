@@ -75,7 +75,7 @@ export default function Home() {
     });
     const supabase = getSupabaseBrowser();
     supabase.auth.signOut().then(() => {
-      window.location.reload();
+      window.location.href = window.location.pathname;
     });
   }
 
@@ -83,9 +83,9 @@ export default function Home() {
     <div id="gallery-screen">
       <div className="top-bar">
         <div className="top-bar-left">
-          <button className="btn-share" id="share-btn">Share</button>
         </div>
         <div className="top-bar-right">
+          <button className="btn-share" id="share-btn">Share</button>
           <div id="top-bar-packs"></div>
           {authLoading ? null : user ? (
             <div className="user-menu">
