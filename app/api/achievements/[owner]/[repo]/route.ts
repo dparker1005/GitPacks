@@ -278,7 +278,7 @@ export async function GET(
   }
 }
 
-// ===== POST — claim a single milestone and draw a pack =====
+// ===== POST — claim milestones (single or batch) and draw packs =====
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ owner: string; repo: string }> }
@@ -296,26 +296,14 @@ export async function POST(
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    // Parse body
-    let body: { stat_type: string; threshold: number };
+    let body: any;
     try {
       body = await request.json();
     } catch {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
 
-    const { stat_type, threshold } = body;
-    if (!stat_type || typeof threshold !== 'number') {
-      return NextResponse.json({ error: 'Missing stat_type or threshold' }, { status: 400 });
-    }
-
-    // Validate stat_type
-    const def = MILESTONE_DEFS[stat_type];
-    if (!def) {
-      return NextResponse.json({ error: 'Invalid stat_type' }, { status: 400 });
-    }
-
-    // Get profile for github_username
+    // Get profile
     const { data: profile } = await supabase
       .from('profiles')
       .select('id, github_username')
@@ -326,7 +314,6 @@ export async function POST(
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
-    // Load repo data
     const ownerRepo = `${owner}/${repo}`.toLowerCase();
     const cached = await getCachedRepo(ownerRepo);
     if (!cached || !Array.isArray(cached)) {
@@ -334,8 +321,6 @@ export async function POST(
     }
 
     const allContributors: Contributor[] = cached;
-
-    // Find contributor
     const contributor = allContributors.find(
       (c) => c.login.toLowerCase() === profile.github_username.toLowerCase()
     );
@@ -344,65 +329,100 @@ export async function POST(
       return NextResponse.json({ error: 'Not a contributor to this repo' }, { status: 403 });
     }
 
-    // Verify the milestone is actually earned
-    const statValue = (contributor as any)[def.statKey] ?? 0;
-    const earned = getEarnedThresholds(statValue, def);
-    if (!earned.includes(threshold)) {
-      return NextResponse.json({ error: 'Milestone not earned' }, { status: 403 });
+    // Determine if batch or single claim
+    let milestonesToClaim: { stat_type: string; threshold: number }[] = [];
+
+    if (body.claim_all) {
+      // Get all existing achievements
+      const { data: existingAchievements } = await supabase
+        .from('user_achievements')
+        .select('stat_type, threshold')
+        .eq('user_id', user.id)
+        .eq('owner_repo', ownerRepo);
+
+      const claimedSet = new Set(
+        (existingAchievements || []).map((a: any) => `${a.stat_type}:${a.threshold}`)
+      );
+
+      for (const [statType, def] of Object.entries(MILESTONE_DEFS)) {
+        const statValue = (contributor as any)[def.statKey] ?? 0;
+        const earned = getEarnedThresholds(statValue, def);
+        for (const t of earned) {
+          if (!claimedSet.has(`${statType}:${t}`)) {
+            milestonesToClaim.push({ stat_type: statType, threshold: t });
+          }
+        }
+      }
+    } else {
+      // Single claim — validate
+      const { stat_type, threshold } = body;
+      if (!stat_type || typeof threshold !== 'number') {
+        return NextResponse.json({ error: 'Missing stat_type or threshold' }, { status: 400 });
+      }
+      const def = MILESTONE_DEFS[stat_type];
+      if (!def) {
+        return NextResponse.json({ error: 'Invalid stat_type' }, { status: 400 });
+      }
+      const statValue = (contributor as any)[def.statKey] ?? 0;
+      const earned = getEarnedThresholds(statValue, def);
+      if (!earned.includes(threshold)) {
+        return NextResponse.json({ error: 'Milestone not earned' }, { status: 403 });
+      }
+      milestonesToClaim = [{ stat_type, threshold }];
     }
 
-    // Verify not already claimed
-    const { data: existingClaim } = await supabase
-      .from('user_achievements')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('owner_repo', ownerRepo)
-      .eq('stat_type', stat_type)
-      .eq('threshold', threshold)
-      .single();
-
-    if (existingClaim) {
-      return NextResponse.json({ error: 'Milestone already claimed' }, { status: 409 });
+    if (milestonesToClaim.length === 0) {
+      return NextResponse.json({ cards: [], milestones: [] });
     }
 
-    // Insert achievement
-    await supabase.from('user_achievements').insert({
-      user_id: user.id,
-      owner_repo: ownerRepo,
-      stat_type,
-      threshold,
-    });
+    // Insert all achievements
+    await supabase.from('user_achievements').insert(
+      milestonesToClaim.map(m => ({
+        user_id: user.id,
+        owner_repo: ownerRepo,
+        stat_type: m.stat_type,
+        threshold: m.threshold,
+      }))
+    );
 
-    // Draw a pack of 5 cards
-    const cards = selectPackCards(allContributors, 5);
+    // Draw cards: 5 per milestone
+    const allCards: Contributor[] = [];
+    for (let i = 0; i < milestonesToClaim.length; i++) {
+      allCards.push(...selectPackCards(allContributors, 5));
+    }
 
-    // Save drawn cards to user_collections
-    for (const card of cards) {
+    // Batch save cards: aggregate counts first, then upsert
+    const cardCounts: Record<string, number> = {};
+    for (const card of allCards) {
+      cardCounts[card.login] = (cardCounts[card.login] || 0) + 1;
+    }
+
+    for (const [login, addCount] of Object.entries(cardCounts)) {
       const { data: existing } = await supabase
         .from('user_collections')
         .select('count')
         .eq('user_id', user.id)
         .eq('owner_repo', ownerRepo)
-        .eq('contributor_login', card.login)
+        .eq('contributor_login', login)
         .single();
 
       if (existing) {
         await supabase
           .from('user_collections')
-          .update({ count: existing.count + 1 })
+          .update({ count: existing.count + addCount })
           .eq('user_id', user.id)
           .eq('owner_repo', ownerRepo)
-          .eq('contributor_login', card.login);
+          .eq('contributor_login', login);
       } else {
         await supabase
           .from('user_collections')
-          .insert({ user_id: user.id, owner_repo: ownerRepo, contributor_login: card.login, count: 1 });
+          .insert({ user_id: user.id, owner_repo: ownerRepo, contributor_login: login, count: addCount });
       }
     }
 
     return NextResponse.json({
-      cards,
-      milestone: { stat_type, threshold },
+      cards: allCards,
+      milestones: milestonesToClaim,
     });
   } catch (e: any) {
     return NextResponse.json({ error: 'Unexpected error', detail: e?.message }, { status: 500 });

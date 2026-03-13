@@ -1194,47 +1194,46 @@ async function claimAllMilestones() {
   if (claimable.length === 0) return;
 
   const claimAllBtn = document.getElementById('ach-claim-all');
-  if (claimAllBtn) { claimAllBtn.disabled = true; claimAllBtn.textContent = 'Claiming...'; }
+  if (claimAllBtn) { claimAllBtn.disabled = true; claimAllBtn.textContent = 'Opening packs...'; }
 
-  // Claim all milestones and collect all cards
+  // Single API call to claim all milestones
   const [owner, repo] = currentRepoName.split('/');
-  const allCards = [];
-  for (const m of claimable) {
-    try {
-      const res = await fetch(`/api/achievements/${owner}/${repo}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(m),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        allCards.push(...data.cards);
-        // Mark as claimed locally
-        if (lastAchievementData?.milestones?.[m.stat_type]) {
-          lastAchievementData.milestones[m.stat_type].claimed.push(m.threshold);
-          lastAchievementData.milestones[m.stat_type].claimable =
-            lastAchievementData.milestones[m.stat_type].claimable.filter(t => t !== m.threshold);
-        }
+  let allCards = [];
+  try {
+    const res = await fetch(`/api/achievements/${owner}/${repo}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ claim_all: true }),
+    });
+    if (!res.ok) { if (claimAllBtn) { claimAllBtn.disabled = false; claimAllBtn.textContent = 'Open All'; } return; }
+    const data = await res.json();
+    allCards = data.cards || [];
+    // Mark all as claimed locally
+    if (data.milestones && lastAchievementData?.milestones) {
+      for (const m of data.milestones) {
+        const ms = lastAchievementData.milestones[m.stat_type];
+        if (ms) { ms.claimed.push(m.threshold); ms.claimable = ms.claimable.filter(t => t !== m.threshold); }
       }
-    } catch { /* continue claiming others */ }
-  }
+    }
+  } catch { if (claimAllBtn) { claimAllBtn.disabled = false; claimAllBtn.textContent = 'Open All'; } return; }
 
   renderRepoInfoFromCurrent();
-
   if (allCards.length === 0) return;
 
-  // Sort: common first, mythic last (for epic finale)
+  // Sort: common first, mythic last
   const rarityOrder = { common: 0, rare: 1, epic: 2, legendary: 3, mythic: 4 };
   allCards.sort((a, b) => (rarityOrder[a.rarity] || 0) - (rarityOrder[b.rarity] || 0));
 
-  // Show all cards in a big scrollable reveal
+  // Track which logins we've already seen (for NEW badge deduplication)
+  const seenLogins = new Set(Object.keys(library));
+
   packOpen = true;
   const overlay = document.createElement('div');
   overlay.className = 'pack-overlay';
   overlay.innerHTML = `
     <button class="pack-close-btn" id="pack-close-btn">&times;</button>
     <div class="pack-container claim-all-container">
-      <div class="claim-all-header">${claimable.length} Achievement Packs</div>
+      <div class="claim-all-header">${claimable.length} Achievement Pack${claimable.length !== 1 ? 's' : ''}</div>
       <div class="reveal-area claim-all-area" id="reveal-area" style="display:flex"></div>
     </div>`;
   document.body.appendChild(overlay);
@@ -1249,12 +1248,11 @@ async function claimAllMilestones() {
   document.addEventListener('keydown', escHandler);
   overlay.querySelector('#pack-close-btn').addEventListener('click', closePack);
 
-  // Build all card slots
   const area = overlay.querySelector('#reveal-area');
   const slots = [];
 
   allCards.forEach((c) => {
-    const isNew = !library[c.login];
+    const isNew = !seenLogins.has(c.login);
     const slot = document.createElement('div');
     slot.className = 'reveal-slot unflipped';
     slot.dataset.rarity = c.rarity;
@@ -1278,6 +1276,8 @@ async function claimAllMilestones() {
     slot._isNew = isNew;
     slot._rarity = c.rarity;
     slot._contributor = c;
+    // Mark as seen so subsequent dupes don't get NEW
+    seenLogins.add(c.login);
     area.appendChild(slot);
     slots.push(slot);
   });
@@ -1292,22 +1292,15 @@ async function claimAllMilestones() {
     if (cw) cw.style.transform = `scale(${cardScale})`;
   });
 
-  // Stagger entrance
-  slots.forEach((s, i) => {
-    s.style.opacity = '0';
-    s.style.transform = 'translateY(30px)';
-    setTimeout(() => {
-      s.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-      s.style.opacity = '1';
-      s.style.transform = 'translateY(0)';
-    }, i * 60);
-  });
+  // Show all cards immediately (no stagger entrance for speed)
+  slots.forEach(s => { s.style.opacity = '1'; });
 
-  // Auto-flip with delay, scrolling to follow
+  // Auto-flip: fast for commons, slower for rare+
   let flipped = 0;
+  const container = overlay.querySelector('.claim-all-container');
+
   function flipNext() {
     if (flipped >= slots.length) {
-      // All done — show close button
       const btnWrap = document.createElement('div');
       btnWrap.className = 'reveal-buttons';
       const doneBtn = document.createElement('button');
@@ -1316,8 +1309,6 @@ async function claimAllMilestones() {
       doneBtn.onclick = closePack;
       btnWrap.appendChild(doneBtn);
       overlay.querySelector('.pack-container').appendChild(btnWrap);
-
-      // Make cards clickable for fullscreen view
       slots.forEach(s => {
         s.classList.add('hoverable');
         s.addEventListener('click', () => { if (s._contributor) openFullscreenCard(s._contributor); });
@@ -1332,43 +1323,39 @@ async function claimAllMilestones() {
     slot.classList.remove('unflipped');
     card.classList.add('flip-' + rarity);
 
-    const glowDelay = { common: 300, rare: 400, epic: 600, legendary: 800, mythic: 1200 }[rarity] || 300;
+    // Glow (fast for common/rare)
+    const glowDelay = { common: 150, rare: 200, epic: 300, legendary: 400, mythic: 600 }[rarity] || 150;
     setTimeout(() => { if (rarity !== 'common') slot.classList.add('revealed'); }, glowDelay * 0.5);
 
-    // Rarity effects for epic+
+    // Only add effects for legendary+ (skip particles for epic/rare to reduce lag)
     if (rarity === 'mythic') {
       overlay.classList.add('shake-screen');
-      setTimeout(() => overlay.classList.remove('shake-screen'), 600);
+      setTimeout(() => overlay.classList.remove('shake-screen'), 400);
       slot.insertAdjacentHTML('beforeend', '<div class="mythic-flash"></div><div class="mythic-ring"></div>');
     } else if (rarity === 'legendary') {
       overlay.classList.add('shake-screen');
-      setTimeout(() => overlay.classList.remove('shake-screen'), 500);
+      setTimeout(() => overlay.classList.remove('shake-screen'), 300);
       slot.insertAdjacentHTML('beforeend', '<div class="legendary-flash"></div><div class="legendary-ring"></div>');
-    } else if (rarity === 'epic') {
-      slot.insertAdjacentHTML('beforeend', '<div class="epic-flash"></div><div class="epic-ring"></div>');
-    } else if (rarity === 'rare') {
-      slot.insertAdjacentHTML('beforeend', '<div class="rare-flash"></div>');
     }
 
     if (slot._isNew) {
       setTimeout(() => { slot.insertAdjacentHTML('beforeend', '<div class="reveal-badge is-new">NEW</div>'); }, glowDelay);
     }
 
-    // Save to local library
     library[slot._contributor.login] = (library[slot._contributor.login] || 0) + 1;
     saveLibrary();
 
-    // Scroll to keep the current card in view
+    // Scroll to keep current card visible
     slot.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
     flipped++;
-    // Slower for higher rarity
-    const delay = { common: 200, rare: 300, epic: 500, legendary: 800, mythic: 1400 }[rarity] || 200;
+    // Speed: commons zip by, rare+ get a moment
+    const delay = { common: 80, rare: 120, epic: 250, legendary: 500, mythic: 800 }[rarity] || 80;
     setTimeout(flipNext, delay);
   }
 
-  // Start flipping after entrance animation settles
-  setTimeout(flipNext, slots.length * 60 + 500);
+  // Start immediately
+  setTimeout(flipNext, 300);
 }
 
 window.claimMilestone = claimMilestone;
