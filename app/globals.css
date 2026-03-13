@@ -122,10 +122,10 @@
     .repo-info-sep { width:1px; height:24px; background:rgba(120,115,245,0.2); }
     .collection-progress { color:#888; font-size:0.75rem; font-family:'Orbitron',sans-serif; letter-spacing:1px; }
     .collection-progress span { color:#4adede; }
-    .collection-progress.complete { background:linear-gradient(135deg,#7873f5,#4adede); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-    .collection-progress.complete span { -webkit-text-fill-color:transparent; }
-    .complete-tag { display:inline-block; margin-left:8px; padding:2px 8px; border-radius:4px; font-size:0.5rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; background:linear-gradient(135deg,#7873f5,#4adede); -webkit-text-fill-color:#fff; }
-    .repo-info-complete { border-color:rgba(120,115,245,0.4); background:linear-gradient(135deg,rgba(120,115,245,0.06),rgba(74,222,222,0.06)); }
+    .repo-info-row.repo-info-complete { position:relative; border:1px solid rgba(74,222,222,0.4); border-radius:12px; padding:12px 20px; background:linear-gradient(135deg,rgba(120,115,245,0.08),rgba(74,222,222,0.08)); }
+    .repo-info-complete .collection-progress { background:linear-gradient(135deg,#7873f5,#4adede); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; font-weight:700; }
+    .repo-info-complete .collection-progress span { -webkit-text-fill-color:transparent; }
+    .repo-info-complete::after { content:'Complete'; position:absolute; right:12px; top:-8px; font-family:'Orbitron',sans-serif; font-size:0.5rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; padding:2px 8px; border-radius:4px; background:linear-gradient(135deg,#7873f5,#4adede); color:#fff; }
     .action-buttons { display:flex; gap:10px; justify-content:center; margin-top:14px; flex-wrap:wrap; align-items:center; }
 
     /* === FILTERS === */

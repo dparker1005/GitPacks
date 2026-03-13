@@ -525,7 +525,7 @@ function renderRepoInfo(owner, repo) {
       <div class="repo-info-inner">
         <h2><span>${owner || ''}</span> / <span>${repo || ''}</span></h2>
         <div class="repo-info-sep"></div>
-        <div class="collection-progress${isComplete ? ' complete' : ''}"><span>${collected}</span> / <span>${total}</span> collected${isComplete ? ' <span class="complete-tag">Complete</span>' : ''}</div>
+        <div class="collection-progress"><span>${collected}</span> / <span>${total}</span> collected</div>
       </div>
       <button class="switch-repo-btn" id="switch-repo-btn">Switch Repo</button>
     </div>
