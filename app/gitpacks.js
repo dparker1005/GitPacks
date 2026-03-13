@@ -198,30 +198,40 @@ async function loadPopularRepos() {
       } catch { /* silent */ }
     }
 
-    // Filter out contributed repos that are already in the cached repo list
-    const cachedNames = new Set(repos.map(r => r.name.toLowerCase()));
-    const newContributed = contributedRepos.filter(r => !cachedNames.has(r.name.toLowerCase()));
+    // Filter contributed repos: exclude ones already in user's collection
+    const collectedNames = new Set(yourRepos.map(r => r.name.toLowerCase()));
+    const newContributed = contributedRepos.filter(r => !collectedNames.has(r.name.toLowerCase()));
 
     function contribBtn(r) {
-      return `<button class="popular-repo-btn contributed-repo-btn" data-repo="${r.name}">
+      if (r.cached) {
+        return `<button class="popular-repo-btn contributed-repo-btn" data-repo="${r.name}">
           <span class="popular-repo-name">${r.name}</span>
           <span class="popular-repo-meta">
-            <span class="popular-repo-stars">${r.stars > 0 ? '\u2B50 ' + (r.stars >= 1000 ? (r.stars/1000).toFixed(1) + 'k' : r.stars) : ''}</span>
+            <span class="popular-repo-progress">0/${r.cards}</span>
+            <span class="popular-repo-pct">0%</span>
+          </span>
+        </button>`;
+      }
+      // Not cached yet — show loading indicator, will preload
+      return `<button class="popular-repo-btn contributed-repo-btn" data-repo="${r.name}" data-preload="true">
+          <span class="popular-repo-name">${r.name}</span>
+          <span class="popular-repo-meta">
+            <span class="contrib-loading"><span class="spinner-small"></span></span>
           </span>
         </button>`;
     }
 
     let html = '';
-    if (newContributed.length) {
-      html += `<div class="popular-section">
-        <h3 class="popular-title">Repos You Contribute To</h3>
-        <div class="popular-grid">${newContributed.map(contribBtn).join('')}</div>
-      </div>`;
-    }
     if (yourRepos.length) {
       html += `<div class="popular-section">
         <h3 class="popular-title">Your Collection</h3>
         <div class="popular-grid">${yourRepos.map(repoBtn).join('')}</div>
+      </div>`;
+    }
+    if (newContributed.length) {
+      html += `<div class="popular-section">
+        <h3 class="popular-title">Other Repos You Contribute To</h3>
+        <div class="popular-grid" id="contributed-grid">${newContributed.map(contribBtn).join('')}</div>
       </div>`;
     }
     if (otherRepos.length) {
@@ -234,6 +244,33 @@ async function loadPopularRepos() {
     popularRepos.querySelectorAll('.popular-repo-btn').forEach(b => {
       b.addEventListener('click', () => quickLoad(b.dataset.repo));
     });
+
+    // Preload uncached contributed repos in background
+    const toPreload = newContributed.filter(r => !r.cached);
+    for (const r of toPreload) {
+      const [ow, rp] = r.name.split('/');
+      if (!ow || !rp) continue;
+      fetch(`/api/repo/${ow}/${rp}`).then(async res => {
+        if (!res.ok) return;
+        const data = await res.json();
+        const cardCount = Array.isArray(data) ? data.length : 0;
+        // Update the button in place
+        const btn = popularRepos.querySelector(`[data-repo="${r.name}"][data-preload]`);
+        if (btn) {
+          btn.removeAttribute('data-preload');
+          const meta = btn.querySelector('.popular-repo-meta');
+          if (meta) meta.innerHTML = `<span class="popular-repo-progress">0/${cardCount}</span><span class="popular-repo-pct">0%</span>`;
+        }
+      }).catch(() => {
+        // Remove loading spinner on failure
+        const btn = popularRepos.querySelector(`[data-repo="${r.name}"][data-preload]`);
+        if (btn) {
+          btn.removeAttribute('data-preload');
+          const meta = btn.querySelector('.popular-repo-meta');
+          if (meta) meta.innerHTML = '';
+        }
+      });
+    }
   } catch { /* silent */ }
 }
 

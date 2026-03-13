@@ -24,6 +24,9 @@ export async function getCachedRepo(ownerRepo: string): Promise<any | null> {
 
 // Store repo data in Supabase
 export async function setCachedRepo(ownerRepo: string, repoData: any): Promise<void> {
+  const contributorLogins = Array.isArray(repoData)
+    ? repoData.map((c: any) => c.login?.toLowerCase()).filter(Boolean)
+    : [];
   await supabase
     .from('repo_cache')
     .upsert(
@@ -31,6 +34,7 @@ export async function setCachedRepo(ownerRepo: string, repoData: any): Promise<v
         owner_repo: ownerRepo,
         data: repoData,
         card_count: Array.isArray(repoData) ? repoData.length : 0,
+        contributor_logins: contributorLogins,
         fetched_at: new Date().toISOString(),
       },
       { onConflict: 'owner_repo' }

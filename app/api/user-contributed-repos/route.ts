@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseServer } from '../../lib/supabase-server';
+import { supabase as anonSupabase } from '../repo/cache';
 
 export async function GET() {
   const supabase = await getSupabaseServer();
@@ -20,13 +21,36 @@ export async function GET() {
   }
 
   const username = profile.github_username;
+  const usernameLower = username.toLowerCase();
   const headers: Record<string, string> = { Accept: 'application/vnd.github+json' };
   const token = process.env.GITHUB_TOKEN;
   if (token) headers.Authorization = `token ${token}`;
 
   try {
-    // Fetch up to 300 events (3 pages of 100)
-    const repoMap = new Map<string, { name: string; description: string; stars: number }>();
+    // Source 1: Search cached repos where user is a contributor (fast GIN index lookup)
+    const { data: cachedMatches } = await anonSupabase
+      .from('repo_cache')
+      .select('owner_repo, card_count')
+      .contains('contributor_logins', [usernameLower]);
+
+    const results: { name: string; description: string; stars: number; cards: number; cached: boolean }[] = [];
+    const seenNames = new Set<string>();
+
+    if (cachedMatches) {
+      for (const r of cachedMatches) {
+        seenNames.add(r.owner_repo.toLowerCase());
+        results.push({
+          name: r.owner_repo,
+          description: '',
+          stars: 0,
+          cards: r.card_count || 0,
+          cached: true,
+        });
+      }
+    }
+
+    // Source 2: GitHub events API for recent activity (catches uncached repos)
+    const repoMap = new Map<string, boolean>();
 
     for (let page = 1; page <= 3; page++) {
       const res = await fetch(
@@ -40,41 +64,45 @@ export async function GET() {
       for (const event of events) {
         const repo = event.repo;
         if (!repo?.name) continue;
+        if (seenNames.has(repo.name.toLowerCase())) continue;
         if (repoMap.has(repo.name)) continue;
+        repoMap.set(repo.name, true);
+      }
+    }
 
-        // We'll filter forks below via repo metadata if available
-        repoMap.set(repo.name, {
-          name: repo.name,
-          description: '',
-          stars: 0,
+    // Fetch details for uncached repos (filter forks, get metadata)
+    const uncachedNames = Array.from(repoMap.keys()).slice(0, 20);
+    if (uncachedNames.length > 0) {
+      const detailed = await Promise.all(
+        uncachedNames.map(async (name) => {
+          try {
+            const res = await fetch(`https://api.github.com/repos/${name}`, { headers });
+            if (!res.ok) return null;
+            return await res.json();
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      for (const r of detailed) {
+        if (!r || r.fork) continue;
+        results.push({
+          name: r.full_name,
+          description: r.description || '',
+          stars: r.stargazers_count || 0,
+          cards: 0,
+          cached: false,
         });
       }
     }
 
-    // Fetch repo details to filter forks and get metadata
-    // Only fetch for repos we don't have details for (batch in parallel, max 20)
-    const repoNames = Array.from(repoMap.keys()).slice(0, 30);
-    const detailed = await Promise.all(
-      repoNames.map(async (name) => {
-        try {
-          const res = await fetch(`https://api.github.com/repos/${name}`, { headers });
-          if (!res.ok) return null;
-          return await res.json();
-        } catch {
-          return null;
-        }
-      })
-    );
-
-    const results = detailed
-      .filter((r): r is any => r !== null && !r.fork)
-      .map((r) => ({
-        name: r.full_name,
-        description: r.description || '',
-        stars: r.stargazers_count || 0,
-      }));
-
-    results.sort((a, b) => b.stars - a.stars);
+    // Sort: cached repos first (they have cards), then by stars
+    results.sort((a, b) => {
+      if (a.cached && !b.cached) return -1;
+      if (!a.cached && b.cached) return 1;
+      return b.stars - a.stars;
+    });
 
     return NextResponse.json(results);
   } catch (e: any) {
