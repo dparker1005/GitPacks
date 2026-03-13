@@ -36,6 +36,13 @@ let packCountdownInterval = null;
 let guestPacksRemaining = 5; // for logged-out users
 let lastAchievementData = null; // achievement data for current repo
 
+// Global space handler — only one at a time, avoids stacking conflicts
+let _spaceAction = null;
+function _globalSpaceHandler(e) { if (e.code === 'Space' && _spaceAction) { e.preventDefault(); const action = _spaceAction; _spaceAction = null; action(); } }
+document.addEventListener('keydown', _globalSpaceHandler);
+function setSpaceAction(fn) { _spaceAction = fn; }
+function clearSpaceAction() { _spaceAction = null; }
+
 const searchContainer = document.getElementById('search-container');
 const popularRepos = document.getElementById('popular-repos');
 
@@ -677,13 +684,12 @@ async function openPack() {
       if (pendingGuestPacks !== null) { guestPacksRemaining = pendingGuestPacks; localStorage.setItem('gp_guest_packs_remaining', String(guestPacksRemaining)); pendingGuestPacks = null; }
       renderTopBarPacks();
     }); }, 700);
-    document.removeEventListener('keydown', packSpaceHandler);
+    clearSpaceAction();
   }
   packWrapper.addEventListener('click', tearPack);
-  const packSpaceHandler = e => { if (e.code === 'Space') { e.preventDefault(); tearPack(); } };
-  document.addEventListener('keydown', packSpaceHandler);
+  setSpaceAction(tearPack);
 
-  function closePack() { packOpen = false; overlay.remove(); document.removeEventListener('keydown', packSpaceHandler); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); }
+  function closePack() { packOpen = false; overlay.remove(); clearSpaceAction(); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); }
   overlay._escHandler = e => { if (e.code === 'Escape') closePack(); };
   document.addEventListener('keydown', overlay._escHandler);
   overlay.querySelector('#pack-close-btn').addEventListener('click', closePack);
@@ -866,7 +872,7 @@ function revealCards(overlay, picks, onComplete) {
         revealComplete = true;
         if (onComplete) onComplete();
         flipInstruction.remove();
-        document.removeEventListener('keydown', spaceHandler);
+        clearSpaceAction();
 
         slots.forEach(s => {
           s.classList.add('hoverable');
@@ -880,7 +886,7 @@ function revealCards(overlay, picks, onComplete) {
         async function openAnother() {
           if (anotherOpened) return;
           anotherOpened = true;
-          document.removeEventListener('keydown', doneSpaceHandler);
+          clearSpaceAction();
 
           // Fade out current content, keeping the overlay visible
           const container = overlay.querySelector('.pack-container');
@@ -951,15 +957,14 @@ function revealCards(overlay, picks, onComplete) {
               if (nextPendingGuestPacks !== null) { guestPacksRemaining = nextPendingGuestPacks; localStorage.setItem('gp_guest_packs_remaining', String(guestPacksRemaining)); nextPendingGuestPacks = null; }
               renderTopBarPacks();
             }); }, 700);
-            document.removeEventListener('keydown', newSpaceHandler);
+            clearSpaceAction();
           }
           newWrapper.addEventListener('click', tearNewPack);
-          const newSpaceHandler = e => { if (e.code === 'Space') { e.preventDefault(); tearNewPack(); } };
-          document.addEventListener('keydown', newSpaceHandler);
+          setSpaceAction(tearNewPack);
 
           // Update close handler to clean up new listeners
           document.removeEventListener('keydown', overlay._escHandler);
-          function closeNewPack() { packOpen = false; overlay.remove(); document.removeEventListener('keydown', newSpaceHandler); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); }
+          function closeNewPack() { packOpen = false; overlay.remove(); clearSpaceAction(); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); }
           overlay._escHandler = e => { if (e.code === 'Escape') closeNewPack(); };
           document.addEventListener('keydown', overlay._escHandler);
           overlay.querySelector('#pack-close-btn').onclick = closeNewPack;
@@ -967,9 +972,8 @@ function revealCards(overlay, picks, onComplete) {
           renderRepoInfoFromCurrent(); renderLibrary();
         }
 
-        const doneSpaceHandler = e => { if (e.code === 'Space') { e.preventDefault(); openAnother(); } };
         setTimeout(() => {
-          if (!anotherOpened) document.addEventListener('keydown', doneSpaceHandler);
+          if (!anotherOpened) setSpaceAction(openAnother);
         }, 200);
 
         const btnWrap = document.createElement('div');
@@ -977,7 +981,7 @@ function revealCards(overlay, picks, onComplete) {
         const doneBtn = document.createElement('button');
         doneBtn.className = 'reveal-done-btn';
         doneBtn.textContent = 'View Library';
-        doneBtn.onclick = () => { packOpen = false; overlay.remove(); document.removeEventListener('keydown', doneSpaceHandler); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); };
+        doneBtn.onclick = () => { packOpen = false; overlay.remove(); clearSpaceAction(); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); };
         const anotherBtn = document.createElement('button');
         anotherBtn.className = 'reveal-another-btn';
 
@@ -1003,20 +1007,19 @@ function revealCards(overlay, picks, onComplete) {
   });
 
   let spaceQueued = false;
-  const spaceHandler = e => {
-    if (e.code !== 'Space') return;
-    e.preventDefault();
+  // Use global space action for "flip all" — re-sets itself until complete
+  function flipAllViaSpace() {
     if (revealComplete || spaceQueued) return;
     spaceQueued = true;
-    function flipAll() {
+    function flipNext() {
       const next = getNextUnflipped();
       if (!next) { spaceQueued = false; return; }
       flipSlot(next);
-      setTimeout(flipAll, 150);
+      setTimeout(flipNext, 150);
     }
-    flipAll();
-  };
-  document.addEventListener('keydown', spaceHandler);
+    flipNext();
+  }
+  setSpaceAction(flipAllViaSpace);
 }
 
 // ===== SELF-CARD REVEAL =====
@@ -1247,8 +1250,7 @@ function revealMilestonePack(cards) {
           btnWrap.appendChild(nextBtn);
 
           // Space to open next
-          const spaceH = e => { if (e.code === 'Space') { e.preventDefault(); document.removeEventListener('keydown', spaceH); nextBtn.onclick(); } };
-          setTimeout(() => document.addEventListener('keydown', spaceH), 200);
+          setTimeout(() => setSpaceAction(() => nextBtn.onclick()), 200);
         }
 
         overlay.querySelector('.pack-container').appendChild(btnWrap);
