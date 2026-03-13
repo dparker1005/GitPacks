@@ -105,15 +105,15 @@ export default function Home() {
         <h1>
           <svg viewBox="0 0 32 32">
             <defs>
-              <linearGradient id="gp-header" x1="0%" y1="0%" x2="100%" y2="100%">
+              <linearGradient id="gp-title-grad" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" style={{ stopColor: "#7873f5" }} />
                 <stop offset="100%" style={{ stopColor: "#4adede" }} />
               </linearGradient>
             </defs>
-            <rect x="4" y="2" width="18" height="26" rx="3" fill="none" stroke="url(#gp-header)" strokeWidth="2" opacity="0.4" transform="rotate(-6 13 15)" />
-            <rect x="8" y="3" width="18" height="26" rx="3" fill="none" stroke="url(#gp-header)" strokeWidth="2" opacity="0.7" transform="rotate(3 17 16)" />
-            <rect x="6" y="2.5" width="18" height="26" rx="3" fill="none" stroke="url(#gp-header)" strokeWidth="2.5" />
-            <text x="15" y="20.5" fontFamily="sans-serif" fontWeight="900" fontSize="14" fill="url(#gp-header)" textAnchor="middle">G</text>
+            <rect x="4" y="2" width="18" height="26" rx="3" fill="none" stroke="url(#gp-title-grad)" strokeWidth="2" opacity="0.4" transform="rotate(-6 13 15)" />
+            <rect x="8" y="3" width="18" height="26" rx="3" fill="none" stroke="url(#gp-title-grad)" strokeWidth="2" opacity="0.7" transform="rotate(3 17 16)" />
+            <rect x="6" y="2.5" width="18" height="26" rx="3" fill="none" stroke="url(#gp-title-grad)" strokeWidth="2.5" />
+            <text x="15" y="20.5" fontFamily="sans-serif" fontWeight="900" fontSize="14" fill="url(#gp-title-grad)" textAnchor="middle">G</text>
           </svg>
           GitPacks<span className="alpha-tag">Alpha</span>
         </h1>

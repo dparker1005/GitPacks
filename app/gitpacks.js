@@ -429,7 +429,7 @@ function renderRepoInfo(owner, repo) {
   // Sign-in nudge for logged-out users
   let authNudge = '';
   if (!_currentUser) {
-    authNudge = `<div class="auth-nudge"><span class="auth-nudge-icon">&#x1f512;</span> Sign in to save your collection across devices</div>`;
+    authNudge = `<div class="auth-nudge"><span class="auth-nudge-icon">&#x1f512;</span> Sign in to save your cards</div>`;
   }
 
   // Achievement panel for contributors
@@ -521,8 +521,8 @@ function renderRepoInfo(owner, repo) {
 
   const isComplete = total > 0 && collected >= total;
 
-  repoInfo.innerHTML = `<div class="repo-info-row${isComplete ? ' repo-info-complete' : ''}">
-      <div class="repo-info-inner">
+  repoInfo.innerHTML = `<div class="repo-info-row">
+      <div class="repo-info-inner${isComplete ? ' repo-info-complete' : ''}">
         <h2><span>${owner || ''}</span> / <span>${repo || ''}</span></h2>
         <div class="repo-info-sep"></div>
         <div class="collection-progress"><span>${collected}</span> / <span>${total}</span> collected</div>
@@ -629,28 +629,27 @@ async function openPack() {
     return;
   }
 
-  // Handle response: authenticated (cards + packState) or guest (cards + guestPacksRemaining)
-  // Don't update pack counts yet — wait until all cards are revealed
+  // Handle response: update pack state immediately so buttons show correct count
   let picks;
-  let pendingPackState = null;
-  let pendingGuestPacks = null;
   if (Array.isArray(data)) {
     picks = data;
   } else {
     picks = data.cards;
     if (data.packState) {
-      pendingPackState = data.packState;
+      packState = data.packState;
     }
     if (data.guestPacksRemaining !== undefined) {
-      pendingGuestPacks = data.guestPacksRemaining;
+      guestPacksRemaining = data.guestPacksRemaining;
+      localStorage.setItem('gp_guest_packs_remaining', String(guestPacksRemaining));
     }
   }
+  renderTopBarPacks();
 
   const overlay = document.createElement('div');
   overlay.className = 'pack-overlay';
 
   // Sign-in banner for logged-out users — persistent across all pack stages
-  const packAuthBanner = !_currentUser ? `<div class="pack-auth-banner"><span class="pack-auth-banner-icon">&#x1f512;</span> Sign in to save your cards across devices <button class="login-btn pack-auth-banner-btn" id="pack-sign-in-btn"><svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg> Sign In</button></div>` : '';
+  const packAuthBanner = !_currentUser ? `<div class="pack-auth-banner"><span class="pack-auth-banner-icon">&#x1f512;</span> Sign in to save your cards <button class="login-btn pack-auth-banner-btn" id="pack-sign-in-btn"><svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg> Sign In</button></div>` : '';
 
   overlay.innerHTML = `
     <button class="pack-close-btn" id="pack-close-btn">&times;</button>
@@ -680,12 +679,7 @@ async function openPack() {
     packWrapper.classList.add('tearing');
     instruction.style.display = 'none';
     overlay.querySelector('#pack-burst').innerHTML = '<div class="burst-ring"></div>';
-    setTimeout(() => { packWrapper.style.display = 'none'; revealCards(overlay, picks, function() {
-      // Apply pending pack state after all cards revealed
-      if (pendingPackState) { packState = pendingPackState; pendingPackState = null; }
-      if (pendingGuestPacks !== null) { guestPacksRemaining = pendingGuestPacks; localStorage.setItem('gp_guest_packs_remaining', String(guestPacksRemaining)); pendingGuestPacks = null; }
-      renderTopBarPacks();
-    }); }, 700);
+    setTimeout(() => { packWrapper.style.display = 'none'; revealCards(overlay, picks, null); }, 700);
     clearSpaceAction();
   }
   packWrapper.addEventListener('click', tearPack);
@@ -898,8 +892,6 @@ function revealCards(overlay, picks, onComplete) {
           // Fetch next pack while fading
           const [ow, rp] = currentRepoName.split('/');
           let nextPicks = null;
-          let nextPendingPackState = null;
-          let nextPendingGuestPacks = null;
           try {
             const res = await fetch(`/api/repo/${ow}/${rp}/pack`);
             if (res.ok) {
@@ -907,9 +899,10 @@ function revealCards(overlay, picks, onComplete) {
               if (Array.isArray(d)) { nextPicks = d; }
               else {
                 nextPicks = d.cards;
-                if (d.packState) nextPendingPackState = d.packState;
-                if (d.guestPacksRemaining !== undefined) nextPendingGuestPacks = d.guestPacksRemaining;
+                if (d.packState) packState = d.packState;
+                if (d.guestPacksRemaining !== undefined) { guestPacksRemaining = d.guestPacksRemaining; localStorage.setItem('gp_guest_packs_remaining', String(guestPacksRemaining)); }
               }
+              renderTopBarPacks();
             } else if (res.status === 429) {
               const errData = await res.json().catch(() => ({}));
               packState = { readyPacks: 0, maxPacks: 2, nextRegenAt: errData.nextRegenAt };
@@ -954,11 +947,7 @@ function revealCards(overlay, picks, onComplete) {
             newWrapper.classList.add('tearing');
             newInstruction.style.display = 'none';
             container.querySelector('#pack-burst').innerHTML = '<div class="burst-ring"></div>';
-            setTimeout(() => { newWrapper.style.display = 'none'; revealCards(overlay, nextPicks, function() {
-              if (nextPendingPackState) { packState = nextPendingPackState; nextPendingPackState = null; }
-              if (nextPendingGuestPacks !== null) { guestPacksRemaining = nextPendingGuestPacks; localStorage.setItem('gp_guest_packs_remaining', String(guestPacksRemaining)); nextPendingGuestPacks = null; }
-              renderTopBarPacks();
-            }); }, 700);
+            setTimeout(() => { newWrapper.style.display = 'none'; revealCards(overlay, nextPicks, null); }, 700);
             clearSpaceAction();
           }
           newWrapper.addEventListener('click', tearNewPack);
@@ -987,13 +976,22 @@ function revealCards(overlay, picks, onComplete) {
         const anotherBtn = document.createElement('button');
         anotherBtn.className = 'reveal-another-btn';
 
-        // Show pack count on the button for logged-in users
+        // Show pack count and hide button if no packs left
+        let hasMorePacks = true;
         if (_currentUser && packState) {
           anotherBtn.textContent = packState.readyPacks > 0 ? `Open Another (${packState.readyPacks})` : 'No Packs Left';
-          anotherBtn.disabled = packState.readyPacks <= 0;
+          if (packState.readyPacks <= 0) hasMorePacks = false;
+        } else if (!_currentUser) {
+          const limitReached = localStorage.getItem('gp_guest_limit_reached');
+          if (limitReached || guestPacksRemaining <= 0) {
+            hasMorePacks = false;
+          } else {
+            anotherBtn.textContent = `Open Another (${guestPacksRemaining})`;
+          }
         } else {
           anotherBtn.textContent = 'Open Another';
         }
+        if (!hasMorePacks) anotherBtn.style.display = 'none';
         anotherBtn.onclick = openAnother;
         btnWrap.appendChild(doneBtn);
         btnWrap.appendChild(anotherBtn);
