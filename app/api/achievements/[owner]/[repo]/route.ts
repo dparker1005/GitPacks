@@ -14,16 +14,17 @@ interface Contributor {
   [key: string]: any;
 }
 
-const MILESTONE_DEFS: Record<string, { fixed: number[]; increment: number; statKey: string }> = {
-  commits:      { fixed: [1, 10, 50, 100, 250],  increment: 250, statKey: 'commits' },
-  prs_merged:   { fixed: [1, 5, 25, 50, 100],    increment: 50,  statKey: 'prsMerged' },
-  issues:       { fixed: [1, 3, 10, 25, 50],       increment: 25,  statKey: 'issues' },
-  active_weeks: { fixed: [1, 4, 12, 26, 52],      increment: 26,  statKey: 'activeWeeks' },
-  streak:       { fixed: [1, 2, 4, 8, 12],          increment: 4,   statKey: 'maxStreak' },
-  peak_week:    { fixed: [1, 3, 5, 10, 20],         increment: 10,  statKey: 'peak' },
+const MILESTONE_DEFS: Record<string, { fixed: number[]; increment: number; breakpoint?: number; increment2?: number; statKey: string }> = {
+  commits:      { fixed: [1, 5, 10, 25, 50, 100, 250],  increment: 250, breakpoint: 1500, increment2: 500, statKey: 'commits' },
+  prs_merged:   { fixed: [1, 5, 10, 25, 50, 100],     increment: 50,  breakpoint: 500,  increment2: 100, statKey: 'prsMerged' },
+  issues:       { fixed: [1, 5, 10, 25, 50],            increment: 25,  statKey: 'issues' },
+  active_weeks: { fixed: [1, 4, 12, 26, 52],     increment: 26,  breakpoint: 104,  increment2: 52,  statKey: 'activeWeeks' },
+  streak:       { fixed: [1, 2, 4, 8, 12],       increment: 4,   statKey: 'maxStreak' },
+  peak_week:    { fixed: [1, 3, 5, 10, 20],      increment: 10,  statKey: 'peak' },
 };
 
-function getEarnedThresholds(statValue: number, fixed: number[], increment: number): number[] {
+function getEarnedThresholds(statValue: number, def: { fixed: number[]; increment: number; breakpoint?: number; increment2?: number }): number[] {
+  const { fixed, increment, breakpoint, increment2 } = def;
   const thresholds: number[] = [];
   for (const t of fixed) {
     if (statValue >= t) thresholds.push(t);
@@ -32,7 +33,8 @@ function getEarnedThresholds(statValue: number, fixed: number[], increment: numb
     let next = fixed[fixed.length - 1] + increment;
     while (statValue >= next) {
       thresholds.push(next);
-      next += increment;
+      const inc = (breakpoint && increment2 && next >= breakpoint) ? increment2 : increment;
+      next += inc;
     }
   }
   return thresholds;
@@ -232,7 +234,7 @@ export async function GET(
 
     for (const [statType, def] of Object.entries(MILESTONE_DEFS)) {
       const statValue = (contributor as any)[def.statKey] ?? 0;
-      const earned = getEarnedThresholds(statValue, def.fixed, def.increment);
+      const earned = getEarnedThresholds(statValue, def);
       milestones[statType] = { earned, claimed: [], claimable: [] };
     }
 
@@ -344,7 +346,7 @@ export async function POST(
 
     // Verify the milestone is actually earned
     const statValue = (contributor as any)[def.statKey] ?? 0;
-    const earned = getEarnedThresholds(statValue, def.fixed, def.increment);
+    const earned = getEarnedThresholds(statValue, def);
     if (!earned.includes(threshold)) {
       return NextResponse.json({ error: 'Milestone not earned' }, { status: 403 });
     }

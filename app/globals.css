@@ -674,7 +674,14 @@
 
     /* === ACHIEVEMENT PANEL === */
     .achievement-panel { margin:16px 0; padding:16px 20px; border:1px solid rgba(120,115,245,0.15); border-radius:12px; background:rgba(120,115,245,0.04); }
-    .achievement-header { font-family:'Orbitron',sans-serif; font-size:0.85rem; font-weight:700; color:#7873f5; letter-spacing:1.5px; margin-bottom:12px; }
+    .achievement-header { font-family:'Orbitron',sans-serif; font-size:0.85rem; font-weight:700; color:#7873f5; letter-spacing:1.5px; margin-bottom:12px; display:flex; align-items:center; gap:10px; }
+    .ach-pack-badge { display:inline-block; padding:3px 10px; border-radius:20px; background:linear-gradient(135deg,#7873f5,#4adede); color:#fff; font-size:0.7rem; font-weight:700; letter-spacing:1px; }
+    .ach-claim-all { display:block; width:100%; margin-top:12px; padding:10px 20px; border:1px solid rgba(120,115,245,0.4); border-radius:10px; background:linear-gradient(135deg,rgba(120,115,245,0.15),rgba(74,222,222,0.15)); color:#fff; font-family:'Orbitron',sans-serif; font-size:0.75rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer; transition:all 0.2s; }
+    .ach-claim-all:hover { background:linear-gradient(135deg,rgba(120,115,245,0.3),rgba(74,222,222,0.3)); border-color:#7873f5; box-shadow:0 4px 20px rgba(120,115,245,0.3); transform:translateY(-1px); }
+    .ach-claim-all:disabled { opacity:0.5; cursor:default; transform:none; box-shadow:none; }
+    .claim-all-container { overflow-y:auto; max-height:100vh; padding-top:20px; }
+    .claim-all-header { font-family:'Orbitron',sans-serif; font-size:1.1rem; font-weight:900; letter-spacing:2px; text-transform:uppercase; text-align:center; margin-bottom:16px; background:linear-gradient(135deg,#7873f5,#4adede); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .claim-all-area { flex-wrap:wrap; justify-content:center; gap:10px; padding:0 10px 20px; }
     .ach-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
     .ach-row:last-child { border-bottom:none; }
     .ach-stat-info { display:flex; align-items:center; gap:8px; min-width:140px; }
