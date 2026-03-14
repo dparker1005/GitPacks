@@ -12,6 +12,12 @@ if (_initialized) {
 _initialized = true;
 _currentUser = user || null;
 
+// Show welcome overlay for first-time logged-in users
+if (_currentUser && !localStorage.getItem('gp_welcome_shown')) {
+  // Defer to next tick so DOM is ready
+  setTimeout(() => showWelcomeOverlay(), 0);
+}
+
 const GH_ICON = `<svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`;
 const GP_ICON = `<svg viewBox="0 0 32 32"><defs><linearGradient id="gp-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#7873f5"/><stop offset="100%" style="stop-color:#4adede"/></linearGradient></defs><rect x="4" y="2" width="18" height="26" rx="3" fill="none" stroke="url(#gp-grad)" stroke-width="2" opacity="0.4" transform="rotate(-6 13 15)"/><rect x="8" y="3" width="18" height="26" rx="3" fill="none" stroke="url(#gp-grad)" stroke-width="2" opacity="0.7" transform="rotate(3 17 16)"/><rect x="6" y="2.5" width="18" height="26" rx="3" fill="none" stroke="url(#gp-grad)" stroke-width="2.5"/><text x="15" y="20.5" font-family="sans-serif" font-weight="900" font-size="14" fill="url(#gp-grad)" text-anchor="middle">G</text></svg>`;
 
@@ -45,6 +51,26 @@ function clearSpaceAction() { _spaceAction = null; }
 
 const searchContainer = document.getElementById('search-container');
 const popularRepos = document.getElementById('popular-repos');
+
+// ===== WELCOME OVERLAY =====
+function showWelcomeOverlay() {
+  const overlay = document.createElement('div');
+  overlay.className = 'welcome-overlay';
+  overlay.innerHTML = `
+    <div class="welcome-content">
+      <div class="welcome-logo">${GP_ICON}</div>
+      <div class="welcome-title">Welcome to GitPacks!</div>
+      <div class="welcome-item">You start with <strong>10 packs</strong> to open on any repo</div>
+      <div class="welcome-item">Packs regenerate: <strong>1 new pack every 12 hours</strong>, up to 2 at a time</div>
+      <div class="welcome-item">Contribute to repos to earn <strong>bonus achievement packs</strong></div>
+      <button class="welcome-start">Start Collecting</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.welcome-start').addEventListener('click', () => {
+    localStorage.setItem('gp_welcome_shown', '1');
+    overlay.remove();
+  });
+}
 
 btn.addEventListener('click', () => loadRepo());
 document.getElementById('share-btn').addEventListener('click', () => shareRepo());
@@ -185,11 +211,19 @@ async function loadPopularRepos() {
     const yourRepos = repos.filter(r => r.collected > 0).sort((a, b) => b.pct - a.pct || b.cards - a.cards);
     const otherRepos = repos.filter(r => r.collected === 0).sort((a, b) => b.cards - a.cards);
 
-    function repoBtn(r) {
+    // Split yourRepos into completed and in-progress for logged-in dashboard
+    const completedRepos = yourRepos.filter(r => r.cards > 0 && r.collected >= r.cards);
+    const inProgressRepos = yourRepos.filter(r => r.collected > 0 && (r.cards === 0 || r.collected < r.cards))
+      .sort((a, b) => b.pct - a.pct);
+
+    function repoBtn(r, showProgressBar) {
       const pctNum = Math.round(r.pct * 100);
       const isComplete = r.cards > 0 && r.collected >= r.cards;
+      const progressBar = showProgressBar && !isComplete && r.cards > 0
+        ? `<div class="repo-progress-bar"><div class="repo-progress-fill" style="width:${pctNum}%"></div></div>`
+        : '';
       return `<button class="popular-repo-btn${isComplete ? ' repo-complete' : ''}" data-repo="${r.name}">
-          <span class="popular-repo-name">${r.name}</span>
+          <span class="popular-repo-name">${r.name}${progressBar}</span>
           <span class="popular-repo-meta">
             <span class="popular-repo-progress">${r.collected}/${r.cards}</span>
             <span class="popular-repo-pct">${pctNum}%</span>
@@ -198,21 +232,43 @@ async function loadPopularRepos() {
     }
 
     let html = '';
-    if (yourRepos.length) {
-      html += `<div class="popular-section">
-        <h3 class="popular-title">Your Collection</h3>
-        <div class="popular-grid">${yourRepos.map(repoBtn).join('')}</div>
-      </div>`;
-    }
-    // Placeholder for contributed repos (lazy loaded)
+
     if (_currentUser) {
+      // Dashboard layout for logged-in users
+      if (completedRepos.length) {
+        html += `<div class="popular-section">
+          <h3 class="popular-title">Completed Sets</h3>
+          <div class="popular-grid">${completedRepos.map(r => repoBtn(r, false)).join('')}</div>
+        </div>`;
+      }
+      if (inProgressRepos.length) {
+        html += `<div class="popular-section">
+          <h3 class="popular-title">In Progress</h3>
+          <div class="popular-grid">${inProgressRepos.map(r => repoBtn(r, true)).join('')}</div>
+        </div>`;
+      }
+      // Placeholder for contributed repos (lazy loaded)
       html += `<div id="contributed-section"></div>`;
-    }
-    if (otherRepos.length) {
-      html += `<div class="popular-section">
-        <h3 class="popular-title">Popular Repos</h3>
-        <div class="popular-grid">${otherRepos.map(repoBtn).join('')}</div>
-      </div>`;
+      if (otherRepos.length) {
+        html += `<div class="popular-section">
+          <h3 class="popular-title">Popular Repos</h3>
+          <div class="popular-grid">${otherRepos.map(r => repoBtn(r, false)).join('')}</div>
+        </div>`;
+      }
+    } else {
+      // Logged-out layout: single "Your Collection" + Popular
+      if (yourRepos.length) {
+        html += `<div class="popular-section">
+          <h3 class="popular-title">Your Collection</h3>
+          <div class="popular-grid">${yourRepos.map(r => repoBtn(r, true)).join('')}</div>
+        </div>`;
+      }
+      if (otherRepos.length) {
+        html += `<div class="popular-section">
+          <h3 class="popular-title">Popular Repos</h3>
+          <div class="popular-grid">${otherRepos.map(r => repoBtn(r, false)).join('')}</div>
+        </div>`;
+      }
     }
     popularRepos.innerHTML = html;
     popularRepos.querySelectorAll('.popular-repo-btn').forEach(b => {
@@ -663,6 +719,15 @@ async function openPack() {
   // Sign-in banner for logged-out users — persistent across all pack stages
   const packAuthBanner = !_currentUser ? `<div class="pack-auth-banner"><span class="pack-auth-banner-icon">&#x1f512;</span> Sign in to save your cards <button class="login-btn pack-auth-banner-btn" id="pack-sign-in-btn"><svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg> Sign In</button></div>` : '';
 
+  const oddsHTML = `<button class="pack-odds-toggle" id="pack-odds-toggle">Odds</button>
+      <div class="pack-odds-panel" id="pack-odds-panel">
+        <div class="pack-odds-title">Cards 1-4</div>
+        <div class="pack-odds-row"><span>Common</span> 60% · <span>Rare</span> 22% · <span>Epic</span> 12% · <span>Legendary</span> 5% · <span>Mythic</span> 1%</div>
+        <div class="pack-odds-title" style="margin-top:8px">Card 5 (Guaranteed Rare+)</div>
+        <div class="pack-odds-row"><span>Rare</span> 55% · <span>Epic</span> 30% · <span>Legendary</span> 12.5% · <span>Mythic</span> 2.5%</div>
+        <div class="pack-odds-pity">Pity: Legendary guaranteed within 10 packs · Mythic within 20 packs</div>
+      </div>`;
+
   overlay.innerHTML = `
     <button class="pack-close-btn" id="pack-close-btn">&times;</button>
     ${packAuthBanner}
@@ -682,8 +747,20 @@ async function openPack() {
       </div>
       <div class="pack-instruction">Click to open</div>
       <div class="reveal-area" id="reveal-area" style="display:none"></div>
+      ${oddsHTML}
     </div>`;
   document.body.appendChild(overlay);
+
+  // Wire up odds toggle
+  const oddsToggle = overlay.querySelector('#pack-odds-toggle');
+  const oddsPanel = overlay.querySelector('#pack-odds-panel');
+  if (oddsToggle && oddsPanel) {
+    oddsToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      oddsPanel.classList.toggle('visible');
+    });
+  }
+
   const packWrapper = overlay.querySelector('#pack-wrapper');
   const instruction = overlay.querySelector('.pack-instruction');
   function tearPack() {

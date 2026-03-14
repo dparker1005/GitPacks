@@ -743,3 +743,49 @@
       .card::after { animation:none !important; }
       .card:hover .card-holo, .card:hover .card-rainbow { opacity:0 !important; }
     }
+
+    /* === LANDING PAGE === */
+    .landing { text-align:center; padding:20px; }
+    .landing-hero h2 { font-family:'Orbitron',sans-serif; font-size:1.5rem; font-weight:900; background:linear-gradient(135deg,#7873f5,#4adede); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .landing-hero p { color:#888; font-family:'Rajdhani',sans-serif; font-size:1rem; margin:12px 0 24px; }
+    .landing-cta { margin:0 auto; font-size:0.8rem; padding:14px 30px; }
+    .landing-steps { display:flex; justify-content:center; gap:30px; margin:40px 0; flex-wrap:wrap; }
+    .landing-step { max-width:200px; text-align:center; }
+    .landing-step-num { width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#7873f5,#4adede); color:#fff; font-family:'Orbitron',sans-serif; font-size:0.85rem; font-weight:700; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; }
+    .landing-step h3 { font-family:'Orbitron',sans-serif; font-size:0.8rem; color:#ccc; letter-spacing:1px; margin-bottom:6px; }
+    .landing-step p { font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:#666; }
+    .landing-try { margin-top:30px; }
+    .landing-try p { color:#555; font-family:'Rajdhani',sans-serif; font-size:0.85rem; }
+
+    /* === WELCOME OVERLAY === */
+    .welcome-overlay { position:fixed; inset:0; z-index:9500; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.94); backdrop-filter:blur(12px); animation:fadeIn 0.3s ease; }
+    .welcome-content { text-align:center; max-width:420px; padding:40px 30px; }
+    .welcome-logo { margin-bottom:20px; }
+    .welcome-logo svg { width:48px; height:48px; }
+    .welcome-title { font-family:'Orbitron',sans-serif; font-size:1.5rem; font-weight:900; background:linear-gradient(135deg,#7873f5,#4adede); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:24px; }
+    .welcome-item { font-family:'Rajdhani',sans-serif; font-size:1rem; color:#aaa; margin:14px 0; letter-spacing:0.5px; }
+    .welcome-item strong { color:#fff; }
+    .welcome-start { margin-top:30px; padding:14px 40px; border:2px solid rgba(120,115,245,0.6); border-radius:12px; background:linear-gradient(135deg,#7873f5,#4adede); color:#fff; font-family:'Orbitron',sans-serif; font-size:0.85rem; font-weight:900; letter-spacing:2px; cursor:pointer; transition:all 0.2s; }
+    .welcome-start:hover { transform:translateY(-2px); box-shadow:0 6px 30px rgba(120,115,245,0.5); }
+
+    /* === DASHBOARD PROGRESS BAR === */
+    .repo-progress-bar { width:100%; height:3px; background:rgba(255,255,255,0.06); border-radius:2px; margin-top:6px; overflow:hidden; }
+    .repo-progress-fill { height:100%; background:linear-gradient(90deg,#7873f5,#4adede); border-radius:2px; transition:width 0.3s; }
+
+    /* === PACK ODDS PANEL === */
+    .pack-odds-toggle { position:absolute; bottom:10px; left:50%; transform:translateX(-50%); background:none; border:none; color:#555; font-family:'Rajdhani',sans-serif; font-size:0.75rem; cursor:pointer; letter-spacing:1px; transition:color 0.2s; padding:4px 12px; }
+    .pack-odds-toggle:hover { color:#888; }
+    .pack-odds-panel { display:none; position:absolute; bottom:40px; left:50%; transform:translateX(-50%); background:rgba(15,15,35,0.95); border:1px solid rgba(120,115,245,0.2); border-radius:10px; padding:14px 18px; max-width:360px; width:90vw; z-index:10; }
+    .pack-odds-panel.visible { display:block; }
+    .pack-odds-title { font-family:'Orbitron',sans-serif; font-size:0.6rem; color:#7873f5; letter-spacing:1.5px; margin-bottom:6px; text-transform:uppercase; }
+    .pack-odds-row { font-family:'Rajdhani',sans-serif; font-size:0.8rem; color:#888; margin:3px 0; }
+    .pack-odds-row span { color:#ccc; }
+    .pack-odds-pity { font-family:'Rajdhani',sans-serif; font-size:0.75rem; color:#555; margin-top:8px; border-top:1px solid rgba(255,255,255,0.05); padding-top:8px; }
+
+    @media (max-width:600px) {
+      .landing-hero h2 { font-size:1.1rem; }
+      .landing-steps { gap:20px; }
+      .landing-step { max-width:160px; }
+      .welcome-content { padding:30px 20px; }
+      .welcome-title { font-size:1.2rem; }
+    }
