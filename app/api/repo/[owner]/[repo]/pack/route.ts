@@ -16,7 +16,7 @@ function selectPackCards(
   allContributors: Contributor[],
   count: number
 ): Contributor[] {
-  const defaultWeights: Record<string, number> = { mythic: 1, legendary: 3, epic: 9, rare: 24, common: 63 };
+  const defaultWeights: Record<string, number> = { mythic: 1, legendary: 5, epic: 12, rare: 22, common: 60 };
   const w = defaultWeights;
   const byRarity: Record<string, Contributor[]> = { mythic: [], legendary: [], epic: [], rare: [], common: [] };
   allContributors.forEach((c) => byRarity[c.rarity].push(c));
@@ -40,14 +40,23 @@ function selectPackCards(
 
   const picks: Contributor[] = [];
 
-  // Guarantee at least one rare+ card per pack
+  // Pick first 4 cards with weighted random
+  while (picks.length < count - 1) {
+    const rarity = rollRarity();
+    const pool = byRarity[rarity];
+    const c = pool[Math.floor(Math.random() * pool.length)];
+    if (picks.includes(c) && picks.length < allContributors.length) continue;
+    picks.push(c);
+  }
+
+  // Guarantee rare+ card as the 5th/last card
   const rareOrBetter = [...byRarity.rare, ...byRarity.epic, ...byRarity.legendary, ...byRarity.mythic];
   if (rareOrBetter.length > 0) {
     const guarWeights: Record<string, number> = {
       mythic: w.mythic,
       legendary: w.legendary,
       epic: w.epic,
-      rare: Math.max(w.rare, 20)
+      rare: w.rare
     };
     const guarAvail: Record<string, number> = {};
     let guarTotal = 0;
@@ -68,19 +77,15 @@ function selectPackCards(
     }
     const pool = byRarity[guarRarity];
     picks.push(pool[Math.floor(Math.random() * pool.length)]);
-  }
-
-  // Fill remaining slots with weighted random
-  while (picks.length < count) {
+  } else {
+    // Fallback: no rare+ cards available, fill with random
     const rarity = rollRarity();
     const pool = byRarity[rarity];
-    const c = pool[Math.floor(Math.random() * pool.length)];
-    if (picks.includes(c) && picks.length < allContributors.length) continue;
-    picks.push(c);
+    picks.push(pool[Math.floor(Math.random() * pool.length)]);
   }
 
-  // Shuffle
-  for (let i = picks.length - 1; i > 0; i--) {
+  // Shuffle only first 4 cards (indices 0-3), leave index 4 (rare+ guarantee) in place
+  for (let i = Math.min(picks.length - 2, 3); i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [picks[i], picks[j]] = [picks[j], picks[i]];
   }

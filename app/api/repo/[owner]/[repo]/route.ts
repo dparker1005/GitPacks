@@ -359,10 +359,10 @@ function processAllContributors(
     });
   }
 
-  // Cap at 128 contributors — keep highest activity
-  if (rawEntries.length > 128) {
+  // Cap at 100 contributors — keep highest activity
+  if (rawEntries.length > 100) {
     rawEntries.sort((a: any, b: any) => b.commits + b.prsMerged + b.issues - (a.commits + a.prsMerged + a.issues));
-    rawEntries.length = 128;
+    rawEntries.length = 100;
   }
 
   // Build percentile rank function: returns 0-1 where 1 = best in repo
@@ -454,14 +454,14 @@ function processAllContributors(
   });
 
   // Sort by power descending to assign rarity by rank
-  // Target distribution for 128 cards: 4 mythic, 8 legendary, 16 epic, 32 rare, 68 common
+  // Target distribution for 100 cards: 3 mythic, 7 legendary, 15 epic, 25 rare, 50 common
   // Scale proportionally for smaller sets
   const byPower = [...withPower].sort((a: any, b: any) => b.power - a.power);
   const n = byPower.length;
-  const mythicSlots = Math.max(0, Math.round(n * (4 / 128)));
-  const legendarySlots = Math.max(0, Math.round(n * (8 / 128)));
-  const epicSlots = Math.max(0, Math.round(n * (16 / 128)));
-  const rareSlots = Math.max(0, Math.round(n * (32 / 128)));
+  const mythicSlots = Math.max(0, Math.round(n * (3 / 100)));
+  const legendarySlots = Math.max(0, Math.round(n * (7 / 100)));
+  const epicSlots = Math.max(0, Math.round(n * (15 / 100)));
+  const rareSlots = Math.max(0, Math.round(n * (25 / 100)));
   byPower.forEach((e: any, i: number) => {
     if (i < mythicSlots) e.rarity = 'mythic';
     else if (i < mythicSlots + legendarySlots) e.rarity = 'legendary';

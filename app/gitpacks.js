@@ -477,7 +477,7 @@ function renderRepoInfo(owner, repo) {
       if (!m) continue;
 
       const def = milestoneDefClient[key];
-      const allThresholds = getAllThresholds(def, 8);
+      const allThresholds = getAllThresholds(def, 5);
       const claimedSet = new Set(m.claimed);
       const claimableSet = new Set(m.claimable);
       const lockedSet = new Set(m.locked || []);
@@ -491,7 +491,7 @@ function renderRepoInfo(owner, repo) {
         const isEarned = info.value >= t;
 
         if (isLocked) {
-          slots += `<span class="ach-slot locked" title="Unlock with larger repo (need ${[1,10,20,30,50,75,100,128][i] || '?'}+ cards)">
+          slots += `<span class="ach-slot locked" title="Unlock with larger repo (need ${[1,20,40,60,100][i] || '?'}+ cards)">
             <span class="ach-slot-lock">&#x1f512;</span>
           </span>`;
         } else if (isClaimed) {
@@ -522,7 +522,7 @@ function renderRepoInfo(owner, repo) {
 
     const claimAllBtn = totalClaimable > 1 ? `<button class="ach-claim-all" id="ach-claim-all">Open All (${totalClaimable} packs)</button>` : '';
     const packBadge = totalClaimable > 0 ? `<span class="ach-pack-badge">${totalClaimable} pack${totalClaimable !== 1 ? 's' : ''}</span>` : '';
-    const slotsLabel = `<span class="ach-slots-label">${maxPerStat}/8 slots</span>`;
+    const slotsLabel = `<span class="ach-slots-label">${maxPerStat}/5 slots</span>`;
 
     achievementHTML = `<div class="achievement-panel">
       <div class="achievement-header">Your Achievements ${packBadge} ${slotsLabel}</div>
@@ -716,7 +716,7 @@ function revealCards(overlay, picks, onComplete) {
   const area = overlay.querySelector('#reveal-area');
   area.style.display = 'flex';
   const rarityOrder = { common:0, rare:1, epic:2, legendary:3, mythic:4 };
-  const sorted = [...picks].sort((a, b) => rarityOrder[a.rarity] - rarityOrder[b.rarity]);
+  const sorted = [...picks];
 
   sorted.forEach((c, i) => {
     const isNew = !library[c.login];
