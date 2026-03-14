@@ -723,7 +723,8 @@
     .ach-slot.claimable:disabled { opacity:0.5; cursor:default; transform:none; box-shadow:none; animation:none; }
     .ach-slot.unearned { border-style:dashed; }
     .ach-slot.unearned .ach-slot-val { color:#333; }
-    .ach-slot.locked { background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.04); }
+    .ach-slot.locked { background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.04); flex-direction:column; gap:1px; }
+    .ach-slot-req { font-family:'Orbitron',sans-serif; font-size:0.4rem; color:#444; letter-spacing:0.3px; }
     @keyframes claimPulse { 0%,100% { box-shadow:0 0 6px rgba(120,115,245,0.2); } 50% { box-shadow:0 0 14px rgba(120,115,245,0.5), 0 0 24px rgba(74,222,222,0.15); } }
 
     @media (max-width:600px) {
@@ -773,14 +774,16 @@
     .repo-progress-fill { height:100%; background:linear-gradient(90deg,#7873f5,#4adede); border-radius:2px; transition:width 0.3s; }
 
     /* === PACK ODDS PANEL === */
-    .pack-odds-toggle { position:absolute; bottom:10px; left:50%; transform:translateX(-50%); background:none; border:none; color:#555; font-family:'Rajdhani',sans-serif; font-size:0.75rem; cursor:pointer; letter-spacing:1px; transition:color 0.2s; padding:4px 12px; }
-    .pack-odds-toggle:hover { color:#888; }
-    .pack-odds-panel { display:none; position:absolute; bottom:40px; left:50%; transform:translateX(-50%); background:rgba(15,15,35,0.95); border:1px solid rgba(120,115,245,0.2); border-radius:10px; padding:14px 18px; max-width:360px; width:90vw; z-index:10; }
-    .pack-odds-panel.visible { display:block; }
-    .pack-odds-title { font-family:'Orbitron',sans-serif; font-size:0.6rem; color:#7873f5; letter-spacing:1.5px; margin-bottom:6px; text-transform:uppercase; }
-    .pack-odds-row { font-family:'Rajdhani',sans-serif; font-size:0.8rem; color:#888; margin:3px 0; }
-    .pack-odds-row span { color:#ccc; }
-    .pack-odds-pity { font-family:'Rajdhani',sans-serif; font-size:0.75rem; color:#555; margin-top:8px; border-top:1px solid rgba(255,255,255,0.05); padding-top:8px; }
+    /* === PACK ODDS BOX (sidebar) === */
+    .pack-odds-box { position:fixed; right:24px; top:50%; transform:translateY(-50%); background:rgba(15,15,35,0.9); border:1px solid rgba(120,115,245,0.15); border-radius:12px; padding:16px 18px; width:170px; z-index:9998; backdrop-filter:blur(8px); }
+    .pack-odds-title { font-family:'Orbitron',sans-serif; font-size:0.6rem; font-weight:700; color:#7873f5; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:10px; }
+    .pack-odds-section { margin-bottom:10px; }
+    .pack-odds-label { font-family:'Orbitron',sans-serif; font-size:0.5rem; color:#555; letter-spacing:1px; text-transform:uppercase; margin-bottom:4px; }
+    .pack-odds-row { display:flex; justify-content:space-between; align-items:center; padding:2px 0; }
+    .odds-rarity { font-family:'Rajdhani',sans-serif; font-size:0.8rem; }
+    .odds-pct { font-family:'Orbitron',sans-serif; font-size:0.55rem; font-weight:700; color:#aaa; }
+    .pack-odds-guarantee { font-family:'Rajdhani',sans-serif; font-size:0.7rem; color:#555; border-top:1px solid rgba(255,255,255,0.05); padding-top:8px; line-height:1.4; }
+    @media (max-width:900px) { .pack-odds-box { display:none; } }
 
     @media (max-width:600px) {
       .landing-hero h2 { font-size:1.1rem; }

@@ -547,8 +547,10 @@ function renderRepoInfo(owner, repo) {
         const isEarned = info.value >= t;
 
         if (isLocked) {
-          slots += `<span class="ach-slot locked" title="Unlock with larger repo (need ${[1,20,40,60,100][i] || '?'}+ cards)">
+          const neededCards = [1,20,40,60,100][i] || '?';
+          slots += `<span class="ach-slot locked" title="Unlock with ${neededCards}+ card repo">
             <span class="ach-slot-lock">&#x1f512;</span>
+            <span class="ach-slot-req">${neededCards}+</span>
           </span>`;
         } else if (isClaimed) {
           slots += `<span class="ach-slot claimed" style="border-color:${info.color}40" title="Claimed: ${t}">
@@ -719,14 +721,25 @@ async function openPack() {
   // Sign-in banner for logged-out users — persistent across all pack stages
   const packAuthBanner = !_currentUser ? `<div class="pack-auth-banner"><span class="pack-auth-banner-icon">&#x1f512;</span> Sign in to save your cards <button class="login-btn pack-auth-banner-btn" id="pack-sign-in-btn"><svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg> Sign In</button></div>` : '';
 
-  const oddsHTML = `<button class="pack-odds-toggle" id="pack-odds-toggle">Odds</button>
-      <div class="pack-odds-panel" id="pack-odds-panel">
-        <div class="pack-odds-title">Cards 1-4</div>
-        <div class="pack-odds-row"><span>Common</span> 60% · <span>Rare</span> 22% · <span>Epic</span> 12% · <span>Legendary</span> 5% · <span>Mythic</span> 1%</div>
-        <div class="pack-odds-title" style="margin-top:8px">Card 5 (Guaranteed Rare+)</div>
-        <div class="pack-odds-row"><span>Rare</span> 55% · <span>Epic</span> 30% · <span>Legendary</span> 12.5% · <span>Mythic</span> 2.5%</div>
-        <div class="pack-odds-pity">Pity: Legendary guaranteed within 10 packs · Mythic within 20 packs</div>
-      </div>`;
+  const oddsHTML = `<div class="pack-odds-box">
+      <div class="pack-odds-title">Pack Odds</div>
+      <div class="pack-odds-section">
+        <div class="pack-odds-label">Cards 1–4</div>
+        <div class="pack-odds-row"><span class="odds-rarity" style="color:#888">Common</span> <span class="odds-pct">60%</span></div>
+        <div class="pack-odds-row"><span class="odds-rarity" style="color:#60a5fa">Rare</span> <span class="odds-pct">22%</span></div>
+        <div class="pack-odds-row"><span class="odds-rarity" style="color:#c084fc">Epic</span> <span class="odds-pct">12%</span></div>
+        <div class="pack-odds-row"><span class="odds-rarity" style="color:#ffd700">Legendary</span> <span class="odds-pct">5%</span></div>
+        <div class="pack-odds-row"><span class="odds-rarity" style="color:#ff0040">Mythic</span> <span class="odds-pct">1%</span></div>
+      </div>
+      <div class="pack-odds-section">
+        <div class="pack-odds-label">Card 5 (Rare+)</div>
+        <div class="pack-odds-row"><span class="odds-rarity" style="color:#60a5fa">Rare</span> <span class="odds-pct">55%</span></div>
+        <div class="pack-odds-row"><span class="odds-rarity" style="color:#c084fc">Epic</span> <span class="odds-pct">30%</span></div>
+        <div class="pack-odds-row"><span class="odds-rarity" style="color:#ffd700">Legendary</span> <span class="odds-pct">12.5%</span></div>
+        <div class="pack-odds-row"><span class="odds-rarity" style="color:#ff0040">Mythic</span> <span class="odds-pct">2.5%</span></div>
+      </div>
+      <div class="pack-odds-guarantee">Legendary guaranteed within 10 packs<br>Mythic guaranteed within 20 packs</div>
+    </div>`;
 
   overlay.innerHTML = `
     <button class="pack-close-btn" id="pack-close-btn">&times;</button>
@@ -747,19 +760,10 @@ async function openPack() {
       </div>
       <div class="pack-instruction">Click to open</div>
       <div class="reveal-area" id="reveal-area" style="display:none"></div>
-      ${oddsHTML}
-    </div>`;
+    </div>
+    ${oddsHTML}`;
   document.body.appendChild(overlay);
 
-  // Wire up odds toggle
-  const oddsToggle = overlay.querySelector('#pack-odds-toggle');
-  const oddsPanel = overlay.querySelector('#pack-odds-panel');
-  if (oddsToggle && oddsPanel) {
-    oddsToggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      oddsPanel.classList.toggle('visible');
-    });
-  }
 
   const packWrapper = overlay.querySelector('#pack-wrapper');
   const instruction = overlay.querySelector('.pack-instruction');
