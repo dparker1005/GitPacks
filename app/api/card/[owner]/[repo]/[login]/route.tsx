@@ -1,5 +1,4 @@
 import { ImageResponse } from '@vercel/og';
-import { getCachedRepo } from '@/app/lib/repo-cache';
 
 export const runtime = 'edge';
 
@@ -33,6 +32,40 @@ function fmt(n: number): string {
   return n.toString();
 }
 
+// Fetch repo cache directly via Supabase REST API (Edge-compatible, no SDK needed)
+async function getContributor(owner: string, repo: string, login: string) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseKey) return null;
+
+  const ownerRepo = `${owner}/${repo}`.toLowerCase();
+  const res = await fetch(
+    `${supabaseUrl}/rest/v1/repo_cache?owner_repo=eq.${encodeURIComponent(ownerRepo)}&select=data`,
+    {
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+      },
+    }
+  );
+
+  if (!res.ok) return null;
+  const rows = await res.json();
+  if (!rows.length || !Array.isArray(rows[0].data)) return null;
+
+  const all = rows[0].data;
+  const contributor = all.find(
+    (c: any) => c.login.toLowerCase() === login.toLowerCase()
+  );
+  if (!contributor) return null;
+
+  return {
+    contributor,
+    cardNum: all.indexOf(contributor) + 1,
+    total: all.length,
+  };
+}
+
 // Load fonts
 const orbitronBold = fetch(
   'https://fonts.gstatic.com/s/orbitron/v29/yMJRMIlzdpvBhQQL_Qq7dy0.ttf'
@@ -47,27 +80,16 @@ export async function GET(
   { params }: { params: Promise<{ owner: string; repo: string; login: string }> }
 ) {
   const { owner, repo, login } = await params;
-  const cacheKey = `${owner}/${repo}`.toLowerCase();
-  const cached = await getCachedRepo(cacheKey);
 
-  if (!cached || !Array.isArray(cached)) {
-    return new Response('Repo not found', { status: 404 });
+  const result = await getContributor(owner, repo, login);
+  if (!result) {
+    return new Response('Card not found', { status: 404 });
   }
 
-  const contributor = cached.find(
-    (c: any) => c.login.toLowerCase() === login.toLowerCase()
-  );
-
-  if (!contributor) {
-    return new Response('Contributor not found', { status: 404 });
-  }
-
-  const c = contributor;
+  const { contributor: c, cardNum, total } = result;
   const rc = RARITY_COLORS[c.rarity] || '#888';
   const borderGrad = RARITY_BORDERS[c.rarity] || RARITY_BORDERS.common;
   const powerGrad = POWER_GRADS[c.rarity] || POWER_GRADS.common;
-  const cardNum = cached.indexOf(contributor) + 1;
-  const total = cached.length;
   const repoName = `${owner}/${repo}`;
 
   const [orbitronData, rajdhaniData] = await Promise.all([orbitronBold, rajdhani]);
@@ -84,7 +106,6 @@ export async function GET(
           borderRadius: '24px',
         }}
       >
-        {/* Card inner */}
         <div
           style={{
             width: '100%',
@@ -107,13 +128,12 @@ export async function GET(
               fontSize: '14px',
               color: '#555',
               letterSpacing: '2px',
-              textTransform: 'uppercase' as const,
             }}
           >
             {repoName}
           </div>
 
-          {/* Top section with avatar */}
+          {/* Top section */}
           <div
             style={{
               display: 'flex',
@@ -124,7 +144,6 @@ export async function GET(
               background: `linear-gradient(180deg, ${rc}15 0%, transparent 100%)`,
             }}
           >
-            {/* Title chip */}
             <div
               style={{
                 display: 'flex',
@@ -143,7 +162,6 @@ export async function GET(
               {c.title}
             </div>
 
-            {/* Rarity badge */}
             <div
               style={{
                 display: 'flex',
@@ -164,7 +182,6 @@ export async function GET(
               {c.rarity}
             </div>
 
-            {/* Avatar */}
             <div
               style={{
                 display: 'flex',
@@ -177,11 +194,12 @@ export async function GET(
                 background: borderGrad,
               }}
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={c.avatar}
                 width={112}
                 height={112}
-                style={{ borderRadius: '50%', objectFit: 'cover' }}
+                style={{ borderRadius: '50%' }}
               />
             </div>
           </div>
@@ -196,7 +214,6 @@ export async function GET(
               flex: 1,
             }}
           >
-            {/* Name */}
             <div
               style={{
                 fontFamily: 'Orbitron',
@@ -209,7 +226,6 @@ export async function GET(
               {c.login}
             </div>
 
-            {/* Title */}
             <div
               style={{
                 fontFamily: 'Rajdhani',
