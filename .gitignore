@@ -7,4 +7,5 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 .playwright-mcp/
+.mcp.json
 *.png
