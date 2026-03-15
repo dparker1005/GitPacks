@@ -126,12 +126,12 @@ export function buildCardSvg(
     <rect class="rainbow-sweep" x="-200" y="-200" width="400" height="${H + 400}" fill="url(#rainbowGrad)" />
   ` : '';
 
-  // Stats grid (scaled 1.5x from 320w card)
+  // Stats grid
   const statW = 140;
-  const statH = 54;
-  const statGap = 8;
+  const statH = 58;
+  const statGap = 12;
   const statsStartX = (W - (statW * 3 + statGap * 2)) / 2;
-  const statsStartY = 395;
+  const statsStartY = 420;
 
   const statsHtml = stats.map((s, i) => {
     const col = i % 3;
@@ -140,13 +140,13 @@ export function buildCardSvg(
     const y = statsStartY + row * (statH + statGap);
     return `
       <rect x="${x}" y="${y}" width="${statW}" height="${statH}" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-      <text x="${x + statW / 2}" y="${y + 24}" fill="${s.color}" font-family="'Orbitron',sans-serif" font-size="21" font-weight="700" text-anchor="middle">${escapeXml(s.value)}</text>
-      <text x="${x + statW / 2}" y="${y + 42}" fill="#666" font-family="'Rajdhani',sans-serif" font-size="11" text-anchor="middle" letter-spacing="1">${escapeXml(s.label.toUpperCase())}</text>
+      <text x="${x + statW / 2}" y="${y + 26}" fill="${s.color}" font-family="'Orbitron',sans-serif" font-size="21" font-weight="700" text-anchor="middle">${escapeXml(s.value)}</text>
+      <text x="${x + statW / 2}" y="${y + 44}" fill="#666" font-family="'Rajdhani',sans-serif" font-size="12" text-anchor="middle" letter-spacing="1">${escapeXml(s.label.toUpperCase())}</text>
     `;
   }).join('');
 
   // Ability section Y position
-  const abilityY = statsStartY + statH * 2 + statGap + 16;
+  const abilityY = statsStartY + statH * 2 + statGap + 20;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <style>
@@ -219,25 +219,25 @@ export function buildCardSvg(
     <image href="${escapeXml(avatarDataUri)}" x="${W / 2 - 50}" y="${230 - 50}" width="100" height="100" clip-path="url(#avatarClip)" preserveAspectRatio="xMidYMid slice" />
 
     <!-- Name -->
-    <text x="${W / 2}" y="310" fill="#fff" font-family="'Orbitron',sans-serif" font-size="24" font-weight="700" text-anchor="middle" letter-spacing="1">${escapeXml(c.login)}</text>
+    <text x="${W / 2}" y="312" fill="#fff" font-family="'Orbitron',sans-serif" font-size="24" font-weight="700" text-anchor="middle" letter-spacing="1">${escapeXml(c.login)}</text>
 
     <!-- Subtitle -->
-    <text x="${W / 2}" y="332" fill="#888" font-family="'Rajdhani',sans-serif" font-size="18" text-anchor="middle" letter-spacing="1">${escapeXml(c.title.toUpperCase())}</text>
+    <text x="${W / 2}" y="336" fill="#888" font-family="'Rajdhani',sans-serif" font-size="18" text-anchor="middle" letter-spacing="1">${escapeXml(c.title.toUpperCase())}</text>
 
-    <!-- Power bar (max-width: 210px, matching CSS max-width:140px * 1.5) -->
-    <text x="${W / 2 - 120}" y="366" fill="#555" font-family="'Orbitron',sans-serif" font-size="12" letter-spacing="2">PWR</text>
-    <rect x="${W / 2 - 90}" y="358" width="210" height="8" rx="4" fill="#1a1a35" />
-    <rect x="${W / 2 - 90}" y="358" width="${Math.round(210 * c.power / 100)}" height="8" rx="4" fill="url(#powerGrad)" />
-    <text x="${W / 2 + 140}" y="368" fill="${rc}" font-family="'Orbitron',sans-serif" font-size="20" font-weight="900" text-anchor="end">${c.power}</text>
+    <!-- Power bar -->
+    <text x="${W / 2 - 115}" y="374" fill="#555" font-family="'Orbitron',sans-serif" font-size="12" letter-spacing="2">PWR</text>
+    <rect x="${W / 2 - 80}" y="365" width="190" height="9" rx="4" fill="#1a1a35" />
+    <rect x="${W / 2 - 80}" y="365" width="${Math.round(190 * c.power / 100)}" height="9" rx="4" fill="url(#powerGrad)" />
+    <text x="${W / 2 + 130}" y="376" fill="${rc}" font-family="'Orbitron',sans-serif" font-size="20" font-weight="900" text-anchor="end">${c.power}</text>
 
     <!-- Stats -->
     ${statsHtml}
 
     <!-- Ability -->
-    <rect x="24" y="${abilityY}" width="${W - 48}" height="52" rx="12" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-    <text x="48" y="${abilityY + 30}" font-size="22">${c.ability.icon}</text>
-    <text x="72" y="${abilityY + 22}" fill="${escapeXml(c.ability.color)}" font-family="'Orbitron',sans-serif" font-size="14" font-weight="700" letter-spacing="1">${escapeXml(c.ability.name)}</text>
-    <text x="72" y="${abilityY + 40}" fill="#777" font-family="'Rajdhani',sans-serif" font-size="15">${escapeXml(c.ability.desc.length > 48 ? c.ability.desc.substring(0, 46) + '...' : c.ability.desc)}</text>
+    <rect x="24" y="${abilityY}" width="${W - 48}" height="56" rx="12" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+    <text x="50" y="${abilityY + 35}" font-size="20" text-anchor="middle">${c.ability.icon}</text>
+    <text x="70" y="${abilityY + 24}" fill="${escapeXml(c.ability.color)}" font-family="'Orbitron',sans-serif" font-size="13" font-weight="700" letter-spacing="1">${escapeXml(c.ability.name)}</text>
+    <text x="70" y="${abilityY + 43}" fill="#777" font-family="'Rajdhani',sans-serif" font-size="14">${escapeXml(c.ability.desc.length > 50 ? c.ability.desc.substring(0, 48) + '...' : c.ability.desc)}</text>
 
     <!-- Sparkles -->
     ${sparklesHtml}
