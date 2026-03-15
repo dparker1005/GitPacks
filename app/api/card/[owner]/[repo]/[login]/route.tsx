@@ -1,9 +1,7 @@
 import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium-min';
+import chromium from '@sparticuz/chromium';
 
 export const maxDuration = 30;
-
-const CHROMIUM_URL = 'https://github.com/Sparticuz/chromium/releases/download/v143.0.4/chromium-v143.0.4-pack.x64.tar';
 
 export async function GET(
   request: Request,
@@ -11,15 +9,12 @@ export async function GET(
 ) {
   const { owner, repo, login } = await params;
 
-  // Use the request's own origin so the render page is always reachable
   const url = new URL(request.url);
   const origin = `${url.protocol}//${url.host}`;
   const renderUrl = `${origin}/card-render/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(login)}`;
 
   let browser;
   try {
-    const execPath = await chromium.executablePath(CHROMIUM_URL);
-
     browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: {
@@ -27,34 +22,24 @@ export async function GET(
         height: 600,
         deviceScaleFactor: 2,
       },
-      executablePath: execPath,
+      executablePath: await chromium.executablePath(),
       headless: true,
     });
 
     const page = await browser.newPage();
 
-    console.log('Navigating to:', renderUrl);
     const response = await page.goto(renderUrl, {
       waitUntil: 'networkidle2',
       timeout: 20000,
     });
 
-    const status = response?.status();
-    console.log('Page status:', status);
-
-    if (!response || status === 404) {
+    if (!response || response.status() === 404) {
       return new Response('Card not found', { status: 404 });
     }
 
-    // Check if page has the card
-    const hasCard = await page.$('#card-wrapper');
-    if (!hasCard) {
-      const html = await page.content();
-      console.error('Page HTML (first 500 chars):', html.substring(0, 500));
-      return new Response('Card element not found on render page', { status: 500 });
-    }
+    await page.waitForSelector('#card-wrapper', { timeout: 10000 });
 
-    // Wait for all images to load
+    // Wait for all images to finish loading
     await page.evaluate(() => {
       return Promise.all(
         Array.from(document.images).map((img) => {
