@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 export default function CardImage({
   src,
@@ -12,6 +12,14 @@ export default function CardImage({
   href: string;
 }) {
   const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // Check if image is already cached/complete on mount
+  useEffect(() => {
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
+      setLoaded(true);
+    }
+  }, []);
 
   return (
     <a href={href} style={{ position: 'relative', display: 'inline-block' }}>
@@ -43,6 +51,7 @@ export default function CardImage({
         </div>
       )}
       <img
+        ref={imgRef}
         src={src}
         alt={alt}
         width={320}
