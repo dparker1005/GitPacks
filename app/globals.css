@@ -50,6 +50,35 @@
     .popular-repo-meta { display:flex; align-items:center; gap:10px; }
     .popular-repo-progress { font-size:0.85rem; color:#4adede; font-family:'Orbitron',sans-serif; letter-spacing:1px; }
     .popular-repo-pct { font-size:0.75rem; color:#555; font-family:'Orbitron',sans-serif; letter-spacing:1px; }
+
+    /* === DASHBOARD (logged-in homepage) === */
+    .dashboard { display:grid; grid-template-columns:1fr 1fr; gap:0 32px; max-width:1100px; margin:0 auto; padding:0 20px; }
+    .dashboard-col { min-width:0; }
+    .dashboard .popular-section { max-width:none; text-align:left; padding:20px 0 30px; }
+    .dashboard .popular-title { text-align:left; }
+    .contributed-placeholder { min-height:80px; }
+    @media (max-width:768px) {
+      .dashboard { grid-template-columns:1fr; gap:0; }
+    }
+
+    /* === REPO CONTENT LAYOUT === */
+    .repo-content-layout { display:flex; gap:24px; justify-content:center; align-items:flex-start; margin-top:14px; flex-wrap:wrap; max-width:900px; margin-left:auto; margin-right:auto; }
+    .repo-content-main { flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:10px; }
+    .repo-content-side { flex:1 1 300px; max-width:500px; min-width:280px; }
+    .repo-content-side .achievement-panel { margin:0; }
+    @media (max-width:768px) {
+      .repo-content-layout { flex-direction:column; align-items:center; }
+      .repo-content-side { flex:1 1 auto; width:100%; max-width:500px; }
+    }
+
+    /* === GITHUB LINK (repo page) === */
+    .repo-gh-link { display:inline-flex; align-items:center; gap:6px; color:#888; font-family:'Rajdhani',sans-serif; font-size:0.85rem; text-decoration:none; transition:color 0.2s; letter-spacing:0.5px; }
+    .repo-gh-link:hover { color:#4adede; }
+    .repo-gh-link svg { width:14px; height:14px; fill:currentColor; }
+
+    /* === ACHIEVEMENT SLOTS HINT === */
+    .ach-slots-hint { color:#666; font-size:0.65rem; font-style:italic; }
+
     .top-bar { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 20px 0; }
     .top-bar-left { display:flex; align-items:center; gap:10px; }
     .top-bar-right { display:flex; align-items:center; gap:10px; }
@@ -596,7 +625,7 @@
 
     .card-wrapper:hover .card { z-index:10; }
     .card-wrapper.clickable { cursor:pointer; }
-    .ghost-card { opacity:1 !important; cursor:pointer; transition:opacity 0.3s; animation:none !important; transform:none !important; }
+    .ghost-card { cursor:pointer; transition:opacity 0.3s; animation-duration:0s !important; animation-fill-mode:forwards !important; }
     .ghost-card .card { filter:grayscale(1) brightness(0.3); transition:filter 0.3s; }
     .ghost-card:hover .card { filter:grayscale(0.8) brightness(0.5); }
     .ghost-card .card::before, .ghost-card .card::after { display:none; }

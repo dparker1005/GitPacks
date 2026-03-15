@@ -52,6 +52,28 @@ function clearSpaceAction() { _spaceAction = null; }
 const searchContainer = document.getElementById('search-container');
 const popularRepos = document.getElementById('popular-repos');
 
+function getPackOddsHTML() {
+  return `<div class="pack-odds-box">
+    <div class="pack-odds-title">Pack Odds</div>
+    <div class="pack-odds-section">
+      <div class="pack-odds-label">Cards 1–4</div>
+      <div class="pack-odds-row"><span class="odds-rarity" style="color:#888">Common</span> <span class="odds-pct">60%</span></div>
+      <div class="pack-odds-row"><span class="odds-rarity" style="color:#60a5fa">Rare</span> <span class="odds-pct">22%</span></div>
+      <div class="pack-odds-row"><span class="odds-rarity" style="color:#c084fc">Epic</span> <span class="odds-pct">12%</span></div>
+      <div class="pack-odds-row"><span class="odds-rarity" style="color:#ffd700">Legendary</span> <span class="odds-pct">5%</span></div>
+      <div class="pack-odds-row"><span class="odds-rarity" style="color:#ff0040">Mythic</span> <span class="odds-pct">1%</span></div>
+    </div>
+    <div class="pack-odds-section">
+      <div class="pack-odds-label">Card 5</div>
+      <div class="pack-odds-row"><span class="odds-rarity" style="color:#60a5fa">Rare</span> <span class="odds-pct">55%</span></div>
+      <div class="pack-odds-row"><span class="odds-rarity" style="color:#c084fc">Epic</span> <span class="odds-pct">30%</span></div>
+      <div class="pack-odds-row"><span class="odds-rarity" style="color:#ffd700">Legendary</span> <span class="odds-pct">12.5%</span></div>
+      <div class="pack-odds-row"><span class="odds-rarity" style="color:#ff0040">Mythic</span> <span class="odds-pct">2.5%</span></div>
+    </div>
+    <div class="pack-odds-guarantee">Legendary guaranteed within 10 packs<br>Mythic guaranteed within 20 packs</div>
+  </div>`;
+}
+
 // ===== WELCOME OVERLAY =====
 function showWelcomeOverlay() {
   const overlay = document.createElement('div');
@@ -222,27 +244,47 @@ async function loadPopularRepos() {
     let html = '';
 
     if (_currentUser) {
-      // Dashboard layout for logged-in users
-      if (completedRepos.length) {
-        html += `<div class="popular-section">
-          <h3 class="popular-title">Completed Sets</h3>
-          <div class="popular-grid">${completedRepos.map(r => repoBtn(r, false)).join('')}</div>
-        </div>`;
-      }
+      // Dashboard layout for logged-in users — multi-column grid
+      html += `<div class="dashboard">`;
+
+      // Left column: user's collections
+      html += `<div class="dashboard-col dashboard-col-left">`;
       if (inProgressRepos.length) {
         html += `<div class="popular-section">
           <h3 class="popular-title">In Progress</h3>
           <div class="popular-grid">${inProgressRepos.map(r => repoBtn(r, true)).join('')}</div>
         </div>`;
       }
-      // Placeholder for contributed repos (lazy loaded)
-      html += `<div id="contributed-section"></div>`;
+      if (completedRepos.length) {
+        html += `<div class="popular-section">
+          <h3 class="popular-title">Completed Sets</h3>
+          <div class="popular-grid">${completedRepos.map(r => repoBtn(r, false)).join('')}</div>
+        </div>`;
+      }
+      if (!inProgressRepos.length && !completedRepos.length) {
+        html += `<div class="popular-section">
+          <h3 class="popular-title">Your Collection</h3>
+          <p class="popular-hint">Open packs on any repo to start collecting!</p>
+        </div>`;
+      }
+      html += `</div>`;
+
+      // Right column: contributed repos + popular repos
+      html += `<div class="dashboard-col dashboard-col-right">`;
+      // Placeholder for contributed repos (lazy loaded) — reserves space with min-height
+      html += `<div id="contributed-section" class="popular-section contributed-placeholder">
+        <h3 class="popular-title">Repos You Contribute To</h3>
+        <div class="popular-grid"><div class="contrib-loading-row"><span class="spinner-small"></span> Finding your repos...</div></div>
+      </div>`;
       if (otherRepos.length) {
         html += `<div class="popular-section">
           <h3 class="popular-title">Popular Repos</h3>
           <div class="popular-grid">${otherRepos.map(r => repoBtn(r, false)).join('')}</div>
         </div>`;
       }
+      html += `</div>`;
+
+      html += `</div>`; // close .dashboard
     } else {
       // Logged-out layout: single "Your Collection" + Popular
       if (yourRepos.length) {
@@ -273,12 +315,6 @@ async function loadPopularRepos() {
 async function loadContributedRepos(yourRepos) {
   const section = document.getElementById('contributed-section');
   if (!section) return;
-
-  // Show loading state
-  section.innerHTML = `<div class="popular-section">
-    <h3 class="popular-title">Other Repos You Contribute To</h3>
-    <div class="popular-grid"><div class="contrib-loading-row"><span class="spinner-small"></span> Finding your repos...</div></div>
-  </div>`;
 
   let contributedRepos = [];
   try {
@@ -312,10 +348,11 @@ async function loadContributedRepos(yourRepos) {
       </button>`;
   }
 
-  section.innerHTML = `<div class="popular-section">
-    <h3 class="popular-title">Other Repos You Contribute To</h3>
+  section.className = 'popular-section';
+  section.innerHTML = `
+    <h3 class="popular-title">Repos You Contribute To</h3>
     <div class="popular-grid">${newContributed.map(contribBtn).join('')}</div>
-  </div>`;
+  `;
 
   section.querySelectorAll('.popular-repo-btn').forEach(b => {
     b.addEventListener('click', () => quickLoad(b.dataset.repo));
@@ -569,7 +606,8 @@ function renderRepoInfo(owner, repo) {
 
     const claimAllBtn = totalClaimable > 1 ? `<button class="ach-claim-all" id="ach-claim-all">Open All (${totalClaimable} packs)</button>` : '';
     const packBadge = totalClaimable > 0 ? `<span class="ach-pack-badge">${totalClaimable} pack${totalClaimable !== 1 ? 's' : ''}</span>` : '';
-    const slotsLabel = `<span class="ach-slots-label">${maxPerStat}/5 slots</span>`;
+    const slotsHint = maxPerStat < 5 ? 'Collect on larger repos to unlock more' : '';
+    const slotsLabel = `<span class="ach-slots-label" ${slotsHint ? `title="${slotsHint}"` : ''}>${maxPerStat}/5 slots${slotsHint ? ` <span class="ach-slots-hint">${slotsHint}</span>` : ''}</span>`;
 
     achievementHTML = `<div class="achievement-panel">
       <div class="achievement-header">Your Achievements ${packBadge} ${slotsLabel}</div>
@@ -580,20 +618,27 @@ function renderRepoInfo(owner, repo) {
 
   const isComplete = total > 0 && collected >= total;
 
+  const ghLink = `<a class="repo-gh-link" href="https://github.com/${owner}/${repo}" target="_blank" rel="noopener">${GH_ICON} View on GitHub</a>`;
+
   repoInfo.innerHTML = `<div class="repo-info-row">
       <div class="repo-info-inner${isComplete ? ' repo-info-complete' : ''}">
         <h2><span>${owner || ''}</span> / <span>${repo || ''}</span></h2>
+        ${ghLink}
         <div class="repo-info-sep"></div>
         <div class="collection-progress"><span>${collected}</span> / <span>${total}</span> collected</div>
       </div>
       <button class="switch-repo-btn" id="switch-repo-btn">Switch Repo</button>
     </div>
     ${authNudge}
-    <div class="action-buttons">
-      <button class="btn-secondary" id="open-pack-btn" ${total === 0 ? 'disabled' : ''} ${_currentUser && packState && packState.readyPacks <= 0 ? 'disabled' : ''} ${!_currentUser && localStorage.getItem('gp_guest_limit_reached') ? 'disabled' : ''}>${!_currentUser && localStorage.getItem('gp_guest_limit_reached') ? 'Sign In to Open Packs' : 'Open Pack'}</button>
-      ${packHTML}
+    <div class="repo-content-layout">
+      <div class="repo-content-main">
+        <div class="action-buttons">
+          <button class="btn-secondary" id="open-pack-btn" ${total === 0 ? 'disabled' : ''} ${_currentUser && packState && packState.readyPacks <= 0 ? 'disabled' : ''} ${!_currentUser && localStorage.getItem('gp_guest_limit_reached') ? 'disabled' : ''}>${!_currentUser && localStorage.getItem('gp_guest_limit_reached') ? 'Sign In to Open Packs' : 'Open Pack'}</button>
+          ${packHTML}
+        </div>
+      </div>
+      ${achievementHTML ? `<div class="repo-content-side">${achievementHTML}</div>` : ''}
     </div>
-    ${achievementHTML}
     <div class="filter-bar" id="filter-bar">
       <button class="filter-btn ${filterRarity==='all'?'active':''}" data-rarity="all" onclick="setFilter('all')">All</button>
       <button class="filter-btn ${filterRarity==='mythic'?'active':''}" data-rarity="mythic" onclick="setFilter('mythic')">Mythic</button>
@@ -710,25 +755,7 @@ async function openPack() {
   // Sign-in banner for logged-out users — persistent across all pack stages
   const packAuthBanner = !_currentUser ? `<div class="pack-auth-banner"><span class="pack-auth-banner-icon">&#x1f512;</span> Sign in to save your cards <button class="login-btn pack-auth-banner-btn" id="pack-sign-in-btn"><svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg> Sign In</button></div>` : '';
 
-  const oddsHTML = `<div class="pack-odds-box">
-      <div class="pack-odds-title">Pack Odds</div>
-      <div class="pack-odds-section">
-        <div class="pack-odds-label">Cards 1–4</div>
-        <div class="pack-odds-row"><span class="odds-rarity" style="color:#888">Common</span> <span class="odds-pct">60%</span></div>
-        <div class="pack-odds-row"><span class="odds-rarity" style="color:#60a5fa">Rare</span> <span class="odds-pct">22%</span></div>
-        <div class="pack-odds-row"><span class="odds-rarity" style="color:#c084fc">Epic</span> <span class="odds-pct">12%</span></div>
-        <div class="pack-odds-row"><span class="odds-rarity" style="color:#ffd700">Legendary</span> <span class="odds-pct">5%</span></div>
-        <div class="pack-odds-row"><span class="odds-rarity" style="color:#ff0040">Mythic</span> <span class="odds-pct">1%</span></div>
-      </div>
-      <div class="pack-odds-section">
-        <div class="pack-odds-label">Card 5 (Rare+)</div>
-        <div class="pack-odds-row"><span class="odds-rarity" style="color:#60a5fa">Rare</span> <span class="odds-pct">55%</span></div>
-        <div class="pack-odds-row"><span class="odds-rarity" style="color:#c084fc">Epic</span> <span class="odds-pct">30%</span></div>
-        <div class="pack-odds-row"><span class="odds-rarity" style="color:#ffd700">Legendary</span> <span class="odds-pct">12.5%</span></div>
-        <div class="pack-odds-row"><span class="odds-rarity" style="color:#ff0040">Mythic</span> <span class="odds-pct">2.5%</span></div>
-      </div>
-      <div class="pack-odds-guarantee">Legendary guaranteed within 10 packs<br>Mythic guaranteed within 20 packs</div>
-    </div>`;
+  const oddsHTML = getPackOddsHTML();
 
   overlay.innerHTML = `
     <button class="pack-close-btn" id="pack-close-btn">&times;</button>
@@ -1266,7 +1293,8 @@ function revealMilestonePack(cards) {
     <button class="pack-close-btn" id="pack-close-btn">&times;</button>
     <div class="pack-container">
       <div class="reveal-area" id="reveal-area" style="display:flex"></div>
-    </div>`;
+    </div>
+    ${getPackOddsHTML()}`;
   document.body.appendChild(overlay);
 
   function closePack() {
@@ -1361,7 +1389,8 @@ async function claimAllMilestones() {
       <div class="claim-all-header">${claimable.length} Achievement Pack${claimable.length !== 1 ? 's' : ''}</div>
       <div class="claim-all-loading"><div class="spinner"></div><p>Opening ${claimable.length} pack${claimable.length !== 1 ? 's' : ''}...</p></div>
       <div class="reveal-area claim-all-area no-card-effects" id="reveal-area" style="display:flex;display:none"></div>
-    </div>`;
+    </div>
+    ${getPackOddsHTML()}`;
   document.body.appendChild(overlay);
 
   function closePack() {

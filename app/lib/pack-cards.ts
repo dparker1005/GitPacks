@@ -60,7 +60,7 @@ export function selectPackCards(
     picks.push(c);
   }
 
-  // Guarantee rare+ card as the last card
+  // Card 5: guaranteed rare or better
   const rareOrBetter = [
     ...byRarity.rare,
     ...byRarity.epic,
@@ -94,13 +94,13 @@ export function selectPackCards(
     const pool = byRarity[guarRarity];
     picks.push(pool[Math.floor(Math.random() * pool.length)]);
   } else {
-    // Fallback: no rare+ cards available, fill with random
+    // Fallback: no rare-or-better cards available, fill with random
     const rarity = rollRarity();
     const pool = byRarity[rarity];
     picks.push(pool[Math.floor(Math.random() * pool.length)]);
   }
 
-  // Shuffle only first (count-1) cards, leave last card (rare+ guarantee) in place
+  // Shuffle only first (count-1) cards, leave card 5 in place
   for (let i = Math.min(picks.length - 2, 3); i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [picks[i], picks[j]] = [picks[j], picks[i]];
