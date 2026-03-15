@@ -66,13 +66,13 @@ async function getContributor(owner: string, repo: string, login: string) {
   };
 }
 
-// Load fonts
+// Load fonts — must be static .ttf files (not variable fonts)
 const orbitronBold = fetch(
-  'https://fonts.gstatic.com/s/orbitron/v29/yMJRMIlzdpvBhQQL_Qq7dy0.ttf'
+  'https://raw.githubusercontent.com/google/fonts/main/ofl/orbitron/static/Orbitron-Bold.ttf'
 ).then((res) => res.arrayBuffer());
 
 const rajdhani = fetch(
-  'https://fonts.gstatic.com/s/rajdhani/v15/LDIoaomQNQcsA88c7O9yZ4KMCoOg4w.ttf'
+  'https://raw.githubusercontent.com/google/fonts/main/ofl/rajdhani/Rajdhani-Medium.ttf'
 ).then((res) => res.arrayBuffer());
 
 export async function GET(
