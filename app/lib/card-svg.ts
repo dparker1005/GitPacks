@@ -126,12 +126,12 @@ export function buildCardSvg(
     <rect class="rainbow-sweep" x="-200" y="-200" width="400" height="${H + 400}" fill="url(#rainbowGrad)" />
   ` : '';
 
-  // Stats grid
+  // Stats grid (scaled 1.5x from 320w card)
   const statW = 140;
-  const statH = 48;
-  const statGap = 6;
+  const statH = 54;
+  const statGap = 8;
   const statsStartX = (W - (statW * 3 + statGap * 2)) / 2;
-  const statsStartY = 430;
+  const statsStartY = 395;
 
   const statsHtml = stats.map((s, i) => {
     const col = i % 3;
@@ -139,14 +139,14 @@ export function buildCardSvg(
     const x = statsStartX + col * (statW + statGap);
     const y = statsStartY + row * (statH + statGap);
     return `
-      <rect x="${x}" y="${y}" width="${statW}" height="${statH}" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-      <text x="${x + statW / 2}" y="${y + 22}" fill="${s.color}" font-family="'Orbitron',sans-serif" font-size="16" font-weight="700" text-anchor="middle">${escapeXml(s.value)}</text>
-      <text x="${x + statW / 2}" y="${y + 38}" fill="#666" font-family="'Rajdhani',sans-serif" font-size="9" text-anchor="middle" letter-spacing="1">${escapeXml(s.label.toUpperCase())}</text>
+      <rect x="${x}" y="${y}" width="${statW}" height="${statH}" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+      <text x="${x + statW / 2}" y="${y + 24}" fill="${s.color}" font-family="'Orbitron',sans-serif" font-size="21" font-weight="700" text-anchor="middle">${escapeXml(s.value)}</text>
+      <text x="${x + statW / 2}" y="${y + 42}" fill="#666" font-family="'Rajdhani',sans-serif" font-size="11" text-anchor="middle" letter-spacing="1">${escapeXml(s.label.toUpperCase())}</text>
     `;
   }).join('');
 
   // Ability section Y position
-  const abilityY = statsStartY + statH * 2 + statGap + 14;
+  const abilityY = statsStartY + statH * 2 + statGap + 16;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <style>
@@ -169,7 +169,7 @@ export function buildCardSvg(
       <stop offset="70%" stop-color="${rc}" stop-opacity="0.02" />
       <stop offset="100%" stop-color="${rc}" stop-opacity="0" />
     </radialGradient>
-    <clipPath id="avatarClip"><circle cx="${W / 2}" cy="230" r="48" /></clipPath>
+    <clipPath id="avatarClip"><circle cx="${W / 2}" cy="230" r="50" /></clipPath>
     <clipPath id="innerClip"><rect x="${borderWidth}" y="${borderWidth}" width="${W - borderWidth * 2}" height="${H - borderWidth * 2}" rx="${18 - borderWidth}" /></clipPath>
     <filter id="avatarBlur"><feGaussianBlur stdDeviation="20" /></filter>
   </defs>
@@ -201,43 +201,43 @@ export function buildCardSvg(
     <rect class="${animated ? 'shimmer-overlay' : ''}" x="0" y="0" width="${W}" height="${H}" fill="${rc}" opacity="0" />
 
     <!-- Repo header -->
-    <rect x="${borderWidth}" y="${borderWidth}" width="${W - borderWidth * 2}" height="30" fill="rgba(0,0,0,0.7)" />
-    <line x1="${borderWidth}" y1="${borderWidth + 30}" x2="${W - borderWidth}" y2="${borderWidth + 30}" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
-    <text x="${W / 2}" y="${borderWidth + 20}" fill="rgba(255,255,255,0.7)" font-family="'Orbitron',sans-serif" font-size="10" font-weight="700" text-anchor="middle" letter-spacing="2">${escapeXml(repoName.toUpperCase())}</text>
+    <rect x="${borderWidth}" y="${borderWidth}" width="${W - borderWidth * 2}" height="34" fill="rgba(0,0,0,0.7)" />
+    <line x1="${borderWidth}" y1="${borderWidth + 34}" x2="${W - borderWidth}" y2="${borderWidth + 34}" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+    <text x="${W / 2}" y="${borderWidth + 23}" fill="rgba(255,255,255,0.7)" font-family="'Orbitron',sans-serif" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="2">${escapeXml(repoName.toUpperCase())}</text>
 
     <!-- Title chip -->
-    <rect x="14" y="48" width="${Math.min(c.title.length * 8.5 + 20, 200)}" height="24" rx="5" fill="rgba(0,0,0,0.65)" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
-    <text x="24" y="64" fill="${rc}" font-family="'Orbitron',sans-serif" font-size="10" font-weight="700" letter-spacing="1.5">${escapeXml(c.title.toUpperCase())}</text>
+    <rect x="18" y="52" width="${Math.min(c.title.length * 9.5 + 24, 240)}" height="28" rx="6" fill="rgba(0,0,0,0.65)" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+    <text x="30" y="70" fill="${rc}" font-family="'Orbitron',sans-serif" font-size="12" font-weight="700" letter-spacing="1.5">${escapeXml(c.title.toUpperCase())}</text>
 
     <!-- Rarity badge -->
-    <rect x="${W - 14 - c.rarity.length * 9.5 - 20}" y="48" width="${c.rarity.length * 9.5 + 20}" height="24" rx="5" fill="${badge.bg}" stroke="${badge.border}" stroke-width="1" />
-    <text x="${W - 14 - (c.rarity.length * 9.5 + 20) / 2}" y="64" fill="${badge.color}" font-family="'Orbitron',sans-serif" font-size="10" font-weight="700" text-anchor="middle" letter-spacing="2">${escapeXml(c.rarity.toUpperCase())}</text>
+    <rect x="${W - 18 - c.rarity.length * 10.5 - 24}" y="52" width="${c.rarity.length * 10.5 + 24}" height="28" rx="6" fill="${badge.bg}" stroke="${badge.border}" stroke-width="1" />
+    <text x="${W - 18 - (c.rarity.length * 10.5 + 24) / 2}" y="70" fill="${badge.color}" font-family="'Orbitron',sans-serif" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="2">${escapeXml(c.rarity.toUpperCase())}</text>
 
     <!-- Avatar -->
-    <circle cx="${W / 2}" cy="230" r="52" fill="url(#borderGrad)" />
-    <circle cx="${W / 2}" cy="230" r="48" fill="${innerBg[2]}" />
-    <image href="${escapeXml(avatarDataUri)}" x="${W / 2 - 46}" y="${230 - 46}" width="92" height="92" clip-path="url(#avatarClip)" preserveAspectRatio="xMidYMid slice" />
+    <circle cx="${W / 2}" cy="230" r="56" fill="url(#borderGrad)" />
+    <circle cx="${W / 2}" cy="230" r="52" fill="${innerBg[2]}" />
+    <image href="${escapeXml(avatarDataUri)}" x="${W / 2 - 50}" y="${230 - 50}" width="100" height="100" clip-path="url(#avatarClip)" preserveAspectRatio="xMidYMid slice" />
 
     <!-- Name -->
-    <text x="${W / 2}" y="305" fill="#fff" font-family="'Orbitron',sans-serif" font-size="20" font-weight="700" text-anchor="middle" letter-spacing="1">${escapeXml(c.login)}</text>
+    <text x="${W / 2}" y="310" fill="#fff" font-family="'Orbitron',sans-serif" font-size="24" font-weight="700" text-anchor="middle" letter-spacing="1">${escapeXml(c.login)}</text>
 
     <!-- Subtitle -->
-    <text x="${W / 2}" y="324" fill="#888" font-family="'Rajdhani',sans-serif" font-size="14" text-anchor="middle" letter-spacing="1">${escapeXml(c.title.toUpperCase())}</text>
+    <text x="${W / 2}" y="332" fill="#888" font-family="'Rajdhani',sans-serif" font-size="18" text-anchor="middle" letter-spacing="1">${escapeXml(c.title.toUpperCase())}</text>
 
-    <!-- Power bar -->
-    <text x="20" y="356" fill="#555" font-family="'Orbitron',sans-serif" font-size="9" letter-spacing="2">PWR</text>
-    <rect x="52" y="347" width="${W - 105}" height="7" rx="4" fill="#1a1a35" />
-    <rect x="52" y="347" width="${Math.round((W - 105) * c.power / 100)}" height="7" rx="4" fill="url(#powerGrad)" />
-    <text x="${W - 18}" y="358" fill="${rc}" font-family="'Orbitron',sans-serif" font-size="16" font-weight="700" text-anchor="end">${c.power}</text>
+    <!-- Power bar (max-width: 210px, matching CSS max-width:140px * 1.5) -->
+    <text x="${W / 2 - 120}" y="366" fill="#555" font-family="'Orbitron',sans-serif" font-size="12" letter-spacing="2">PWR</text>
+    <rect x="${W / 2 - 90}" y="358" width="210" height="8" rx="4" fill="#1a1a35" />
+    <rect x="${W / 2 - 90}" y="358" width="${Math.round(210 * c.power / 100)}" height="8" rx="4" fill="url(#powerGrad)" />
+    <text x="${W / 2 + 140}" y="368" fill="${rc}" font-family="'Orbitron',sans-serif" font-size="20" font-weight="900" text-anchor="end">${c.power}</text>
 
     <!-- Stats -->
     ${statsHtml}
 
     <!-- Ability -->
-    <rect x="18" y="${abilityY}" width="${W - 36}" height="48" rx="10" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-    <text x="42" y="${abilityY + 26}" font-size="18">${c.ability.icon}</text>
-    <text x="62" y="${abilityY + 20}" fill="${escapeXml(c.ability.color)}" font-family="'Orbitron',sans-serif" font-size="10" font-weight="700" letter-spacing="1">${escapeXml(c.ability.name)}</text>
-    <text x="62" y="${abilityY + 36}" fill="#777" font-family="'Rajdhani',sans-serif" font-size="12">${escapeXml(c.ability.desc.length > 52 ? c.ability.desc.substring(0, 50) + '...' : c.ability.desc)}</text>
+    <rect x="24" y="${abilityY}" width="${W - 48}" height="52" rx="12" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+    <text x="48" y="${abilityY + 30}" font-size="22">${c.ability.icon}</text>
+    <text x="72" y="${abilityY + 22}" fill="${escapeXml(c.ability.color)}" font-family="'Orbitron',sans-serif" font-size="14" font-weight="700" letter-spacing="1">${escapeXml(c.ability.name)}</text>
+    <text x="72" y="${abilityY + 40}" fill="#777" font-family="'Rajdhani',sans-serif" font-size="15">${escapeXml(c.ability.desc.length > 48 ? c.ability.desc.substring(0, 46) + '...' : c.ability.desc)}</text>
 
     <!-- Sparkles -->
     ${sparklesHtml}
@@ -248,9 +248,9 @@ export function buildCardSvg(
   </g>
 
   <!-- Footer -->
-  <rect x="${borderWidth}" y="${H - borderWidth - 30}" width="${W - borderWidth * 2}" height="30" fill="rgba(0,0,0,0.35)" />
-  <line x1="${borderWidth}" y1="${H - borderWidth - 30}" x2="${W - borderWidth}" y2="${H - borderWidth - 30}" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-  <text x="${borderWidth + 14}" y="${H - borderWidth - 11}" fill="#888" font-family="'Orbitron',sans-serif" font-size="10" letter-spacing="1.5">#${String(cardNum).padStart(3, '0')} / ${total}</text>
-  <text x="${W - borderWidth - 14}" y="${H - borderWidth - 11}" fill="#7873f5" font-family="'Orbitron',sans-serif" font-size="11" font-weight="700" text-anchor="end">GitPacks</text>
+  <rect x="${borderWidth}" y="${H - borderWidth - 34}" width="${W - borderWidth * 2}" height="34" fill="rgba(0,0,0,0.35)" />
+  <line x1="${borderWidth}" y1="${H - borderWidth - 34}" x2="${W - borderWidth}" y2="${H - borderWidth - 34}" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+  <text x="${borderWidth + 20}" y="${H - borderWidth - 12}" fill="#888" font-family="'Orbitron',sans-serif" font-size="11" letter-spacing="1.5">#${String(cardNum).padStart(3, '0')} / ${total}</text>
+  <text x="${W - borderWidth - 20}" y="${H - borderWidth - 12}" fill="#7873f5" font-family="'Orbitron',sans-serif" font-size="12" font-weight="700" text-anchor="end">GitPacks</text>
 </svg>`;
 }
