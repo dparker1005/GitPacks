@@ -1707,7 +1707,14 @@ function openFullscreenCard(c) {
         ${statRow('Owned', (library[c.login] || 0) + 'x', null, null)}
       </div>
     </div>
-    <a class="fullscreen-profile" href="https://github.com/${c.login}" target="_blank" rel="noopener">${GH_ICON} View Profile</a>`;
+    <div class="fullscreen-bottom">
+      <a class="fullscreen-profile" href="https://github.com/${c.login}" target="_blank" rel="noopener">${GH_ICON} View Profile</a>
+      <div class="fullscreen-share-row">
+        <button class="share-action-btn" id="fs-copy-link">Copy Link</button>
+        <a class="share-action-btn" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out my GitPacks card for ${currentRepoName}!`)}&url=${encodeURIComponent(`${window.location.origin}/card/${currentRepoName}/${c.login}`)}" target="_blank" rel="noopener">Share on X</a>
+        <button class="share-action-btn" id="fs-copy-md">Copy for README</button>
+      </div>
+    </div>`;
   document.body.appendChild(overlay);
 
   const container = overlay.querySelector('.fullscreen-card-container');
@@ -1732,7 +1739,27 @@ function openFullscreenCard(c) {
   overlay.addEventListener('click', e => { if (e.target === overlay) closeOverlay(); });
   document.addEventListener('keydown', escHandler);
   overlay.querySelector('.fullscreen-layout').addEventListener('click', e => e.stopPropagation());
-  overlay.querySelector('.fullscreen-profile').addEventListener('click', e => e.stopPropagation());
+  overlay.querySelector('.fullscreen-bottom').addEventListener('click', e => e.stopPropagation());
+
+  // Share buttons
+  const shareUrl = `${window.location.origin}/card/${currentRepoName}/${c.login}`;
+  const mdSnippet = `[![${c.login} on ${currentRepoName}](${window.location.origin}/api/card/${currentRepoName}/${c.login})](${window.location.origin}?repo=${currentRepoName})`;
+
+  const copyLinkBtn = overlay.querySelector('#fs-copy-link');
+  if (copyLinkBtn) copyLinkBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      copyLinkBtn.textContent = 'Copied!';
+      setTimeout(() => { copyLinkBtn.textContent = 'Copy Link'; }, 2000);
+    });
+  });
+
+  const copyMdBtn = overlay.querySelector('#fs-copy-md');
+  if (copyMdBtn) copyMdBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(mdSnippet).then(() => {
+      copyMdBtn.textContent = 'Copied!';
+      setTimeout(() => { copyMdBtn.textContent = 'Copy for README'; }, 2000);
+    });
+  });
 }
 
 function fmt(n) { if (n >= 1e6) return (n/1e6).toFixed(1)+'M'; if (n >= 1e3) return (n/1e3).toFixed(1)+'K'; return n.toString(); }

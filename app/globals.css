@@ -674,6 +674,10 @@
     .fullscreen-ghost .fullscreen-card-container { opacity:0.25; filter:grayscale(1); }
     .fullscreen-ghost .fullscreen-stats-panel { opacity:0.4; filter:grayscale(1); }
     .fullscreen-profile svg { width:16px; height:16px; fill:#fff; }
+    .fullscreen-bottom { display:flex; flex-direction:column; align-items:center; gap:12px; }
+    .fullscreen-share-row { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+    .share-action-btn { padding:8px 18px; border:1px solid #3a3a5a; border-radius:8px; background:rgba(15,15,35,0.9); color:#aaa; font-family:'Orbitron',sans-serif; font-size:0.6rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; transition:all 0.2s; text-decoration:none; display:inline-flex; align-items:center; }
+    .share-action-btn:hover { border-color:#7873f5; color:#fff; background:rgba(120,115,245,0.15); }
 
     @media (max-width:600px) {
       header h1 { font-size:1.5rem; }
