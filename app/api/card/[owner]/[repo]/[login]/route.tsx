@@ -1,5 +1,5 @@
 import { Resvg } from '@resvg/resvg-js';
-import { buildCardSvg } from '@/app/lib/card-svg';
+import { buildCardSvg, fetchAvatarBase64 } from '@/app/lib/card-svg';
 
 export const maxDuration = 10;
 
@@ -34,14 +34,16 @@ export async function GET(
   const { contributor, cardNum, total } = result;
   const repoName = `${owner}/${repo}`;
 
+  // Fetch avatar and convert to base64 for embedding
+  const avatarDataUri = await fetchAvatarBase64(contributor.avatar);
+
   const url = new URL(request.url);
   const format = url.searchParams.get('format');
 
   if (format === 'png') {
-    // Render SVG to PNG (no animations in static image)
-    const svg = buildCardSvg(contributor, cardNum, total, repoName, { animated: false });
+    const svg = buildCardSvg(contributor, cardNum, total, repoName, avatarDataUri, { animated: false });
     const resvg = new Resvg(svg, {
-      fitTo: { mode: 'width', value: 960 }, // 2x for retina
+      fitTo: { mode: 'width', value: 960 },
     });
     const pngData = resvg.render();
     const pngBuffer = pngData.asPng();
@@ -54,8 +56,8 @@ export async function GET(
     });
   }
 
-  // Default: return animated SVG
-  const svg = buildCardSvg(contributor, cardNum, total, repoName, { animated: true });
+  // Default: animated SVG
+  const svg = buildCardSvg(contributor, cardNum, total, repoName, avatarDataUri, { animated: true });
   return new Response(svg, {
     headers: {
       'Content-Type': 'image/svg+xml',
