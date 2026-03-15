@@ -1,97 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { getCachedRepo } from '../../../cache';
-import { getSupabaseServer } from '../../../../../lib/supabase-server';
-
-interface Contributor {
-  rarity: string;
-  login: string;
-  [key: string]: any;
-}
-
-const REGEN_INTERVAL_MS = 12 * 60 * 60 * 1000;
-const MAX_PACKS = 2;
-
-function selectPackCards(
-  allContributors: Contributor[],
-  count: number
-): Contributor[] {
-  const defaultWeights: Record<string, number> = { mythic: 1, legendary: 5, epic: 12, rare: 22, common: 60 };
-  const w = defaultWeights;
-  const byRarity: Record<string, Contributor[]> = { mythic: [], legendary: [], epic: [], rare: [], common: [] };
-  allContributors.forEach((c) => byRarity[c.rarity].push(c));
-
-  function rollRarity(): string {
-    const available: Record<string, number> = {};
-    let totalW = 0;
-    for (const r of ['mythic', 'legendary', 'epic', 'rare', 'common']) {
-      if (byRarity[r].length > 0) {
-        available[r] = w[r];
-        totalW += w[r];
-      }
-    }
-    let roll = Math.random() * totalW;
-    for (const [r, rw] of Object.entries(available)) {
-      roll -= rw;
-      if (roll <= 0) return r;
-    }
-    return 'common';
-  }
-
-  const picks: Contributor[] = [];
-
-  // Pick first 4 cards with weighted random
-  while (picks.length < count - 1) {
-    const rarity = rollRarity();
-    const pool = byRarity[rarity];
-    const c = pool[Math.floor(Math.random() * pool.length)];
-    if (picks.includes(c) && picks.length < allContributors.length) continue;
-    picks.push(c);
-  }
-
-  // Guarantee rare+ card as the 5th/last card
-  const rareOrBetter = [...byRarity.rare, ...byRarity.epic, ...byRarity.legendary, ...byRarity.mythic];
-  if (rareOrBetter.length > 0) {
-    const guarWeights: Record<string, number> = {
-      mythic: w.mythic,
-      legendary: w.legendary,
-      epic: w.epic,
-      rare: w.rare
-    };
-    const guarAvail: Record<string, number> = {};
-    let guarTotal = 0;
-    for (const r of ['mythic', 'legendary', 'epic', 'rare']) {
-      if (byRarity[r].length > 0) {
-        guarAvail[r] = guarWeights[r];
-        guarTotal += guarWeights[r];
-      }
-    }
-    let roll = Math.random() * guarTotal;
-    let guarRarity = 'rare';
-    for (const [r, rw] of Object.entries(guarAvail)) {
-      roll -= rw;
-      if (roll <= 0) {
-        guarRarity = r;
-        break;
-      }
-    }
-    const pool = byRarity[guarRarity];
-    picks.push(pool[Math.floor(Math.random() * pool.length)]);
-  } else {
-    // Fallback: no rare+ cards available, fill with random
-    const rarity = rollRarity();
-    const pool = byRarity[rarity];
-    picks.push(pool[Math.floor(Math.random() * pool.length)]);
-  }
-
-  // Shuffle only first 4 cards (indices 0-3), leave index 4 (rare+ guarantee) in place
-  for (let i = Math.min(picks.length - 2, 3); i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [picks[i], picks[j]] = [picks[j], picks[i]];
-  }
-
-  return picks;
-}
+import { getCachedRepo } from '@/app/lib/repo-cache';
+import { getSupabaseServer } from '@/app/lib/supabase-server';
+import { getOrCreateProfile } from '@/app/lib/profile';
+import { selectPackCards, Contributor } from '@/app/lib/pack-cards';
+import { addCards } from '@/app/lib/collection';
+import { REGEN_INTERVAL_MS, MAX_PACKS, calculateRegen } from '@/app/lib/constants';
 
 export async function GET(
   request: NextRequest,
@@ -153,57 +67,45 @@ export async function GET(
 
   // --- Authenticated flow ---
 
-  // 1. Check/regen pack count (auto-create profile if missing)
-  let { data: profile } = await supabase
-    .from('profiles')
-    .select('ready_packs, last_regen_at')
-    .eq('id', user.id)
-    .single();
-
+  // 1. Ensure profile exists, apply regen, then atomically decrement pack
+  const profile = await getOrCreateProfile(supabase, user, 'ready_packs, last_regen_at');
   if (!profile) {
-    const meta = user.user_metadata || {};
-    await supabase.from('profiles').upsert({
-      id: user.id,
-      github_username: meta.user_name || meta.preferred_username || '',
-      avatar_url: meta.avatar_url || '',
-      ready_packs: 10,
-    }, { onConflict: 'id', ignoreDuplicates: true });
-    // Re-fetch with defaults applied
-    const { data: newProfile } = await supabase
+    return NextResponse.json({ error: 'Failed to create profile' }, { status: 500 });
+  }
+
+  const regen = calculateRegen(
+    profile.ready_packs,
+    new Date(profile.last_regen_at).getTime()
+  );
+
+  if (regen.updated) {
+    await supabase
       .from('profiles')
-      .select('ready_packs, last_regen_at')
-      .eq('id', user.id)
-      .single();
-    profile = newProfile;
-    if (!profile) {
-      return NextResponse.json({ error: 'Failed to create profile' }, { status: 500 });
-    }
+      .update({ ready_packs: regen.readyPacks, last_regen_at: new Date(regen.lastRegenAt).toISOString() })
+      .eq('id', user.id);
   }
 
-  let readyPacks = profile.ready_packs;
-  let lastRegenAt = new Date(profile.last_regen_at).getTime();
+  // Atomically decrement pack count (race-safe)
+  const { data: decrementResult, error: decrementError } = await supabase.rpc('decrement_pack', {
+    p_user_id: user.id,
+    p_max_packs: MAX_PACKS,
+  });
 
-  // Only regen if below MAX_PACKS (don't touch starter/bonus packs above cap)
-  if (readyPacks < MAX_PACKS) {
-    while (readyPacks < MAX_PACKS) {
-      const elapsed = Date.now() - lastRegenAt;
-      if (elapsed >= REGEN_INTERVAL_MS) {
-        readyPacks++;
-        lastRegenAt = lastRegenAt + REGEN_INTERVAL_MS;
-      } else {
-        break;
-      }
-    }
+  if (decrementError) {
+    return NextResponse.json({ error: 'Failed to decrement pack' }, { status: 500 });
   }
 
-  if (readyPacks <= 0) {
-    // Calculate next regen time for the response
-    const nextRegenAt = lastRegenAt + REGEN_INTERVAL_MS;
+  const result = Array.isArray(decrementResult) ? decrementResult[0] : decrementResult;
+  if (!result?.success) {
+    const nextRegenAt = regen.lastRegenAt + REGEN_INTERVAL_MS;
     return NextResponse.json(
       { error: 'No packs available', nextRegenAt, readyPacks: 0 },
       { status: 429 }
     );
   }
+
+  const readyPacks = result.new_ready_packs;
+  const lastRegenAt = new Date(result.new_last_regen_at).getTime();
 
   // 2. Get pity state for this repo
   const { data: pityData } = await supabase
@@ -223,11 +125,9 @@ export async function GET(
   // 4. Hard guarantees: force-replace lowest rarity card if thresholds met
   const rarityOrder = ['common', 'rare', 'epic', 'legendary', 'mythic'];
 
-  // Mythic guarantee: 20th pack without mythic
   if (packsSinceMythic >= 19 && !cards.some(c => c.rarity === 'mythic')) {
     const mythicPool = allContributors.filter(c => c.rarity === 'mythic');
     if (mythicPool.length > 0) {
-      // Find index of lowest-rarity card
       let lowestIdx = 0;
       let lowestRank = rarityOrder.indexOf(cards[0].rarity);
       for (let i = 1; i < cards.length; i++) {
@@ -236,9 +136,7 @@ export async function GET(
       }
       cards[lowestIdx] = mythicPool[Math.floor(Math.random() * mythicPool.length)];
     }
-  }
-  // Legendary guarantee: 10th pack without legendary+
-  else if (packsSinceLegendary >= 9 && !cards.some(c => c.rarity === 'legendary' || c.rarity === 'mythic')) {
+  } else if (packsSinceLegendary >= 9 && !cards.some(c => c.rarity === 'legendary' || c.rarity === 'mythic')) {
     const legendaryPool = allContributors.filter(c => c.rarity === 'legendary');
     if (legendaryPool.length > 0) {
       let lowestIdx = 0;
@@ -268,54 +166,14 @@ export async function GET(
     .from('user_packs')
     .upsert(newPityData, { onConflict: 'user_id, owner_repo' });
 
-  // 7. Decrement pack count and update regen timer
-  readyPacks--;
-  const regenUpdate: any = { ready_packs: readyPacks };
-  // If this brings us below max for the first time, start the regen timer
-  if (readyPacks < MAX_PACKS && profile.ready_packs >= MAX_PACKS) {
-    regenUpdate.last_regen_at = new Date().toISOString();
-    lastRegenAt = Date.now();
-  } else {
-    regenUpdate.last_regen_at = new Date(lastRegenAt).toISOString();
-  }
-  const { error: profileErr } = await supabase
-    .from('profiles')
-    .update(regenUpdate)
-    .eq('id', user.id);
+  // 7. Save cards to collection atomically
+  const cardLogins = cards.map(c => c.login);
+  const { error: saveErr } = await addCards(supabase, user.id, cacheKey, cardLogins);
 
-  // 8. Save cards to collection
-  const saveErrors: string[] = [];
-  for (const card of cards) {
-    const { data: existing } = await supabase
-      .from('user_collections')
-      .select('count')
-      .eq('user_id', user.id)
-      .eq('owner_repo', cacheKey)
-      .eq('contributor_login', card.login)
-      .single();
-
-    if (existing) {
-      const { error: updErr } = await supabase
-        .from('user_collections')
-        .update({ count: existing.count + 1 })
-        .eq('user_id', user.id)
-        .eq('owner_repo', cacheKey)
-        .eq('contributor_login', card.login);
-      if (updErr) saveErrors.push(`update ${card.login}: ${updErr.message}`);
-    } else {
-      const { error: insErr } = await supabase
-        .from('user_collections')
-        .insert({ user_id: user.id, owner_repo: cacheKey, contributor_login: card.login, count: 1 });
-      if (insErr) saveErrors.push(`insert ${card.login}: ${insErr.message}`);
-    }
-  }
-
-  // Return cards + pack state + any save errors for debugging
   const nextRegenAt = readyPacks < MAX_PACKS ? lastRegenAt + REGEN_INTERVAL_MS : null;
   const dbErrors = [
     pityErr ? `pity: ${pityErr.message}` : null,
-    profileErr ? `profile: ${profileErr.message}` : null,
-    ...saveErrors,
+    saveErr ? `cards: ${saveErr}` : null,
   ].filter(Boolean);
 
   return NextResponse.json({

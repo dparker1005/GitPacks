@@ -75,18 +75,6 @@ function showWelcomeOverlay() {
 btn.addEventListener('click', () => loadRepo());
 document.getElementById('share-btn').addEventListener('click', () => shareRepo());
 
-function setProgress(step, pct, detail) {
-  ['step-commits','step-issues','step-processing'].forEach(id => {
-    document.getElementById(id).className = 'progress-step';
-  });
-  const steps = ['step-commits','step-issues','step-processing'];
-  const idx = steps.indexOf(step);
-  for (let i = 0; i < idx; i++) document.getElementById(steps[i]).className = 'progress-step done';
-  if (idx >= 0) document.getElementById(step).className = 'progress-step active';
-  document.getElementById('progress-fill').style.width = pct + '%';
-  document.getElementById('progress-detail').textContent = detail || '';
-}
-
 input.addEventListener('keydown', e => { if (e.key === 'Enter') loadRepo(); });
 
 function quickLoad(repo) { input.value = repo; loadRepo(); }
@@ -378,8 +366,8 @@ function saveLibrary() {
 
 function loadLibrary() {
   if (!currentRepoName) return;
-  var libKey = 'ghtc_lib_' + currentRepoName.toLowerCase();
-  var libData = localStorage.getItem(libKey);
+  const libKey = 'ghtc_lib_' + currentRepoName.toLowerCase();
+  const libData = localStorage.getItem(libKey);
   if (libData) {
     try { library = JSON.parse(libData); } catch { library = {}; }
   }
@@ -511,10 +499,10 @@ function renderRepoInfo(owner, repo) {
       peak_week: { fixed: [1,3,5,10,20], increment: 10 },
     };
 
-    // Compute all thresholds for each stat (up to 8) to show the full grid
+    // Compute all thresholds for each stat (up to maxSlots) to show the full grid
     function getAllThresholds(def, maxSlots) {
       const all = [...def.fixed];
-      if (all.length > 0) {
+      if (def.increment > 0 && all.length > 0) {
         let next = all[all.length - 1] + def.increment;
         while (all.length < maxSlots) {
           all.push(next);
@@ -547,7 +535,8 @@ function renderRepoInfo(owner, repo) {
         const isEarned = info.value >= t;
 
         if (isLocked) {
-          const neededCards = [1,20,40,60,100][i] || '?';
+          const repoSizeTiers = [1, 20, 40, 60, 100];
+          const neededCards = repoSizeTiers[i] || '?';
           slots += `<span class="ach-slot locked" title="Unlock with ${neededCards}+ card repo">
             <span class="ach-slot-lock">&#x1f512;</span>
             <span class="ach-slot-req">${neededCards}+</span>
@@ -1593,21 +1582,24 @@ function renderLibrary() {
     grid.appendChild(w);
   });
 
-  grid.addEventListener('mousemove', e => {
-    const card = e.target.closest('.card');
-    if (!card || card._lastMove && Date.now() - card._lastMove < 16) return;
-    card._lastMove = Date.now();
-    const r = card.getBoundingClientRect();
-    const x = (e.clientX - r.left) / r.width - 0.5;
-    const y = (e.clientY - r.top) / r.height - 0.5;
-    card.style.transform = `rotateY(${x * 18}deg) rotateX(${-y * 18}deg) scale(1.04)`;
-    const shine = card.querySelector('.card-shine');
-    if (shine) shine.style.background = `radial-gradient(circle at ${(x+.5)*100}% ${(y+.5)*100}%, rgba(255,255,255,0.15) 0%, transparent 60%)`;
-  });
-  grid.addEventListener('mouseleave', e => {
-    const card = e.target.closest('.card');
-    if (card) card.style.transform = '';
-  }, true);
+  if (!grid._hoverBound) {
+    grid._hoverBound = true;
+    grid.addEventListener('mousemove', e => {
+      const card = e.target.closest('.card');
+      if (!card || card._lastMove && Date.now() - card._lastMove < 16) return;
+      card._lastMove = Date.now();
+      const r = card.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width - 0.5;
+      const y = (e.clientY - r.top) / r.height - 0.5;
+      card.style.transform = `rotateY(${x * 18}deg) rotateX(${-y * 18}deg) scale(1.04)`;
+      const shine = card.querySelector('.card-shine');
+      if (shine) shine.style.background = `radial-gradient(circle at ${(x+.5)*100}% ${(y+.5)*100}%, rgba(255,255,255,0.15) 0%, transparent 60%)`;
+    });
+    grid.addEventListener('mouseleave', e => {
+      const card = e.target.closest('.card');
+      if (card) card.style.transform = '';
+    }, true);
+  }
 
   if (window._cardObserver) window._cardObserver.disconnect();
   window._cardObserver = new IntersectionObserver(entries => {
@@ -1637,7 +1629,6 @@ function renderRepoInfoFromCurrent() {
 }
 
 // ===== HELPERS =====
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 function showError(m) { errorEl.textContent = m; errorEl.style.display = m ? 'block' : 'none'; }
 
 // ===== FULLSCREEN CARD VIEW =====

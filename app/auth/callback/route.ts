@@ -7,6 +7,11 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code');
   const next = searchParams.get('next') ?? '/';
 
+  // Validate redirect target to prevent open redirect
+  if (!next.startsWith('/') || next.startsWith('//')) {
+    return NextResponse.redirect(`${origin}/`);
+  }
+
   if (code) {
     const cookieStore = await cookies();
     const supabase = createServerClient(

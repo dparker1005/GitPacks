@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getSupabaseServer } from '../../lib/supabase-server';
-
-const REGEN_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 hours
-const MAX_PACKS = 2;
+import { getSupabaseServer } from '@/app/lib/supabase-server';
+import { getOrCreateProfile } from '@/app/lib/profile';
+import { REGEN_INTERVAL_MS, MAX_PACKS, calculateRegen } from '@/app/lib/constants';
 
 export async function GET() {
   try {
@@ -13,79 +12,29 @@ export async function GET() {
       return NextResponse.json({ error: 'Not authenticated', detail: authError?.message }, { status: 401 });
     }
 
-    let { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('ready_packs, last_regen_at')
-      .eq('id', user.id)
-      .single();
-
+    const profile = await getOrCreateProfile(supabase, user, 'ready_packs, last_regen_at');
     if (!profile) {
-      // Auto-create profile
-      const meta = user.user_metadata || {};
-      const { error: upsertError } = await supabase.from('profiles').upsert({
-        id: user.id,
-        github_username: meta.user_name || meta.preferred_username || '',
-        avatar_url: meta.avatar_url || '',
-        ready_packs: 10,
-      }, { onConflict: 'id', ignoreDuplicates: true });
+      return NextResponse.json({ error: 'Failed to create profile' }, { status: 500 });
+    }
 
-      if (upsertError) {
-        return NextResponse.json({
-          error: 'Profile creation failed',
-          detail: upsertError.message,
-          code: upsertError.code,
-          userId: user.id,
-        }, { status: 500 });
-      }
+    const regen = calculateRegen(
+      profile.ready_packs,
+      new Date(profile.last_regen_at).getTime()
+    );
 
-      const { data: newProfile, error: refetchError } = await supabase
+    if (regen.updated) {
+      await supabase
         .from('profiles')
-        .select('ready_packs, last_regen_at')
-        .eq('id', user.id)
-        .single();
-
-      if (!newProfile) {
-        return NextResponse.json({
-          error: 'Profile created but fetch failed',
-          detail: refetchError?.message,
-          profileError: profileError?.message,
-          userId: user.id,
-        }, { status: 500 });
-      }
-      profile = newProfile;
+        .update({ ready_packs: regen.readyPacks, last_regen_at: new Date(regen.lastRegenAt).toISOString() })
+        .eq('id', user.id);
     }
 
-    let readyPacks = profile.ready_packs;
-    let lastRegenAt = new Date(profile.last_regen_at).getTime();
-    let updated = false;
-
-    // Only regen if below MAX_PACKS (don't touch starter/bonus packs above cap)
-    if (readyPacks < MAX_PACKS) {
-      while (readyPacks < MAX_PACKS) {
-        const elapsed = Date.now() - lastRegenAt;
-        if (elapsed >= REGEN_INTERVAL_MS) {
-          readyPacks++;
-          lastRegenAt = lastRegenAt + REGEN_INTERVAL_MS;
-          updated = true;
-        } else {
-          break;
-        }
-      }
-      if (updated) {
-        await supabase
-          .from('profiles')
-          .update({ ready_packs: readyPacks, last_regen_at: new Date(lastRegenAt).toISOString() })
-          .eq('id', user.id);
-      }
-    }
-
-    let nextRegenAt: number | null = null;
-    if (readyPacks < MAX_PACKS) {
-      nextRegenAt = lastRegenAt + REGEN_INTERVAL_MS;
-    }
+    const nextRegenAt = regen.readyPacks < MAX_PACKS
+      ? regen.lastRegenAt + REGEN_INTERVAL_MS
+      : null;
 
     return NextResponse.json({
-      readyPacks,
+      readyPacks: regen.readyPacks,
       maxPacks: MAX_PACKS,
       nextRegenAt,
     });

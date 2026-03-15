@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../repo/cache';
+import { supabase } from '@/app/lib/repo-cache';
 
 export async function GET() {
   try {
-    // Try with card_count column first (lightweight)
     const { data, error } = await supabase
       .from('repo_cache')
       .select('owner_repo, card_count, fetched_at');

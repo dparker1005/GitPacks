@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getSupabaseServer } from '../../lib/supabase-server';
-import { supabase as anonSupabase } from '../repo/cache';
+import { getSupabaseServer } from '@/app/lib/supabase-server';
+import { supabase as anonSupabase } from '@/app/lib/repo-cache';
 
 export async function GET() {
   const supabase = await getSupabaseServer();
@@ -50,7 +50,7 @@ export async function GET() {
     }
 
     // Source 2: GitHub events API for recent activity (catches uncached repos)
-    const repoMap = new Map<string, boolean>();
+    const repoSet = new Set<string>();
 
     for (let page = 1; page <= 3; page++) {
       const res = await fetch(
@@ -65,13 +65,12 @@ export async function GET() {
         const repo = event.repo;
         if (!repo?.name) continue;
         if (seenNames.has(repo.name.toLowerCase())) continue;
-        if (repoMap.has(repo.name)) continue;
-        repoMap.set(repo.name, true);
+        repoSet.add(repo.name);
       }
     }
 
     // Fetch details for uncached repos (filter forks, get metadata)
-    const uncachedNames = Array.from(repoMap.keys()).slice(0, 20);
+    const uncachedNames = Array.from(repoSet).slice(0, 20);
     if (uncachedNames.length > 0) {
       const detailed = await Promise.all(
         uncachedNames.map(async (name) => {
@@ -97,7 +96,6 @@ export async function GET() {
       }
     }
 
-    // Sort: cached repos first (they have cards), then by stars
     results.sort((a, b) => {
       if (a.cached && !b.cached) return -1;
       if (!a.cached && b.cached) return 1;

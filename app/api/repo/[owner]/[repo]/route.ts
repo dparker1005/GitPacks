@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCachedRepo, setCachedRepo } from '../../cache';
+import { getCachedRepo, setCachedRepo } from '@/app/lib/repo-cache';
 
 // ===== Helpers =====
 function sleep(ms: number) {
@@ -33,11 +33,9 @@ async function fetchWithRetry(url: string): Promise<any> {
   throw new Error('GitHub is still computing stats for this repo. Please try again in a minute.');
 }
 
-// ===== fetchAllIssues =====
 async function fetchAllIssues(
   owner: string,
   repo: string,
-  onProgress: (total: number, page: number) => void
 ): Promise<Record<string, { prsMerged: number; issues: number; avatar: string }>> {
   const headers = getHeaders();
   const stats: Record<string, { prsMerged: number; issues: number; avatar: string }> = {};
@@ -68,8 +66,6 @@ async function fetchAllIssues(
         stats[login].issues++;
       }
     });
-    const totalItems = Object.values(stats).reduce((s, v) => s + v.prsMerged + v.issues, 0);
-    onProgress(totalItems, page);
     page++;
     if (page > 50) break;
   }
@@ -77,11 +73,9 @@ async function fetchAllIssues(
   return stats;
 }
 
-// ===== fetchPaginatedContributors =====
 async function fetchPaginatedContributors(
   owner: string,
   repo: string,
-  onProgress: (total: number, page: number) => void
 ): Promise<Array<{ login: string; avatar: string; contributions: number }>> {
   const headers = getHeaders();
   const all: Array<{ login: string; avatar: string; contributions: number }> = [];
@@ -96,7 +90,6 @@ async function fetchPaginatedContributors(
         all.push({ login: c.login, avatar: c.avatar_url, contributions: c.contributions });
       }
     });
-    onProgress(all.length, page);
   }
   return all;
 }
@@ -250,7 +243,6 @@ function processAllContributors(
   extraContributors = extraContributors || [];
   const hasIssueData = Object.keys(issueStats).length > 0;
   const maxC = Math.max(...all.map((x: any) => x.total), 1);
-  const sorted = all.map((x: any) => x.total).sort((a: number, b: number) => b - a);
 
   // First pass: compute raw stats for everyone
   const rawEntries: any[] = all.map((c: any) => {
@@ -518,13 +510,11 @@ export async function GET(
   }
 
   try {
-    const noop = () => {};
-
     // Fetch all three data sources in parallel
     const [statsData, issueStats, extraContributors] = await Promise.all([
       fetchWithRetry(`https://api.github.com/repos/${owner}/${repo}/stats/contributors`),
-      fetchAllIssues(owner, repo, noop),
-      fetchPaginatedContributors(owner, repo, noop),
+      fetchAllIssues(owner, repo),
+      fetchPaginatedContributors(owner, repo),
     ]);
 
     if (!Array.isArray(statsData)) {

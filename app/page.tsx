@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSupabaseBrowser } from "./lib/supabase-browser";
+import { getSupabaseBrowser } from "@/app/lib/supabase-browser";
 
 interface UserInfo {
   id: string;
