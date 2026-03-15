@@ -142,8 +142,10 @@ export async function GET(
             </div>
 
             {/* Avatar with rarity ring (matches .avatar-container + .avatar-ring) */}
-            <div style={{ display: 'flex', position: 'absolute', bottom: '-42px', left: '50%', transform: 'translateX(-50%)', width: '104px', height: '104px', borderRadius: '50%', padding: '4px', background: borderGrad }}>
-              <img src={c.avatar} width={96} height={96} style={{ borderRadius: '50%', border: `3px solid ${overlayTarget}` }} />
+            <div style={{ display: 'flex', position: 'absolute', bottom: '-42px', left: 0, right: 0, justifyContent: 'center' }}>
+              <div style={{ display: 'flex', width: '104px', height: '104px', borderRadius: '50%', padding: '4px', background: borderGrad }}>
+                <img src={c.avatar} width={96} height={96} style={{ borderRadius: '50%', border: `3px solid ${overlayTarget}` }} />
+              </div>
             </div>
           </div>
 
@@ -170,7 +172,7 @@ export async function GET(
             {/* Stats grid (matches .stats-grid with .stat-box) */}
             <div style={{ display: 'flex', flexWrap: 'wrap', width: '100%', gap: '6px', marginBottom: '10px' }}>
               {stats.map((stat) => (
-                <div key={stat.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 'calc(33.33% - 4px)', padding: '7px 2px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                <div key={stat.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '31%', padding: '7px 2px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px' }}>
                   <div style={{ fontFamily: 'Orbitron', fontSize: '16px', fontWeight: 700, color: stat.color }}>{stat.value}</div>
                   <div style={{ fontFamily: 'Rajdhani', fontSize: '9px', color: '#666', letterSpacing: '1px', textTransform: 'uppercase' as const, marginTop: '2px' }}>{stat.label}</div>
                 </div>
