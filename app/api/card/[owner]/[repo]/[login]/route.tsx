@@ -1,7 +1,10 @@
 import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+import chromium from '@sparticuz/chromium-min';
 
 export const maxDuration = 30;
+
+// Hosted Chromium binary compatible with @sparticuz/chromium-min
+const CHROMIUM_URL = 'https://github.com/nichochar/chromium-binaryies/releases/download/chromium-v131.0.1/chromium-v131.0.1-pack.tar';
 
 export async function GET(
   request: Request,
@@ -17,9 +20,7 @@ export async function GET(
 
   let browser;
   try {
-    console.log('Launching browser...');
-    const execPath = await chromium.executablePath();
-    console.log('Chromium path:', execPath);
+    const execPath = await chromium.executablePath(CHROMIUM_URL);
 
     browser = await puppeteer.launch({
       args: chromium.args,
@@ -32,7 +33,6 @@ export async function GET(
       headless: true,
     });
 
-    console.log('Navigating to:', renderUrl);
     const page = await browser.newPage();
 
     const response = await page.goto(renderUrl, {
@@ -43,8 +43,6 @@ export async function GET(
     if (!response || response.status() === 404) {
       return new Response('Card not found', { status: 404 });
     }
-
-    console.log('Page loaded, status:', response.status());
 
     await page.waitForSelector('[data-ready]', { timeout: 10000 });
 
@@ -58,8 +56,6 @@ export async function GET(
       omitBackground: true,
     });
 
-    console.log('Screenshot taken, size:', screenshot.length);
-
     const buffer = Buffer.from(screenshot);
     return new Response(buffer, {
       headers: {
@@ -69,7 +65,6 @@ export async function GET(
     });
   } catch (error: any) {
     console.error('Card screenshot error:', error?.message || error);
-    console.error('Stack:', error?.stack);
     return new Response(`Failed to generate card image: ${error?.message || 'Unknown error'}`, { status: 500 });
   } finally {
     if (browser) {
