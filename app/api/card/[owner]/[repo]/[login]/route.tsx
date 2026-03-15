@@ -3,26 +3,12 @@ import chromium from '@sparticuz/chromium';
 
 export const maxDuration = 30;
 
-async function launchBrowser() {
-  return puppeteer.launch({
-    args: chromium.args,
-    defaultViewport: {
-      width: 800,
-      height: 600,
-      deviceScaleFactor: 2,
-    },
-    executablePath: await chromium.executablePath(),
-    headless: true,
-  });
-}
-
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ owner: string; repo: string; login: string }> }
 ) {
   const { owner, repo, login } = await params;
 
-  // Build the URL to the render page
   const url = new URL(request.url);
   const origin = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
@@ -31,7 +17,22 @@ export async function GET(
 
   let browser;
   try {
-    browser = await launchBrowser();
+    console.log('Launching browser...');
+    const execPath = await chromium.executablePath();
+    console.log('Chromium path:', execPath);
+
+    browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: {
+        width: 800,
+        height: 600,
+        deviceScaleFactor: 2,
+      },
+      executablePath: execPath,
+      headless: true,
+    });
+
+    console.log('Navigating to:', renderUrl);
     const page = await browser.newPage();
 
     const response = await page.goto(renderUrl, {
@@ -39,15 +40,14 @@ export async function GET(
       timeout: 15000,
     });
 
-    // If the render page returned 404, the card doesn't exist
     if (!response || response.status() === 404) {
       return new Response('Card not found', { status: 404 });
     }
 
-    // Wait for images to load and the data-ready attribute to appear
+    console.log('Page loaded, status:', response.status());
+
     await page.waitForSelector('[data-ready]', { timeout: 10000 });
 
-    // Screenshot just the card wrapper element
     const cardElement = await page.$('#card-wrapper');
     if (!cardElement) {
       return new Response('Card element not found', { status: 500 });
@@ -58,6 +58,8 @@ export async function GET(
       omitBackground: true,
     });
 
+    console.log('Screenshot taken, size:', screenshot.length);
+
     const buffer = Buffer.from(screenshot);
     return new Response(buffer, {
       headers: {
@@ -65,9 +67,10 @@ export async function GET(
         'Cache-Control': 'public, max-age=86400, s-maxage=86400',
       },
     });
-  } catch (error) {
-    console.error('Card screenshot error:', error);
-    return new Response('Failed to generate card image', { status: 500 });
+  } catch (error: any) {
+    console.error('Card screenshot error:', error?.message || error);
+    console.error('Stack:', error?.stack);
+    return new Response(`Failed to generate card image: ${error?.message || 'Unknown error'}`, { status: 500 });
   } finally {
     if (browser) {
       await browser.close();
