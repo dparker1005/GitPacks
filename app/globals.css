@@ -922,7 +922,7 @@
     .cherry-confirm-btn:hover { background:rgba(34,197,94,0.35) !important; }
 
     /* Fullscreen card — sales pitch for logged-out users */
-    .fs-sales-pitch { text-align:center; padding:12px 0 16px; border-bottom:1px solid rgba(255,255,255,0.05); margin-bottom:8px; width:100%; }
+    .fs-sales-pitch { display:flex; flex-direction:column; align-items:center; text-align:center; padding:12px 0 16px; border-bottom:1px solid rgba(255,255,255,0.05); margin-bottom:8px; width:100%; }
     .fs-sales-text { font-family:'Rajdhani',sans-serif; font-size:0.9rem; color:#888; margin-bottom:4px; }
     .fs-sales-cta { font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:#666; margin-bottom:12px; }
     .fs-sales-cta strong { color:#4adede; }
