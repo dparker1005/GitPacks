@@ -1,6 +1,6 @@
 export const REGEN_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 hours
 export const MAX_PACKS = 2;
-export const MIN_REPO_CONTRIBUTORS = 10;
+export const MIN_REPO_CONTRIBUTORS = 5;
 
 /**
  * Calculate pack regeneration from last_regen_at timestamp.

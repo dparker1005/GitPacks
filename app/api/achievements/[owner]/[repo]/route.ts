@@ -15,7 +15,7 @@ const MILESTONE_DEFS: Record<string, { fixed: number[]; increment: number; break
   peak_week:    { fixed: [1, 3, 5, 10, 20],            increment: 10,  statKey: 'peak' },
 };
 
-const REPO_SIZE_TIERS = [1, 20, 40, 60, 100];
+const REPO_SIZE_TIERS = [10, 20, 40, 60, 100];
 
 function getMaxMilestonesPerStat(cardCount: number): number {
   let cap = 0;
