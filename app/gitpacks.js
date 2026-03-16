@@ -826,17 +826,31 @@ function renderRepoInfo(owner, repo) {
       if (_currentUser) {
         const hasDupes = Object.values(library).some(c => c > 1);
         const dupeCount = Object.values(library).reduce((sum, c) => sum + Math.max(0, c - 1), 0);
+        const rarityList = ['common','rare','epic','legendary','mythic'];
+        const rarityClrs = {common:'#888',rare:'#60a5fa',epic:'#c084fc',legendary:'#ffd700',mythic:'#ff0040'};
+        // Compute per-rarity revert/cherry-pick stats
+        let totalRevertStars = 0;
+        let totalCherryStars = 0;
+        const perRarity = rarityList.map(r => {
+          const allOfR = allContributors.filter(c => c.rarity === r);
+          const dupesOfR = allOfR.reduce((sum, c) => sum + Math.max(0, (library[c.login] || 0) - 1), 0);
+          const missingOfR = allOfR.filter(c => !library[c.login]).length;
+          const revertStars = dupesOfR * REVERT_YIELD[r];
+          const cherryStars = missingOfR * CHERRY_PICK_COST[r];
+          totalRevertStars += revertStars;
+          totalCherryStars += cherryStars;
+          return { rarity: r, dupes: dupesOfR, missing: missingOfR, revertYield: REVERT_YIELD[r], cherryCost: CHERRY_PICK_COST[r], revertStars, cherryStars };
+        });
+
         starsHTML = `<details class="repo-panel-collapse" id="stars-panel"><summary class="repo-panel-toggle">Stars <span class="panel-summary">&starf; ${starBalance}${hasDupes ? ` &middot; ${dupeCount} dupe${dupeCount !== 1 ? 's' : ''} to revert` : ' &middot; revert dupes, cherry-pick cards'}</span></summary>
           <div class="stars-panel-body">
-            <div class="stars-info">Revert duplicate cards to earn Stars. Spend Stars to cherry-pick missing cards.</div>
+            <div class="stars-balance-display">&starf; ${starBalance} Stars</div>
             <div class="stars-rates">
-              <div class="stars-rates-header"><span>Rarity</span><span>Revert</span><span>Cherry-pick</span></div>
-              ${['common','rare','epic','legendary','mythic'].map(r => {
-                const rc = {common:'#888',rare:'#60a5fa',epic:'#c084fc',legendary:'#ffd700',mythic:'#ff0040'}[r];
-                return `<div class="stars-rates-row"><span style="color:${rc}">${r}</span><span>+${REVERT_YIELD[r]}</span><span>${CHERRY_PICK_COST[r]}</span></div>`;
-              }).join('')}
+              <div class="stars-rates-header"><span>Rarity</span><span>Revert</span><span>Dupes</span><span>Cherry-pick</span><span>Missing</span></div>
+              ${perRarity.map(r => `<div class="stars-rates-row"><span style="color:${rarityClrs[r.rarity]}">${r.rarity}</span><span>+${r.revertYield}</span><span>${r.dupes > 0 ? r.dupes : '—'}</span><span>${r.cherryCost}</span><span>${r.missing > 0 ? r.missing : '—'}</span></div>`).join('')}
+              <div class="stars-rates-totals"><span></span><span></span><span class="stars-total-revert">${totalRevertStars > 0 ? '+' + totalRevertStars + ' &starf;' : ''}</span><span></span><span class="stars-total-cherry">${totalCherryStars > 0 ? totalCherryStars + ' &starf;' : ''}</span></div>
             </div>
-            ${hasDupes ? `<button class="stars-revert-all-btn" id="revert-all-btn">Git Revert All Duplicates (${dupeCount} cards)</button>` : '<div class="stars-no-dupes">No duplicate cards to revert</div>'}
+            ${hasDupes ? `<button class="stars-revert-all-btn" id="revert-all-btn">Git Revert All Duplicates (${dupeCount} cards &rarr; +${totalRevertStars} &starf;)</button>` : '<div class="stars-no-dupes">No duplicate cards to revert</div>'}
           </div>
         </details>`;
       }

@@ -919,12 +919,19 @@
     .stars-revert-all-btn { display:block; width:100%; padding:10px 16px; border:1px solid rgba(239,68,68,0.35); border-radius:8px; background:rgba(239,68,68,0.08); color:#f87171; font-family:'Orbitron',sans-serif; font-size:0.65rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; transition:all 0.2s; }
     .stars-revert-all-btn:hover { background:rgba(239,68,68,0.18); border-color:rgba(239,68,68,0.5); }
     .stars-no-dupes { font-family:'Rajdhani',sans-serif; font-size:0.8rem; color:#444; font-style:italic; }
+    .stars-balance-display { font-family:'Orbitron',sans-serif; font-size:0.85rem; font-weight:700; color:#ffd700; letter-spacing:1px; margin-bottom:10px; }
     .stars-rates { margin:10px 0 12px; border:1px solid rgba(255,255,255,0.05); border-radius:8px; overflow:hidden; }
-    .stars-rates-header { display:flex; justify-content:space-between; padding:6px 12px; font-family:'Orbitron',sans-serif; font-size:0.5rem; font-weight:700; color:#555; letter-spacing:1px; text-transform:uppercase; background:rgba(255,255,255,0.03); }
-    .stars-rates-row { display:flex; justify-content:space-between; padding:4px 12px; font-family:'Rajdhani',sans-serif; font-size:0.8rem; border-top:1px solid rgba(255,255,255,0.03); }
-    .stars-rates-row span:first-child { text-transform:capitalize; font-weight:600; min-width:80px; }
-    .stars-rates-row span:nth-child(2) { color:#f87171; min-width:60px; text-align:center; }
-    .stars-rates-row span:nth-child(3) { color:#4ade80; min-width:60px; text-align:right; }
+    .stars-rates-header, .stars-rates-row, .stars-rates-totals { display:grid; grid-template-columns:1.2fr 1fr 0.8fr 1fr 0.8fr; padding:4px 12px; font-family:'Rajdhani',sans-serif; font-size:0.8rem; }
+    .stars-rates-header { font-family:'Orbitron',sans-serif; font-size:0.45rem; font-weight:700; color:#555; letter-spacing:1px; text-transform:uppercase; background:rgba(255,255,255,0.03); padding:6px 12px; }
+    .stars-rates-row { border-top:1px solid rgba(255,255,255,0.03); }
+    .stars-rates-row span:first-child { text-transform:capitalize; font-weight:600; }
+    .stars-rates-row span:nth-child(2) { color:#f87171; text-align:center; }
+    .stars-rates-row span:nth-child(3) { color:#f8717188; text-align:center; }
+    .stars-rates-row span:nth-child(4) { color:#4ade80; text-align:center; }
+    .stars-rates-row span:nth-child(5) { color:#4ade8088; text-align:center; }
+    .stars-rates-totals { border-top:1px solid rgba(255,255,255,0.08); padding:6px 12px; font-family:'Orbitron',sans-serif; font-size:0.55rem; font-weight:700; }
+    .stars-total-revert { color:#f87171; text-align:center; grid-column:3; }
+    .stars-total-cherry { color:#4ade80; text-align:center; grid-column:5; }
 
     /* Fullscreen card — recycle actions under Owned */
     .fs-recycle-actions { display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:10px 0 4px; }
