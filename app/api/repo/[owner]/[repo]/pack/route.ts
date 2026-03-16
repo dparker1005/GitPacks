@@ -5,6 +5,7 @@ import { getSupabaseServer } from '@/app/lib/supabase-server';
 import { getOrCreateProfile } from '@/app/lib/profile';
 import { selectPackCards, Contributor } from '@/app/lib/pack-cards';
 import { addCards } from '@/app/lib/collection';
+import { refreshUserScores } from '@/app/lib/scoring';
 import { REGEN_INTERVAL_MS, MAX_PACKS, calculateRegen } from '@/app/lib/constants';
 
 export async function GET(
@@ -170,10 +171,14 @@ export async function GET(
   const cardLogins = cards.map(c => c.login);
   const { error: saveErr } = await addCards(supabase, user.id, cacheKey, cardLogins);
 
+  // 8. Refresh scores (non-blocking — don't fail the pack open if scoring errors)
+  const { error: scoreErr } = await refreshUserScores(supabase, user.id);
+
   const nextRegenAt = readyPacks < MAX_PACKS ? lastRegenAt + REGEN_INTERVAL_MS : null;
   const dbErrors = [
     pityErr ? `pity: ${pityErr.message}` : null,
     saveErr ? `cards: ${saveErr}` : null,
+    scoreErr ? `score: ${scoreErr}` : null,
   ].filter(Boolean);
 
   return NextResponse.json({

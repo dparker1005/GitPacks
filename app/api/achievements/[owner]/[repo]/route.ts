@@ -4,6 +4,7 @@ import { getSupabaseServer } from '@/app/lib/supabase-server';
 import { getOrCreateProfile } from '@/app/lib/profile';
 import { selectPackCards, Contributor } from '@/app/lib/pack-cards';
 import { addCards } from '@/app/lib/collection';
+import { refreshUserScores } from '@/app/lib/scoring';
 
 const MILESTONE_DEFS: Record<string, { fixed: number[]; increment: number; breakpoint?: number; increment2?: number; statKey: string }> = {
   commits:      { fixed: [1, 10, 50, 100, 500],       increment: 0,   statKey: 'commits' },
@@ -104,6 +105,7 @@ export async function GET(
 
       await addCards(supabase, user.id, ownerRepo, [contributor.login]);
       selfCard = contributor;
+      await refreshUserScores(supabase, user.id);
     }
 
     // Compute milestones with per-stat cap
@@ -275,6 +277,9 @@ export async function POST(
 
     const cardLogins = allDrawnCards.map(c => c.login);
     await addCards(supabase, user.id, ownerRepo, cardLogins);
+
+    // Refresh scores after granting achievement cards
+    await refreshUserScores(supabase, user.id);
 
     return NextResponse.json({
       cards: allDrawnCards,

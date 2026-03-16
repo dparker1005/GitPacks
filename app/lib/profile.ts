@@ -6,6 +6,7 @@ export interface Profile {
   avatar_url: string;
   ready_packs: number;
   last_regen_at: string;
+  total_points: number;
 }
 
 /**
