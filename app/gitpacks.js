@@ -2019,10 +2019,15 @@ function openFullscreenCard(c) {
       </div>
     </div>
     <div class="fullscreen-bottom">
+      ${!_currentUser ? `<div class="fs-sales-pitch">
+        <p class="fs-sales-text">Open packs, collect contributors, and climb the leaderboard.</p>
+        <p class="fs-sales-cta"><strong>10 free packs</strong> when you sign up</p>
+        <button class="login-btn fs-sales-btn" id="fs-sign-in">Sign In with GitHub</button>
+      </div>` : ''}
       <a class="fullscreen-profile" href="https://github.com/${c.login}" target="_blank" rel="noopener">${GH_ICON} View Profile</a>
       <div class="fullscreen-share-row">
         <button class="share-action-btn" id="fs-copy-link">Copy Link</button>
-        <a class="share-action-btn" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out my GitPacks card for ${currentRepoName}!`)}&url=${encodeURIComponent(`${window.location.origin}/card/${currentRepoName}/${c.login}`)}" target="_blank" rel="noopener">Share on X</a>
+        <a class="share-action-btn" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out my GitPacks card for ${currentRepoName}!`)}&url=${encodeURIComponent(`${window.location.origin}?repo=${currentRepoName}&card=${c.login}`)}" target="_blank" rel="noopener">Share on X</a>
         <button class="share-action-btn" id="fs-copy-md">Copy for README</button>
       </div>
     </div>`;
@@ -2046,6 +2051,8 @@ function openFullscreenCard(c) {
     if (shine) shine.style.opacity = '0';
   });
 
+  const fsSignIn = overlay.querySelector('#fs-sign-in');
+  if (fsSignIn) fsSignIn.addEventListener('click', e => { e.stopPropagation(); if (window.__gpLogin) window.__gpLogin(); });
   overlay.querySelector('.fullscreen-close').addEventListener('click', e => { e.stopPropagation(); closeOverlay(); });
   overlay.addEventListener('click', e => { if (e.target === overlay) closeOverlay(); });
   document.addEventListener('keydown', escHandler);
@@ -2053,8 +2060,8 @@ function openFullscreenCard(c) {
   overlay.querySelector('.fullscreen-bottom').addEventListener('click', e => e.stopPropagation());
 
   // Share buttons
-  const shareUrl = `${window.location.origin}/card/${currentRepoName}/${c.login}`;
-  const mdSnippet = `<a href="${window.location.origin}/card/${currentRepoName}/${c.login}"><img src="${window.location.origin}/api/card/${currentRepoName}/${c.login}" alt="${c.login} on ${currentRepoName}" width="200" /></a>`;
+  const shareUrl = `${window.location.origin}?repo=${currentRepoName}&card=${c.login}`;
+  const mdSnippet = `<a href="${shareUrl}"><img src="${window.location.origin}/api/card/${currentRepoName}/${c.login}" alt="${c.login} on ${currentRepoName}" width="200" /></a>`;
 
   const copyLinkBtn = overlay.querySelector('#fs-copy-link');
   if (copyLinkBtn) copyLinkBtn.addEventListener('click', () => {
