@@ -178,6 +178,11 @@ export default function Home() {
       </div>
       <div id="repo-info"></div>
       <div id="cards-grid"></div>
+      <footer className="site-footer">
+        <a href="https://x.com/gitpacks" target="_blank" rel="noopener">@gitpacks</a>
+        <span className="footer-sep">&middot;</span>
+        <a href="mailto:gitpacksapp@gmail.com">gitpacksapp@gmail.com</a>
+      </footer>
     </div>
   );
 }

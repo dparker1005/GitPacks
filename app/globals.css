@@ -867,6 +867,12 @@
     .landing-step-num { width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#7873f5,#4adede); color:#fff; font-family:'Orbitron',sans-serif; font-size:0.85rem; font-weight:700; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; }
     .landing-step h3 { font-family:'Orbitron',sans-serif; font-size:0.8rem; color:#ccc; letter-spacing:1px; margin-bottom:6px; }
     .landing-step p { font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:#666; }
+    /* === FOOTER === */
+    .site-footer { text-align:center; padding:40px 20px 24px; font-family:'Rajdhani',sans-serif; font-size:0.8rem; color:#444; }
+    .site-footer a { color:#666; text-decoration:none; transition:color 0.2s; }
+    .site-footer a:hover { color:#4adede; }
+    .footer-sep { margin:0 8px; color:#333; }
+
     .landing-starter { margin-top:16px; }
     .landing-starter p { font-family:'Rajdhani',sans-serif; font-size:0.95rem; color:#888; }
     .landing-starter strong { color:#4adede; }
