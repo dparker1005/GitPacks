@@ -818,9 +818,9 @@ function renderRepoInfo(owner, repo) {
         <button class="filter-btn ${viewMode==='missing'?'active':''}" onclick="setViewMode('missing')">Missing</button>
       </div>
       <div class="filter-group">
+        <span class="filter-label">Sort by:</span>
         <select class="sort-select" id="sort-select" onchange="setSortBy(this.value)">
           <option value="power" ${sortBy==='power'?'selected':''}>Power</option>
-          <option value="name" ${sortBy==='name'?'selected':''}>Name</option>
           <option value="commits" ${sortBy==='commits'?'selected':''}>Commits</option>
           <option value="prs" ${sortBy==='prs'?'selected':''}>PRs Merged</option>
           <option value="issues" ${sortBy==='issues'?'selected':''}>Issues</option>
@@ -828,8 +828,10 @@ function renderRepoInfo(owner, repo) {
           <option value="peak" ${sortBy==='peak'?'selected':''}>Peak Week</option>
           <option value="consistency" ${sortBy==='consistency'?'selected':''}>Consistency</option>
         </select>
-        <input type="text" class="card-search" id="card-search" placeholder="Search..." value="${cardSearch}" />
       </div>
+    </div>
+    <div class="search-bar">
+      <input type="text" class="card-search" id="card-search" placeholder="Search cards..." value="${cardSearch}" />
     </div>`;
 
   // Open panels on desktop, closed on mobile
