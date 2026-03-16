@@ -28,7 +28,7 @@
     header { text-align:center; padding:40px 20px 10px; }
     header h1 { font-family:'Orbitron',sans-serif; font-size:2.5rem; font-weight:900; background:linear-gradient(135deg,#ff6ec7,#7873f5,#4adede); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; letter-spacing:3px; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; justify-content:center; gap:12px; }
     header h1 svg { width:48px; height:48px; -webkit-text-fill-color:initial; }
-    .alpha-tag { font-size:0.45rem; padding:3px 8px; border-radius:4px; background:rgba(120,115,245,0.15); border:1px solid rgba(120,115,245,0.3); color:#7873f5; letter-spacing:2px; text-transform:uppercase; -webkit-text-fill-color:initial; vertical-align:super; margin-left:4px; }
+    .beta-tag { font-size:0.45rem; padding:3px 8px; border-radius:4px; background:rgba(120,115,245,0.15); border:1px solid rgba(120,115,245,0.3); color:#7873f5; letter-spacing:2px; text-transform:uppercase; -webkit-text-fill-color:initial; vertical-align:super; margin-left:4px; }
     header p { color:#888; font-size:1.1rem; letter-spacing:1px; }
 
     /* === SEARCH === */

@@ -115,7 +115,7 @@ export default function Home() {
             <rect x="6" y="2.5" width="18" height="26" rx="3" fill="none" stroke="url(#gp-title-grad)" strokeWidth="2.5" />
             <text x="15" y="20.5" fontFamily="sans-serif" fontWeight="900" fontSize="14" fill="url(#gp-title-grad)" textAnchor="middle">G</text>
           </svg>
-          GitPacks<span className="alpha-tag">Alpha</span>
+          GitPacks<span className="beta-tag">Beta</span>
         </h1>
         <p>Collect the contributors behind the code.</p>
       </header>
