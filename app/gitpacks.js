@@ -732,6 +732,58 @@ function renderRepoInfo(owner, repo) {
 
   const ghLink = `<a class="repo-gh-link" href="https://github.com/${owner}/${repo}" target="_blank" rel="noopener">${GH_ICON} View on GitHub</a>`;
 
+  // Points breakdown by rarity
+  const rarityPts = { mythic: 50, legendary: 15, epic: 5, rare: 2, common: 1 };
+  const rarityColors = { mythic: '#ff0040', legendary: '#ffd700', epic: '#c084fc', rare: '#60a5fa', common: '#888' };
+  const rarityOrder = ['mythic', 'legendary', 'epic', 'rare', 'common'];
+  let breakdownHTML = '';
+  if (_currentUser && collected > 0) {
+    let totalBase = 0;
+    const rows = rarityOrder.map(rarity => {
+      const allOfRarity = allContributors.filter(c => c.rarity === rarity);
+      const collectedOfRarity = allOfRarity.filter(c => library[c.login]);
+      const pts = collectedOfRarity.length * rarityPts[rarity];
+      totalBase += pts;
+      return { rarity, collected: collectedOfRarity.length, total: allOfRarity.length, ptsEach: rarityPts[rarity], pts };
+    });
+    const completionBonus = isComplete ? Math.floor(totalBase * 0.5) : 0;
+    const grandTotal = totalBase + completionBonus;
+
+    breakdownHTML = `<div class="points-breakdown">
+      <div class="pb-title">Points</div>
+      <div class="pb-rows">
+        ${rows.map(r => `<div class="pb-row">
+          <span class="pb-rarity" style="color:${rarityColors[r.rarity]}">${r.rarity}</span>
+          <span class="pb-calc">${r.collected}/${r.total} &times; ${r.ptsEach}</span>
+          <span class="pb-pts">${r.pts}</span>
+        </div>`).join('')}
+        <div class="pb-divider"></div>
+        <div class="pb-row pb-subtotal">
+          <span class="pb-rarity">Base</span>
+          <span class="pb-calc"></span>
+          <span class="pb-pts">${totalBase}</span>
+        </div>
+        ${isComplete
+          ? `<div class="pb-row pb-bonus">
+              <span class="pb-rarity">Completion</span>
+              <span class="pb-calc">&times; 1.5</span>
+              <span class="pb-pts">+${completionBonus}</span>
+            </div>`
+          : `<div class="pb-row pb-bonus-locked">
+              <span class="pb-rarity">Completion</span>
+              <span class="pb-calc">collect all ${total}</span>
+              <span class="pb-pts">&times;1.5</span>
+            </div>`}
+        <div class="pb-divider"></div>
+        <div class="pb-row pb-total">
+          <span class="pb-rarity">Total</span>
+          <span class="pb-calc"></span>
+          <span class="pb-pts">${grandTotal}</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
   repoInfo.innerHTML = `<div class="repo-info-row">
       <div class="repo-info-inner${isComplete ? ' repo-info-complete' : ''}">
         <h2><span>${owner || ''}</span> / <span>${repo || ''}</span></h2>
@@ -749,7 +801,7 @@ function renderRepoInfo(owner, repo) {
           ${packHTML}
         </div>
       </div>
-      ${achievementHTML ? `<div class="repo-content-side">${achievementHTML}</div>` : ''}
+      ${achievementHTML || breakdownHTML ? `<div class="repo-content-side">${breakdownHTML}${achievementHTML}</div>` : ''}
     </div>
     <div class="filter-bar" id="filter-bar">
       <button class="filter-btn ${filterRarity==='all'?'active':''}" data-rarity="all" onclick="setFilter('all')">All</button>

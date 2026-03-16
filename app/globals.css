@@ -102,6 +102,25 @@
     .score-total-bonus { color:#7873f5; margin-left:2px; font-size:0.75rem; }
     .score-total-eq { color:#4adede; margin-left:4px; }
 
+    /* Per-repo points breakdown */
+    .points-breakdown { border:1px solid rgba(120,115,245,0.2); border-radius:12px; padding:16px 18px; background:rgba(15,15,35,0.6); margin-bottom:16px; }
+    .pb-title { font-family:'Orbitron',sans-serif; font-size:0.65rem; font-weight:700; color:#555; letter-spacing:3px; text-transform:uppercase; margin-bottom:10px; }
+    .pb-rows { display:flex; flex-direction:column; gap:5px; }
+    .pb-row { display:flex; align-items:center; gap:8px; }
+    .pb-rarity { font-family:'Orbitron',sans-serif; font-size:0.65rem; font-weight:700; text-transform:capitalize; width:80px; flex-shrink:0; }
+    .pb-calc { font-family:'Rajdhani',sans-serif; font-size:0.8rem; color:#666; flex:1; text-align:right; }
+    .pb-pts { font-family:'Orbitron',sans-serif; font-size:0.7rem; font-weight:700; color:#e0e0e0; width:48px; text-align:right; flex-shrink:0; }
+    .pb-divider { height:1px; background:rgba(120,115,245,0.15); margin:4px 0; }
+    .pb-subtotal .pb-rarity { color:#aaa; }
+    .pb-bonus .pb-rarity { color:#7873f5; }
+    .pb-bonus .pb-pts { color:#7873f5; }
+    .pb-bonus .pb-calc { color:#7873f5; }
+    .pb-bonus-locked .pb-rarity { color:#444; }
+    .pb-bonus-locked .pb-calc { color:#444; font-size:0.7rem; }
+    .pb-bonus-locked .pb-pts { color:#444; }
+    .pb-total .pb-rarity { color:#4adede; }
+    .pb-total .pb-pts { color:#4adede; font-size:0.8rem; }
+
     @media (max-width:768px) {
       .dashboard { grid-template-columns:1fr; gap:0; }
     }
