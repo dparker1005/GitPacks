@@ -15,7 +15,7 @@ export async function generateMetadata({
   params: Promise<Params>;
 }): Promise<Metadata> {
   const { owner, repo, login } = await params;
-  const ogUrl = `https://www.gitpacks.com/api/card/${owner}/${repo}/${login}?format=png`;
+  const ogUrl = `https://www.gitpacks.com/api/card/${owner}/${repo}/${login}?format=png&og=1`;
   const cardUrl = `https://www.gitpacks.com/card/${owner}/${repo}/${login}`;
 
   return {
@@ -24,7 +24,7 @@ export async function generateMetadata({
     openGraph: {
       title: `${login}'s GitPacks Card`,
       description: `Contributor card for ${owner}/${repo} on GitPacks`,
-      images: [{ url: ogUrl, width: 960, height: 1440 }],
+      images: [{ url: ogUrl, width: 1200, height: 630 }],
       url: cardUrl,
     },
     twitter: {

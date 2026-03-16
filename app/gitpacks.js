@@ -2091,7 +2091,7 @@ function openFullscreenCard(c) {
   overlay.querySelector('.fullscreen-bottom').addEventListener('click', e => e.stopPropagation());
 
   // Share buttons
-  const shareUrl = `${window.location.origin}?repo=${currentRepoName}&card=${c.login}`;
+  const shareUrl = `${window.location.origin}/card/${currentRepoName}/${c.login}`;
   const mdSnippet = `<a href="${shareUrl}"><img src="${window.location.origin}/api/card/${currentRepoName}/${c.login}" alt="${c.login} on ${currentRepoName}" width="200" /></a>`;
 
   const copyLinkBtn = overlay.querySelector('#fs-copy-link');
