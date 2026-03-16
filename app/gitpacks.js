@@ -805,6 +805,18 @@ function renderRepoInfo(owner, repo) {
     </div>` : ''}
     <div class="filter-bar" id="filter-bar">
       <div class="filter-group">
+        <span class="filter-label">Sort by:</span>
+        <select class="sort-select" id="sort-select" onchange="setSortBy(this.value)">
+          <option value="power" ${sortBy==='power'?'selected':''}>Power</option>
+          <option value="commits" ${sortBy==='commits'?'selected':''}>Commits</option>
+          <option value="prs" ${sortBy==='prs'?'selected':''}>PRs Merged</option>
+          <option value="issues" ${sortBy==='issues'?'selected':''}>Issues</option>
+          <option value="streak" ${sortBy==='streak'?'selected':''}>Streak</option>
+          <option value="peak" ${sortBy==='peak'?'selected':''}>Peak Week</option>
+          <option value="consistency" ${sortBy==='consistency'?'selected':''}>Consistency</option>
+        </select>
+      </div>
+      <div class="filter-group">
         <button class="filter-btn ${filterRarity==='all'?'active':''}" onclick="setFilter('all')">All</button>
         <button class="filter-btn ${filterRarity==='mythic'?'active':''}" onclick="setFilter('mythic')">Mythic</button>
         <button class="filter-btn ${filterRarity==='legendary'?'active':''}" onclick="setFilter('legendary')">Legendary</button>
@@ -816,18 +828,6 @@ function renderRepoInfo(owner, repo) {
         <button class="filter-btn ${viewMode==='collected'?'active':''}" onclick="setViewMode('collected')">Collected</button>
         <button class="filter-btn ${viewMode==='all'?'active':''}" onclick="setViewMode('all')">All Cards</button>
         <button class="filter-btn ${viewMode==='missing'?'active':''}" onclick="setViewMode('missing')">Missing</button>
-      </div>
-      <div class="filter-group">
-        <span class="filter-label">Sort by:</span>
-        <select class="sort-select" id="sort-select" onchange="setSortBy(this.value)">
-          <option value="power" ${sortBy==='power'?'selected':''}>Power</option>
-          <option value="commits" ${sortBy==='commits'?'selected':''}>Commits</option>
-          <option value="prs" ${sortBy==='prs'?'selected':''}>PRs Merged</option>
-          <option value="issues" ${sortBy==='issues'?'selected':''}>Issues</option>
-          <option value="streak" ${sortBy==='streak'?'selected':''}>Streak</option>
-          <option value="peak" ${sortBy==='peak'?'selected':''}>Peak Week</option>
-          <option value="consistency" ${sortBy==='consistency'?'selected':''}>Consistency</option>
-        </select>
       </div>
     </div>
     <div class="search-bar">
