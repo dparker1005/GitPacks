@@ -107,10 +107,12 @@ ALTER TABLE user_achievements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE collection_completions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE leaderboard_scores ENABLE ROW LEVEL SECURITY;
 
--- Profiles: users can read/update their own profile
-CREATE POLICY "Users can view own profile" ON profiles FOR SELECT USING (auth.uid() = id);
+-- Profiles: publicly readable (non-sensitive fields only), users can update/insert own
+CREATE POLICY "Profiles are publicly readable" ON profiles FOR SELECT USING (true);
 CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_username_lower ON profiles (lower(github_username));
 
 -- Collections: users can manage their own collections
 CREATE POLICY "Users can view own collections" ON user_collections FOR SELECT USING (auth.uid() = user_id);
@@ -127,8 +129,8 @@ CREATE POLICY "Users can update own packs" ON user_packs FOR UPDATE USING (auth.
 CREATE POLICY "Users can view own self cards" ON user_self_cards FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Allow insert self cards" ON user_self_cards FOR INSERT WITH CHECK (true);
 
--- Achievements: users can view own, insert with any auth
-CREATE POLICY "Users can view own achievements" ON user_achievements FOR SELECT USING (auth.uid() = user_id);
+-- Achievements: publicly readable (showcase data), insert with any auth
+CREATE POLICY "Achievements are publicly readable" ON user_achievements FOR SELECT USING (true);
 CREATE POLICY "Allow insert achievements" ON user_achievements FOR INSERT WITH CHECK (true);
 
 -- Collection completions: publicly readable (leaderboard needs cross-user access, writes via RPC only)
@@ -495,5 +497,86 @@ BEGIN
   WHERE id = p_user_id;
 
   RETURN QUERY SELECT true, (cur_packs - 1)::INT, cur_regen;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Get public profile data in a single round-trip
+CREATE OR REPLACE FUNCTION get_public_profile(p_username TEXT)
+RETURNS JSONB AS $$
+DECLARE
+  profile_row RECORD;
+  result JSONB;
+  global_rank INT;
+  repo_scores JSONB;
+  completions JSONB;
+  achievements JSONB;
+BEGIN
+  SELECT id, github_username, avatar_url, total_points, created_at
+    INTO profile_row
+    FROM profiles
+    WHERE lower(github_username) = lower(p_username);
+
+  IF profile_row IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT COUNT(*) + 1 INTO global_rank
+    FROM leaderboard_scores
+    WHERE owner_repo = '__global__'
+      AND total_points > COALESCE(profile_row.total_points, 0);
+
+  SELECT COALESCE(jsonb_agg(
+    jsonb_build_object(
+      'owner_repo', ls.owner_repo,
+      'total_points', ls.total_points,
+      'base_points', ls.base_points,
+      'completion_bonus', ls.completion_bonus,
+      'unique_cards', ls.unique_cards,
+      'total_cards_in_repo', ls.total_cards_in_repo
+    ) ORDER BY ls.total_points DESC
+  ), '[]'::jsonb)
+  INTO repo_scores
+  FROM leaderboard_scores ls
+  WHERE ls.user_id = profile_row.id
+    AND ls.owner_repo != '__global__'
+    AND ls.total_points > 0;
+
+  SELECT COALESCE(jsonb_agg(
+    jsonb_build_object(
+      'owner_repo', cc.owner_repo,
+      'completed_at', cc.completed_at,
+      'card_count', cc.card_count_at_completion,
+      'insured', cc.insured
+    )
+  ), '[]'::jsonb)
+  INTO completions
+  FROM collection_completions cc
+  WHERE cc.user_id = profile_row.id
+    AND cc.is_complete = true;
+
+  SELECT COALESCE(jsonb_agg(
+    jsonb_build_object(
+      'owner_repo', ua.owner_repo,
+      'stat_type', ua.stat_type,
+      'threshold', ua.threshold,
+      'unlocked_at', ua.unlocked_at
+    ) ORDER BY ua.unlocked_at DESC
+  ), '[]'::jsonb)
+  INTO achievements
+  FROM user_achievements ua
+  WHERE ua.user_id = profile_row.id;
+
+  result := jsonb_build_object(
+    'username', profile_row.github_username,
+    'avatar_url', profile_row.avatar_url,
+    'total_points', profile_row.total_points,
+    'created_at', profile_row.created_at,
+    'global_rank', global_rank,
+    'repos', repo_scores,
+    'completions', completions,
+    'achievements', achievements
+  );
+
+  RETURN result;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

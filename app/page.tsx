@@ -89,8 +89,10 @@ export default function Home() {
           <div id="top-bar-packs"></div>
           {authLoading ? null : user ? (
             <div className="user-menu">
-              <img src={user.avatar} alt="" className="user-avatar" />
-              <span className="user-name">{user.username}</span>
+              <a href={`/profile/${encodeURIComponent(user.username)}`} className="user-menu-link">
+                <img src={user.avatar} alt="" className="user-avatar" />
+                <span className="user-name">{user.username}</span>
+              </a>
               <button className="top-bar-btn" onClick={handleLogout}>Sign Out</button>
             </div>
           ) : (
