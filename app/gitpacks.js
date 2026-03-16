@@ -1964,7 +1964,16 @@ function openFullscreenCard(c) {
   const cardNum = allContributors.indexOf(c) + 1;
   const cardHTML = buildGalleryCard(c, cardNum, allContributors.length);
 
-  const closeOverlay = () => { overlay.remove(); document.removeEventListener('keydown', escHandler); };
+  // Update URL to include card param so the link is shareable
+  history.pushState(null, '', `?repo=${currentRepoName}&card=${c.login}`);
+
+  let _popHandler = null;
+  const closeOverlay = () => {
+    overlay.remove();
+    document.removeEventListener('keydown', escHandler);
+    if (_popHandler) window.removeEventListener('popstate', _popHandler);
+    history.pushState(null, '', `?repo=${currentRepoName}`);
+  };
   const escHandler = e => { if (e.key === 'Escape') closeOverlay(); };
 
   const weeksSinceFirst = (c.firstCommitTs && isFinite(c.firstCommitTs)) ? Math.round((Date.now() / 1000 - c.firstCommitTs) / 604800) : 0;
@@ -2052,6 +2061,10 @@ function openFullscreenCard(c) {
     const shine = card.querySelector('.card-shine');
     if (shine) shine.style.opacity = '0';
   });
+
+  // Handle browser back button
+  _popHandler = () => { overlay.remove(); document.removeEventListener('keydown', escHandler); window.removeEventListener('popstate', _popHandler); };
+  window.addEventListener('popstate', _popHandler);
 
   const fsSignIn = overlay.querySelector('#fs-sign-in');
   if (fsSignIn) fsSignIn.addEventListener('click', e => { e.stopPropagation(); if (window.__gpLogin) window.__gpLogin(); });
