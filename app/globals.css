@@ -126,10 +126,11 @@
     }
 
     /* === REPO CONTENT LAYOUT === */
-    .repo-content-layout { display:flex; gap:24px; justify-content:center; align-items:flex-start; margin-top:14px; flex-wrap:wrap; max-width:900px; margin-left:auto; margin-right:auto; }
+    .repo-content-layout { display:flex; gap:16px; justify-content:center; align-items:flex-start; margin-top:14px; flex-wrap:wrap; max-width:1100px; margin-left:auto; margin-right:auto; }
     .repo-content-main { flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:10px; }
-    .repo-content-side { flex:1 1 300px; max-width:500px; min-width:280px; }
+    .repo-content-side { flex:1 1 240px; max-width:380px; min-width:240px; }
     .repo-content-side .achievement-panel { margin:0; }
+    .repo-content-side .points-breakdown { margin-bottom:0; }
     @media (max-width:768px) {
       .repo-content-layout { flex-direction:column; align-items:center; }
       .repo-content-side { flex:1 1 auto; width:100%; max-width:500px; }

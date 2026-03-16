@@ -801,7 +801,8 @@ function renderRepoInfo(owner, repo) {
           ${packHTML}
         </div>
       </div>
-      ${achievementHTML || breakdownHTML ? `<div class="repo-content-side">${breakdownHTML}${achievementHTML}</div>` : ''}
+      ${breakdownHTML ? `<div class="repo-content-side">${breakdownHTML}</div>` : ''}
+      ${achievementHTML ? `<div class="repo-content-side">${achievementHTML}</div>` : ''}
     </div>
     <div class="filter-bar" id="filter-bar">
       <button class="filter-btn ${filterRarity==='all'?'active':''}" data-rarity="all" onclick="setFilter('all')">All</button>
