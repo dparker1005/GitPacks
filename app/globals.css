@@ -129,7 +129,7 @@
     .repo-action-row { display:flex; justify-content:center; margin-top:14px; }
     .repo-panels-row { display:flex; gap:16px; justify-content:center; align-items:flex-start; margin-top:16px; max-width:900px; margin-left:auto; margin-right:auto; }
     .repo-panels-row > .repo-panel-collapse { flex:1 1 0; min-width:0; }
-    .repo-panels-right { flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:0; }
+    .repo-panels-right { flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:12px; }
     .repo-panel-collapse .achievement-panel { margin:0; }
     .repo-panel-collapse .points-breakdown { margin-bottom:0; }
     .repo-panel-toggle { font-family:'Orbitron',sans-serif; font-size:0.65rem; font-weight:700; color:#aaa; letter-spacing:3px; text-transform:uppercase; cursor:pointer; padding:10px 14px; list-style:none; display:flex; align-items:center; gap:8px; border:1px solid rgba(255,255,255,0.08); border-radius:8px; background:rgba(255,255,255,0.02); transition:all 0.2s; }
