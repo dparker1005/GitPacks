@@ -718,7 +718,6 @@ function renderRepoInfo(owner, repo) {
     const slotsHint = maxPerStat < 5 ? 'More slots unlock as the repo grows' : '';
 
     achievementHTML = `<div class="achievement-panel">
-      <div class="achievement-header">Your Achievements</div>
       <div class="ach-slots-info">
         <span class="ach-slots-label">${maxPerStat}/5 slots unlocked</span>
         ${slotsHint ? `<span class="ach-slots-hint">${slotsHint}</span>` : ''}
@@ -750,7 +749,6 @@ function renderRepoInfo(owner, repo) {
     const grandTotal = totalBase + completionBonus;
 
     breakdownHTML = `<div class="points-breakdown">
-      <div class="pb-title">Points</div>
       <div class="pb-rows">
         ${rows.map(r => `<div class="pb-row">
           <span class="pb-rarity" style="color:${rarityColors[r.rarity]}">${r.rarity}</span>
@@ -794,16 +792,16 @@ function renderRepoInfo(owner, repo) {
       <button class="switch-repo-btn" id="switch-repo-btn">Switch Repo</button>
     </div>
     ${authNudge}
-    <div class="repo-content-layout">
-      <div class="repo-content-main">
-        <div class="action-buttons">
-          <button class="btn-secondary" id="open-pack-btn" ${total === 0 ? 'disabled' : ''} ${_currentUser && packState && packState.readyPacks <= 0 ? 'disabled' : ''} ${!_currentUser && localStorage.getItem('gp_guest_limit_reached') ? 'disabled' : ''}>${!_currentUser && localStorage.getItem('gp_guest_limit_reached') ? 'Sign In to Open Packs' : 'Open Pack'}</button>
-          ${packHTML}
-        </div>
+    <div class="repo-action-row">
+      <div class="action-buttons">
+        <button class="btn-secondary" id="open-pack-btn" ${total === 0 ? 'disabled' : ''} ${_currentUser && packState && packState.readyPacks <= 0 ? 'disabled' : ''} ${!_currentUser && localStorage.getItem('gp_guest_limit_reached') ? 'disabled' : ''}>${!_currentUser && localStorage.getItem('gp_guest_limit_reached') ? 'Sign In to Open Packs' : 'Open Pack'}</button>
+        ${packHTML}
       </div>
-      ${breakdownHTML ? `<div class="repo-content-side">${breakdownHTML}</div>` : ''}
-      ${achievementHTML ? `<div class="repo-content-side">${achievementHTML}</div>` : ''}
     </div>
+    ${breakdownHTML || achievementHTML ? `<div class="repo-panels-row">
+      ${breakdownHTML ? `<details class="repo-panel-collapse" id="points-panel"><summary class="repo-panel-toggle">Points</summary>${breakdownHTML}</details>` : ''}
+      ${achievementHTML ? `<details class="repo-panel-collapse" id="achievements-panel"><summary class="repo-panel-toggle">Your Achievements</summary>${achievementHTML}</details>` : ''}
+    </div>` : ''}
     <div class="filter-bar" id="filter-bar">
       <button class="filter-btn ${filterRarity==='all'?'active':''}" data-rarity="all" onclick="setFilter('all')">All</button>
       <button class="filter-btn ${filterRarity==='mythic'?'active':''}" data-rarity="mythic" onclick="setFilter('mythic')">Mythic</button>
@@ -816,6 +814,11 @@ function renderRepoInfo(owner, repo) {
       <div class="filter-sep"></div>
       <input type="text" class="card-search" id="card-search" placeholder="Search cards..." value="${cardSearch}" />
     </div>`;
+
+  // Open panels on desktop, closed on mobile
+  document.querySelectorAll('.repo-panel-collapse').forEach(el => {
+    if (window.innerWidth > 768) el.setAttribute('open', '');
+  });
 
   // Wire up open pack button
   const openPackBtn = document.getElementById('open-pack-btn');
