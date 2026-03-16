@@ -861,7 +861,7 @@
     .landing { text-align:center; padding:20px; }
     .landing-hero h2 { font-family:'Orbitron',sans-serif; font-size:1.5rem; font-weight:900; background:linear-gradient(135deg,#7873f5,#4adede); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
     .landing-hero p { color:#888; font-family:'Rajdhani',sans-serif; font-size:1rem; margin:12px 0 24px; }
-    .landing-cta { margin:0 auto; font-size:0.8rem; padding:14px 30px; }
+    .landing-cta { margin:16px auto 0; font-size:0.8rem; padding:14px 30px; }
     .landing-steps { display:flex; justify-content:center; gap:30px; margin:40px 0; flex-wrap:wrap; }
     .landing-step { max-width:200px; text-align:center; }
     .landing-step-num { width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#7873f5,#4adede); color:#fff; font-family:'Orbitron',sans-serif; font-size:0.85rem; font-weight:700; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; }

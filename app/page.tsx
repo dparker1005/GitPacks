@@ -135,7 +135,7 @@ export default function Home() {
             <div className="landing-step">
               <div className="landing-step-num">2</div>
               <h3>Complete your collection</h3>
-              <p>Collect every contributor for a repo. Contribute to a repo and get your own card for free, plus earn bonus packs for your milestones.</p>
+              <p>Collect every contributor for a repo. Contribute to a repo and <strong>get your own card for free</strong>, plus earn bonus packs for your milestones.</p>
             </div>
             <div className="landing-step">
               <div className="landing-step-num">3</div>
@@ -152,9 +152,11 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="landing-try">
-            <p>Or try it first — open 5 guest packs on any repo below</p>
-          </div>
+        </div>
+      )}
+      {!user && !authLoading && (
+        <div className="landing-try">
+          <p>Or try it first — open 5 guest packs on any repo below</p>
         </div>
       )}
       <div className="search-container" id="search-container">
