@@ -2038,7 +2038,7 @@ function openFullscreenCard(c) {
       <a class="fullscreen-profile" href="https://github.com/${c.login}" target="_blank" rel="noopener">${GH_ICON} View Profile</a>
       <div class="fullscreen-share-row">
         <button class="share-action-btn" id="fs-copy-link">Copy Link</button>
-        <a class="share-action-btn" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out my GitPacks card for ${currentRepoName}!`)}&url=${encodeURIComponent(`${window.location.origin}?repo=${currentRepoName}&card=${c.login}`)}" target="_blank" rel="noopener">Share on X</a>
+        <a class="share-action-btn" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out my GitPacks card for ${currentRepoName}!`)}&url=${encodeURIComponent(`${window.location.origin}/card/${currentRepoName}/${c.login}`)}" target="_blank" rel="noopener">Share on X</a>
         <button class="share-action-btn" id="fs-copy-md">Copy for README</button>
       </div>
     </div>`;
