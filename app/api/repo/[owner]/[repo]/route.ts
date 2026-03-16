@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCachedRepo, setCachedRepo } from '@/app/lib/repo-cache';
+import { MIN_REPO_CONTRIBUTORS } from '@/app/lib/constants';
 
 // ===== Helpers =====
 function sleep(ms: number) {
@@ -530,6 +531,14 @@ export async function GET(
 
     // Process into card data
     const result = processAllContributors(validStats, issueStats, extraContributors);
+
+    // Enforce minimum repo size
+    if (result.length < MIN_REPO_CONTRIBUTORS) {
+      return NextResponse.json(
+        { error: `This repo only has ${result.length} contributor${result.length === 1 ? '' : 's'}. Collections require at least ${MIN_REPO_CONTRIBUTORS}.` },
+        { status: 400 }
+      );
+    }
 
     // Cache result
     await setCachedRepo(cacheKey, result);
