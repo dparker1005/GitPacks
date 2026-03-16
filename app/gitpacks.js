@@ -414,10 +414,16 @@ async function loadContributedRepos(yourRepos) {
     const [ow, rp] = r.name.split('/');
     if (!ow || !rp) continue;
     fetch(`/api/repo/${ow}/${rp}`).then(async res => {
-      if (!res.ok) return;
+      const btn = section.querySelector(`[data-repo="${r.name}"][data-preload]`);
+      if (!res.ok) {
+        if (btn) {
+          btn.remove();
+          if (!section.querySelector('.popular-repo-btn')) section.innerHTML = '';
+        }
+        return;
+      }
       const data = await res.json();
       const cardCount = Array.isArray(data) ? data.length : 0;
-      const btn = section.querySelector(`[data-repo="${r.name}"][data-preload]`);
       if (btn) {
         btn.removeAttribute('data-preload');
         const meta = btn.querySelector('.popular-repo-meta');
@@ -426,9 +432,8 @@ async function loadContributedRepos(yourRepos) {
     }).catch(() => {
       const btn = section.querySelector(`[data-repo="${r.name}"][data-preload]`);
       if (btn) {
-        btn.removeAttribute('data-preload');
-        const meta = btn.querySelector('.popular-repo-meta');
-        if (meta) meta.innerHTML = '';
+        btn.remove();
+        if (!section.querySelector('.popular-repo-btn')) section.innerHTML = '';
       }
     });
   }
