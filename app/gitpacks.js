@@ -850,7 +850,7 @@ function renderRepoInfo(owner, repo) {
               ${perRarity.map(r => `<div class="stars-rates-row"><span style="color:${rarityClrs[r.rarity]}">${r.rarity}</span><span>+${r.revertYield}</span><span>${r.dupes > 0 ? r.dupes : '—'}</span><span>${r.cherryCost}</span><span>${r.missing > 0 ? r.missing : '—'}</span></div>`).join('')}
               <div class="stars-rates-totals"><span></span><span></span><span class="stars-total-revert">${totalRevertStars > 0 ? '+' + totalRevertStars + ' &starf;' : ''}</span><span></span><span class="stars-total-cherry">${totalCherryStars > 0 ? totalCherryStars + ' &starf;' : ''}</span></div>
             </div>
-            ${hasDupes ? `<button class="stars-revert-all-btn" id="revert-all-btn">Git Revert All Duplicates (${dupeCount} cards &rarr; +${totalRevertStars} &starf;)</button>` : '<div class="stars-no-dupes">No duplicate cards to revert</div>'}
+            ${hasDupes ? `<button class="stars-revert-all-btn" id="revert-all-btn">Revert All Duplicates (${dupeCount} cards &rarr; +${totalRevertStars} &starf;)</button>` : '<div class="stars-no-dupes">No duplicate cards to revert</div>'}
           </div>
         </details>`;
       }
@@ -2268,7 +2268,7 @@ function showRevertAllOverlay() {
     </div>`).join('');
 
   overlay.innerHTML = `<div class="revert-all-content">
-    <div class="revert-all-title">Git Revert All Duplicates</div>
+    <div class="revert-all-title">Revert All Duplicates</div>
     <div class="revert-all-desc">Destroy all duplicate cards (keeping 1 of each) to earn Stars.</div>
     <div class="revert-breakdown">${rows}</div>
     <div class="revert-total">${totalDupes} cards &rarr; ${totalStars} &starf;</div>
