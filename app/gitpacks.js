@@ -488,7 +488,7 @@ async function loadLeaderboard() {
           <img src="${e.avatar_url}" alt="" class="lb-avatar" loading="lazy" />
           <span class="lb-info">
             <span class="lb-name">${e.github_username}</span>
-            <span class="lb-detail">${e.repos_completed > 0 ? e.repos_completed + ' complete' : 'collecting'}</span>
+            <span class="lb-detail">${e.repos_completed > 0 ? e.repos_completed + ' collection' + (e.repos_completed !== 1 ? 's' : '') + ' complete' : 'collecting'}</span>
           </span>
           <span class="lb-points">${e.total_points.toLocaleString()}<span class="lb-pts-label">pts</span></span>
         </a>`;

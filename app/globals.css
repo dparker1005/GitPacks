@@ -870,7 +870,7 @@
     .landing-starter { margin-top:16px; }
     .landing-starter p { font-family:'Rajdhani',sans-serif; font-size:0.95rem; color:#888; }
     .landing-starter strong { color:#4adede; }
-    .landing-try { margin-top:16px; }
+    .landing-try { margin-top:16px; text-align:center; }
     .landing-try p { color:#555; font-family:'Rajdhani',sans-serif; font-size:0.85rem; }
 
     /* === WELCOME OVERLAY === */

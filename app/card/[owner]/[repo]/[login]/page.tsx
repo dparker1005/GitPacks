@@ -110,7 +110,7 @@ export default async function CardPage({
             textDecoration: 'none',
           }}
         >
-          Open on GitPacks
+          View Repo on GitPacks
         </a>
 
         <div
