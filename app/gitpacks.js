@@ -461,11 +461,6 @@ async function loadLeaderboard() {
       userScore = await scoreRes.json();
     }
 
-    if (entries.length === 0 && !userScore) {
-      section.innerHTML = '';
-      return;
-    }
-
     let html = `<h3 class="popular-title">Leaderboard</h3>`;
 
     // User score summary
@@ -773,7 +768,7 @@ function renderRepoInfo(owner, repo) {
   const rarityColors = { mythic: '#ff0040', legendary: '#ffd700', epic: '#c084fc', rare: '#60a5fa', common: '#888' };
   const rarityOrder = ['mythic', 'legendary', 'epic', 'rare', 'common'];
   let breakdownHTML = '';
-  if (_currentUser && collected > 0) {
+  if (_currentUser) {
     let totalBase = 0;
     const rows = rarityOrder.map(rarity => {
       const allOfRarity = allContributors.filter(c => c.rarity === rarity);
@@ -869,7 +864,7 @@ function renderRepoInfo(owner, repo) {
           </div>
         </details>`;
       }
-      const leftCol = _currentUser ? `<details class="repo-panel-collapse" id="achievements-panel"><summary class="repo-panel-toggle">Your Achievements</summary>${achievementHTML || '<div class="achievement-panel"><div class="ach-empty">Open packs to earn achievement rewards!</div></div>'}</details>` : '';
+      const leftCol = _currentUser ? `<details class="repo-panel-collapse" id="achievements-panel"><summary class="repo-panel-toggle">Your Achievements</summary>${achievementHTML}</details>` : '';
       const pointsTotal = (() => {
         let tb = 0;
         rarityOrder.forEach(r => { tb += allContributors.filter(c => c.rarity === r && library[c.login]).length * rarityPts[r]; });
@@ -877,7 +872,7 @@ function renderRepoInfo(owner, repo) {
         return tb + cb;
       })();
       const rightPanels = [
-        _currentUser ? `<details class="repo-panel-collapse" id="points-panel"><summary class="repo-panel-toggle">Score <span class="panel-summary">${pointsTotal.toLocaleString()} pts${!isComplete ? ' &middot; 1.5x bonus at completion' : ' &middot; 1.5x bonus active'}</span></summary>${breakdownHTML || '<div class="points-breakdown"><div class="pb-empty">Collect cards to earn points!</div></div>'}</details>` : '',
+        _currentUser ? `<details class="repo-panel-collapse" id="points-panel"><summary class="repo-panel-toggle">Score <span class="panel-summary">${pointsTotal.toLocaleString()} pts${!isComplete ? ' &middot; 1.5x bonus at completion' : ' &middot; 1.5x bonus active'}</span></summary>${breakdownHTML}</details>` : '',
         starsHTML
       ].filter(Boolean).join('');
       const rightCol = rightPanels ? `<div class="repo-panels-right">${rightPanels}</div>` : '';
