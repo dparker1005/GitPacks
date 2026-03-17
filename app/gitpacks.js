@@ -578,7 +578,7 @@ function renderDailies(section, data) {
   section.innerHTML = `<div class="dailies-section">
     <div class="dailies-header">
       <div class="dailies-title-row">
-        <span class="dailies-title">${GP_ICON} Dailies</span>
+        <span class="dailies-title">${GP_ICON} Daily Tasks</span>
         <span class="daily-progress">${progressDots} <span class="daily-progress-text">${claimsCount}/${maxClaims}</span></span>
       </div>
       <div class="dailies-meta-row">
