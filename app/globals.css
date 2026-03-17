@@ -952,6 +952,8 @@
     .fs-sales-text { font-family:'Rajdhani',sans-serif; font-size:0.9rem; color:#888; margin-bottom:4px; }
     .fs-sales-cta { font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:#888; margin-bottom:12px; }
     .fs-sales-cta strong { color:#4adede; }
+    .fs-referral-nudge { font-family:'Rajdhani',sans-serif; font-size:0.9rem; color:#e0e0e0; background:linear-gradient(135deg,rgba(120,115,245,0.12),rgba(74,222,222,0.12)); border:1px solid rgba(120,115,245,0.3); border-radius:8px; padding:8px 14px; margin-bottom:8px; width:100%; }
+    .fs-referral-nudge strong { color:#4ade80; }
     .fs-sales-btn { font-size:0.7rem !important; padding:10px 24px !important; }
     .stars-balance-display { font-family:'Orbitron',sans-serif; font-size:0.85rem; font-weight:700; color:#ffd700; letter-spacing:1px; margin-bottom:10px; }
     .stars-rates { margin:10px 0 12px; border:1px solid rgba(255,255,255,0.05); border-radius:8px; overflow:hidden; }
