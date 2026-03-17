@@ -141,12 +141,10 @@ input.addEventListener('keydown', e => { if (e.key === 'Enter') loadRepo(); });
 function quickLoad(repo) { input.value = repo; loadRepo(true); }
 
 // ===== PACK STATE =====
-// Render cached pack state immediately to avoid flash
+// Show skeleton while pack state loads
 if (_currentUser) {
-  try {
-    const cached = sessionStorage.getItem('gp_pack_state');
-    if (cached) { packState = JSON.parse(cached); renderTopBarPacks(); }
-  } catch { /* silent */ }
+  const el = document.getElementById('top-bar-packs');
+  if (el) el.innerHTML = `<div class="topbar-packs"><span class="topbar-packs-icon">${GP_ICON}</span><span class="skeleton-pulse" style="display:inline-block;width:2.5em;height:1em;border-radius:4px"></span></div>`;
 }
 
 async function loadPackState() {
@@ -174,10 +172,6 @@ async function loadPackState() {
 function renderTopBarPacks() {
   const el = document.getElementById('top-bar-packs');
   if (!el) return;
-  // Persist pack state to sessionStorage for instant render on next page load
-  if (packState && _currentUser) {
-    try { sessionStorage.setItem('gp_pack_state', JSON.stringify(packState)); } catch { }
-  }
 
   if (!_currentUser) {
     // Guest packs display

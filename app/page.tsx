@@ -85,7 +85,6 @@ export default function Home() {
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('ghtc_lib_') || key.startsWith('gp_guest')) localStorage.removeItem(key);
     });
-    try { sessionStorage.removeItem('gp_pack_state'); } catch { }
     const supabase = getSupabaseBrowser();
     supabase.auth.signOut().then(() => {
       window.location.href = window.location.pathname;
