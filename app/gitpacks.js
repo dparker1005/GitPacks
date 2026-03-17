@@ -661,7 +661,7 @@ function renderRepoInfo(owner, repo) {
     const isContributor = lastAchievementData && lastAchievementData.isContributor;
     const stats = isContributor ? lastAchievementData.contributor : { commits: 0, prsMerged: 0, issues: 0, activeWeeks: 0, maxStreak: 0, peak: 0 };
     const milestones = isContributor ? lastAchievementData.milestones : {};
-    const maxPerStat = Math.min((lastAchievementData && lastAchievementData.maxPerStat) || 8, 5);
+    const maxPerStat = (lastAchievementData && lastAchievementData.maxPerStat) || 8;
     const statLabels = {
       commits: { label: 'Commits', color: '#7873f5', value: stats.commits },
       prs_merged: { label: 'PRs Merged', color: '#4ade80', value: stats.prsMerged },
@@ -751,7 +751,7 @@ function renderRepoInfo(owner, repo) {
 
     achievementHTML = `<div class="achievement-panel">
       <div class="ach-slots-info">
-        <span class="ach-slots-label">${maxPerStat}/5 slots unlocked</span>
+        <span class="ach-slots-label">${Math.min(maxPerStat, 5)}/5 slots unlocked</span>
         ${slotsHint ? `<span class="ach-slots-hint">${slotsHint}</span>` : ''}
       </div>
       ${rows}
