@@ -186,7 +186,7 @@
     .topbar-packs-icon { display:flex; align-items:center; }
     .topbar-packs-icon svg { width:16px; height:16px; }
     .topbar-packs-count { font-family:'Orbitron',sans-serif; font-size:0.85rem; font-weight:700; color:#7873f5; letter-spacing:1px; }
-    .topbar-pack-timer { font-family:'Rajdhani',sans-serif; font-size:0.75rem; color:#4adede; letter-spacing:0.5px; margin-left:4px; }
+    .topbar-pack-timer { font-family:'Rajdhani',sans-serif; font-size:0.75rem; color:#4adede; letter-spacing:0.5px; margin-left:4px; min-width:7.5em; text-align:right; }
 
     /* === AUTH NUDGE === */
     .auth-nudge { text-align:center; padding:8px 16px; margin:8px auto 0; max-width:400px; border-radius:10px; background:rgba(120,115,245,0.06); border:1px solid rgba(120,115,245,0.12); color:#888; font-size:0.85rem; font-family:'Rajdhani',sans-serif; letter-spacing:0.5px; }
@@ -1039,8 +1039,8 @@
     }
 
     /* ===== BONUS PACK DISPLAY ===== */
-    .topbar-packs-bonus { font-family:'Orbitron',sans-serif; font-size:0.85rem; font-weight:700; color:#4ade80; }
-    .topbar-packs-plus { font-family:'Orbitron',sans-serif; font-size:0.7rem; color:#555; margin:0 2px; }
+    .topbar-packs-bonus { font-family:'Orbitron',sans-serif; font-size:0.85rem; font-weight:700; color:#7873f5; }
+    .topbar-packs-plus { font-family:'Orbitron',sans-serif; font-size:0.75rem; color:#aaa; margin:0 3px; }
     .topbar-packs-max { font-size:0.85em; color:#888; font-weight:400; }
     .pack-count-bonus { font-family:'Orbitron',sans-serif; font-size:1.3rem; font-weight:900; color:#4ade80; }
     .pack-count-plus { font-family:'Orbitron',sans-serif; font-size:0.9rem; color:#555; margin:0 4px; }
@@ -1097,6 +1097,7 @@
     .fs-referral-hint { font-family:'Rajdhani',sans-serif; font-size:0.8rem; color:#e0e0e0; margin-bottom:4px; }
     .fs-referral-hint strong { color:#4ade80; }
     .fs-referral-claimed { font-family:'Rajdhani',sans-serif; font-size:0.75rem; color:#4ade80; margin-bottom:4px; }
-    .fs-referral-link { font-family:'Rajdhani',sans-serif; font-size:0.72rem; color:#999; display:flex; align-items:center; justify-content:center; gap:6px; }
+    .fs-referral-link { font-family:'Rajdhani',sans-serif; font-size:0.72rem; color:#bbb; display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; }
+    .fs-referral-link strong { color:#e0e0e0; }
     .fs-ref-copy-btn { font-family:'Rajdhani',sans-serif; font-size:0.7rem; font-weight:600; color:#7873f5; background:none; border:1px solid rgba(120,115,245,0.3); border-radius:5px; padding:2px 8px; cursor:pointer; transition:all 0.2s; }
     .fs-ref-copy-btn:hover { background:rgba(120,115,245,0.1); border-color:#7873f5; }

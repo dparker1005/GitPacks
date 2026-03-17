@@ -2293,7 +2293,7 @@ function openFullscreenCard(c) {
       </div>
       ${_currentUser && _referralInfo ? `<div class="fs-referral-info">
         ${!_referralInfo.sharedOnX ? `<div class="fs-referral-hint">Share on X to earn <strong>5 bonus packs</strong>!</div>` : `<div class="fs-referral-claimed">Shared — 5 packs earned</div>`}
-        <div class="fs-referral-link">Your link earns you both bonus packs <button class="fs-ref-copy-btn" id="fs-ref-copy">${_referralInfo.referralCount}/${_referralInfo.maxReferrals} referrals</button></div>
+        <div class="fs-referral-link">When someone signs up with your link, you <strong>both</strong> get <strong>5 bonus packs</strong> <button class="fs-ref-copy-btn" id="fs-ref-copy">${_referralInfo.referralCount}/${_referralInfo.maxReferrals} referrals</button></div>
       </div>` : ''}
     </div>`;
   document.body.appendChild(overlay);
