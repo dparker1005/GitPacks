@@ -1114,7 +1114,7 @@
     .fs-ref-copy-btn:hover { background:rgba(120,115,245,0.1); border-color:#7873f5; }
 
     /* ===== TRADE STARS FOR PACK ===== */
-    .stars-trade-btn { font-family:'Rajdhani',sans-serif; font-size:0.85rem; font-weight:700; color:#fff; background:linear-gradient(135deg,#7873f5,#4adede); border:none; border-radius:8px; padding:8px 16px; cursor:pointer; margin-top:8px; width:100%; transition:all 0.2s; }
-    .stars-trade-btn:hover { transform:scale(1.02); box-shadow:0 0 12px rgba(120,115,245,0.4); }
-    .stars-trade-btn:disabled { opacity:0.5; cursor:default; transform:none; box-shadow:none; }
+    .stars-trade-btn { display:block; width:100%; padding:10px 16px; margin-top:8px; border:1px solid rgba(120,115,245,0.35); border-radius:8px; background:rgba(120,115,245,0.08); color:#7873f5; font-family:'Orbitron',sans-serif; font-size:0.65rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; transition:all 0.2s; }
+    .stars-trade-btn:hover { background:rgba(120,115,245,0.18); border-color:rgba(120,115,245,0.5); }
+    .stars-trade-btn:disabled { opacity:0.5; cursor:default; }
     .repo-stars-hint { font-family:'Rajdhani',sans-serif; font-size:0.72rem; color:#4adede; opacity:0.8; }
