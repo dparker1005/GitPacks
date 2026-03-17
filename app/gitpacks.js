@@ -141,6 +141,14 @@ input.addEventListener('keydown', e => { if (e.key === 'Enter') loadRepo(); });
 function quickLoad(repo) { input.value = repo; loadRepo(true); }
 
 // ===== PACK STATE =====
+// Render cached pack state immediately to avoid flash
+if (_currentUser) {
+  try {
+    const cached = sessionStorage.getItem('gp_pack_state');
+    if (cached) { packState = JSON.parse(cached); renderTopBarPacks(); }
+  } catch { /* silent */ }
+}
+
 async function loadPackState() {
   if (!_currentUser) {
     // Guest: check localStorage for remaining packs
@@ -166,6 +174,10 @@ async function loadPackState() {
 function renderTopBarPacks() {
   const el = document.getElementById('top-bar-packs');
   if (!el) return;
+  // Persist pack state to sessionStorage for instant render on next page load
+  if (packState && _currentUser) {
+    try { sessionStorage.setItem('gp_pack_state', JSON.stringify(packState)); } catch { }
+  }
 
   if (!_currentUser) {
     // Guest packs display
