@@ -655,14 +655,13 @@ function renderRepoInfo(owner, repo) {
     authNudge = `<div class="auth-nudge"><span class="auth-nudge-icon">&#x1f512;</span> Sign in to save your cards</div>`;
   }
 
-  // Achievement panel for contributors
+  // Achievement panel for logged-in users
   let achievementHTML = '';
-  if (_currentUser && (!lastAchievementData || !lastAchievementData.isContributor)) {
-    achievementHTML = `<div class="achievement-panel"><div class="ach-empty">Contribute to this repo to earn achievement packs</div></div>`;
-  } else if (_currentUser && lastAchievementData && lastAchievementData.isContributor) {
-    const stats = lastAchievementData.contributor;
-    const milestones = lastAchievementData.milestones;
-    const maxPerStat = lastAchievementData.maxPerStat || 8;
+  if (_currentUser) {
+    const isContributor = lastAchievementData && lastAchievementData.isContributor;
+    const stats = isContributor ? lastAchievementData.contributor : { commits: 0, prsMerged: 0, issues: 0, activeWeeks: 0, maxStreak: 0, peak: 0 };
+    const milestones = isContributor ? lastAchievementData.milestones : {};
+    const maxPerStat = (lastAchievementData && lastAchievementData.maxPerStat) || 8;
     const statLabels = {
       commits: { label: 'Commits', color: '#7873f5', value: stats.commits },
       prs_merged: { label: 'PRs Merged', color: '#4ade80', value: stats.prsMerged },
@@ -698,8 +697,7 @@ function renderRepoInfo(owner, repo) {
     let totalClaimable = 0;
 
     for (const [key, info] of Object.entries(statLabels)) {
-      const m = milestones[key];
-      if (!m) continue;
+      const m = milestones[key] || { claimed: [], claimable: [], locked: [] };
 
       const def = milestoneDefClient[key];
       const allThresholds = getAllThresholds(def, 5);
