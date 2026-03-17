@@ -23,7 +23,16 @@ export async function GET(
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
-  // Merge completion data into repos array
+  // Fetch contributor rarities for this user
+  const { data: rarities } = await supabase.rpc('get_user_contributor_rarities', {
+    github_login: username,
+  });
+  const rarityMap: Record<string, string> = {};
+  (rarities || []).forEach((r: any) => {
+    rarityMap[r.owner_repo] = r.rarity;
+  });
+
+  // Merge completion data and contributor rarity into repos array
   const completionsSet = new Set(
     (data.completions || []).map((c: any) => c.owner_repo)
   );
@@ -35,6 +44,7 @@ export async function GET(
     ...r,
     is_complete: completionsSet.has(r.owner_repo),
     is_insured: insuredSet.has(r.owner_repo),
+    contributor_rarity: rarityMap[r.owner_repo] || null,
   }));
 
   const profile = {

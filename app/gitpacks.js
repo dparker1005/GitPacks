@@ -234,8 +234,8 @@ async function loadPopularRepos() {
       .sort((a, b) => b.pct - a.pct);
 
     function myRarityBadge(r) {
-      if (!r.my_rarity) return '';
-      return `<span class="my-rarity-badge ${r.my_rarity}">${r.my_rarity}</span>`;
+      if (!r.my_rarity || !_currentUser) return '';
+      return `<a href="/?repo=${r.name}&card=${_currentUser.username}" class="my-rarity-badge ${r.my_rarity}" onclick="event.stopPropagation()">${r.my_rarity}</a>`;
     }
 
     function repoBtn(r, showProgressBar) {

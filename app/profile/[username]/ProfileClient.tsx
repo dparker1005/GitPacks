@@ -12,6 +12,7 @@ interface Repo {
   total_cards_in_repo: number;
   is_complete: boolean;
   is_insured: boolean;
+  contributor_rarity: string | null;
 }
 
 interface ProfileData {
@@ -99,6 +100,19 @@ export default function ProfileClient({ username }: { username: string }) {
     year: "numeric",
   });
 
+  function rarityBadge(repo: Repo) {
+    if (!repo.contributor_rarity) return null;
+    return (
+      <a
+        href={`/?repo=${repo.owner_repo}&card=${profile.username}`}
+        className={`my-rarity-badge ${repo.contributor_rarity}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {repo.contributor_rarity}
+      </a>
+    );
+  }
+
   const isOwnProfile = viewer?.username.toLowerCase() === profile.username.toLowerCase();
   const compareMap = new Map(compareData.map((c) => [c.owner_repo, c]));
   const sharedRepos = profile.repos.filter((r) => compareMap.has(r.owner_repo));
@@ -175,7 +189,7 @@ export default function ProfileClient({ username }: { username: string }) {
                   className="profile-repo-row"
                 >
                   <div className="profile-repo-header">
-                    <span className="profile-repo-name">{repo.owner_repo}</span>
+                    <span className="profile-repo-name">{repo.owner_repo}{rarityBadge(repo)}</span>
                     <span className="profile-repo-points">
                       {repo.total_points.toLocaleString()}
                       <span className="profile-repo-pts-label">pts</span>
@@ -232,7 +246,7 @@ export default function ProfileClient({ username }: { username: string }) {
                   className="profile-repo-row"
                 >
                   <div className="profile-repo-header">
-                    <span className="profile-repo-name">{repo.owner_repo}</span>
+                    <span className="profile-repo-name">{repo.owner_repo}{rarityBadge(repo)}</span>
                     <span className="profile-repo-points">
                       {repo.total_points.toLocaleString()}
                       <span className="profile-repo-pts-label">pts</span>
