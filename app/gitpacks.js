@@ -1126,7 +1126,7 @@ function renderRepoInfo(owner, repo) {
 
         starsHTML = `<details class="repo-panel-collapse" id="stars-panel"><summary class="repo-panel-toggle">Stars <span class="panel-summary">&starf; ${starBalance}${hasDupes ? ` &middot; ${dupeCount} dupe${dupeCount !== 1 ? 's' : ''} to revert` : ' &middot; revert dupes, cherry-pick cards'}</span></summary>
           <div class="stars-panel-body">
-            <div class="panel-desc">Revert duplicate cards for stars, spend stars to cherry-pick missing cards</div>
+            <div class="panel-desc">Revert duplicate cards for stars, spend stars to cherry-pick missing cards or trade for packs (100 &starf;)</div>
             <div class="stars-balance-display">&starf; ${starBalance} Stars</div>
             <div class="stars-rates">
               <div class="stars-rates-header"><span>Rarity</span><span>Revert</span><span>Dupes</span><span>Cherry-pick</span><span>Missing</span></div>
