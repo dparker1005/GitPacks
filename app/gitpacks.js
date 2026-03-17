@@ -2048,7 +2048,7 @@ function openFullscreenCard(c) {
       </div>
       <div class="fullscreen-share-row">
         <button class="share-action-btn" id="fs-copy-link">Copy Link</button>
-        <a class="share-action-btn" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out my GitPacks card for ${currentRepoName}!`)}&url=${encodeURIComponent(`${window.location.origin}/card/${currentRepoName}/${c.login}`)}" target="_blank" rel="noopener">Share on X</a>
+        <a class="share-action-btn" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(_currentUser && _currentUser.login === c.login ? `Check out my @GitPacks card for ${currentRepoName}!` : `Check out ${c.login}'s @GitPacks card for ${currentRepoName}!`)}&url=${encodeURIComponent(`${window.location.origin}/card/${currentRepoName}/${c.login}`)}" target="_blank" rel="noopener">Share on X</a>
         <button class="share-action-btn" id="fs-copy-md">Copy for README</button>
       </div>
     </div>`;
