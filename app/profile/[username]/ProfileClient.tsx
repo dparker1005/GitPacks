@@ -101,7 +101,7 @@ export default function ProfileClient({ username }: { username: string }) {
   });
 
   function rarityBadge(repo: Repo) {
-    if (!repo.contributor_rarity) return null;
+    if (!repo.contributor_rarity || !profile) return null;
     return (
       <a
         href={`/?repo=${repo.owner_repo}&card=${profile.username}`}
