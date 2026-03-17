@@ -155,13 +155,13 @@ function renderTopBarPacks() {
   const timerHTML = readyPacks < maxPacks && nextRegenAt
     ? `<span class="topbar-pack-timer" id="topbar-pack-timer"></span>`
     : '';
+  const isRegening = readyPacks < maxPacks && nextRegenAt;
   const bonusHTML = bonusPacks > 0
     ? `<span class="topbar-packs-bonus">${bonusPacks}</span><span class="topbar-packs-plus">+</span>`
     : '';
   el.innerHTML = `<div class="topbar-packs">
     <span class="topbar-packs-icon">${GP_ICON}</span>
-    ${bonusHTML}<span class="topbar-packs-count">${readyPacks}<span class="topbar-packs-max">/${maxPacks}</span></span>
-    ${timerHTML}
+    ${bonusHTML}<span class="topbar-packs-count${isRegening ? ' topbar-regen' : ''}">${readyPacks}<span class="topbar-packs-max">/${maxPacks}</span></span>${timerHTML}
   </div>`;
   if (readyPacks < maxPacks && nextRegenAt) startPackCountdown();
 }

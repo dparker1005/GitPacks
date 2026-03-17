@@ -186,7 +186,9 @@
     .topbar-packs-icon { display:flex; align-items:center; }
     .topbar-packs-icon svg { width:16px; height:16px; }
     .topbar-packs-count { font-family:'Orbitron',sans-serif; font-size:0.85rem; font-weight:700; color:#7873f5; letter-spacing:1px; }
-    .topbar-pack-timer { font-family:'Rajdhani',sans-serif; font-size:0.75rem; color:#4adede; letter-spacing:0.5px; margin-left:4px; min-width:7.5em; text-align:right; }
+    .topbar-pack-timer { font-family:'Rajdhani',sans-serif; font-size:0.72rem; color:#4adede; letter-spacing:0.3px; margin-left:2px; min-width:7.5em; text-align:right; opacity:0.85; }
+    .topbar-regen { animation:regen-pulse 2s ease-in-out infinite; }
+    @keyframes regen-pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
 
     /* === AUTH NUDGE === */
     .auth-nudge { text-align:center; padding:8px 16px; margin:8px auto 0; max-width:400px; border-radius:10px; background:rgba(120,115,245,0.06); border:1px solid rgba(120,115,245,0.12); color:#888; font-size:0.85rem; font-family:'Rajdhani',sans-serif; letter-spacing:0.5px; }
