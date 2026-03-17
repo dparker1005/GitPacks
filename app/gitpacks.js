@@ -514,8 +514,10 @@ if (urlRepo) {
 
 function saveLibrary() {
   if (!currentRepoName) return;
-  // Always save to localStorage (works for both logged-in and logged-out)
-  try { localStorage.setItem('ghtc_lib_' + currentRepoName.toLowerCase(), JSON.stringify(library)); } catch { }
+  // Only save to localStorage for logged-out users
+  if (!_currentUser) {
+    try { localStorage.setItem('ghtc_lib_' + currentRepoName.toLowerCase(), JSON.stringify(library)); } catch { }
+  }
 }
 
 function loadLibrary() {
@@ -534,10 +536,8 @@ async function loadLibraryFromDB() {
     const res = await fetch(`/api/collection/${owner}/${repo}`);
     if (res.ok) {
       library = await res.json();
-      // Also sync to localStorage for fast access
-      saveLibrary();
     }
-  } catch { /* fall back to localStorage */ }
+  } catch { /* silent */ }
 }
 
 async function loadStarBalance() {
@@ -657,7 +657,9 @@ function renderRepoInfo(owner, repo) {
 
   // Achievement panel for contributors
   let achievementHTML = '';
-  if (_currentUser && lastAchievementData && lastAchievementData.isContributor) {
+  if (_currentUser && (!lastAchievementData || !lastAchievementData.isContributor)) {
+    achievementHTML = `<div class="achievement-panel"><div class="ach-empty">Contribute to this repo to earn achievement packs</div></div>`;
+  } else if (_currentUser && lastAchievementData && lastAchievementData.isContributor) {
     const stats = lastAchievementData.contributor;
     const milestones = lastAchievementData.milestones;
     const maxPerStat = lastAchievementData.maxPerStat || 8;
@@ -1247,9 +1249,8 @@ function revealCards(overlay, picks, onComplete) {
       saveLibrary();
     } else {
       // For logged-in users, cards are already saved server-side by the pack endpoint
-      // Just update the local cache
+      // Just update the in-memory cache
       library[slot._contributor.login] = (library[slot._contributor.login] || 0) + 1;
-      saveLibrary(); // sync localStorage cache
     }
 
     flipped++;
