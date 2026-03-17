@@ -888,9 +888,14 @@
     .site-footer a:hover { color:#4adede; }
     .footer-sep { margin:0 8px; color:#999; }
 
-    .landing-starter { margin-top:16px; }
-    .landing-starter p { font-family:'Rajdhani',sans-serif; font-size:0.95rem; color:#888; }
-    .landing-starter strong { color:#4adede; }
+    .landing-ways { text-align:center; margin-top:20px; }
+    .landing-ways h3 { font-family:'Orbitron',sans-serif; font-size:0.8rem; font-weight:700; color:#bbb; letter-spacing:1px; text-transform:uppercase; margin-bottom:10px; }
+    .landing-ways-grid { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; max-width:600px; margin:0 auto; }
+    .landing-way { font-family:'Rajdhani',sans-serif; font-size:0.8rem; color:#ccc; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:6px 12px; }
+    .landing-way strong { color:#4adede; }
+    .referral-banner { text-align:center; background:linear-gradient(135deg,rgba(120,115,245,0.12),rgba(74,222,222,0.12)); border:1px solid rgba(120,115,245,0.3); border-radius:10px; padding:10px 16px; margin-bottom:16px; font-family:'Rajdhani',sans-serif; font-size:0.9rem; color:#e0e0e0; }
+    .referral-banner strong { color:#4ade80; }
+    .landing-starter { margin-top:20px; }
     .landing-try { margin-top:16px; text-align:center; }
     .landing-try p { color:#999; font-family:'Rajdhani',sans-serif; font-size:0.85rem; }
 

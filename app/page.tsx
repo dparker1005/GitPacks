@@ -12,11 +12,13 @@ interface UserInfo {
 export default function Home() {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [hasReferral, setHasReferral] = useState(false);
 
   // Store referral code from URL on first visit
   useEffect(() => {
     const ref = new URLSearchParams(window.location.search).get('ref');
     if (ref) localStorage.setItem('gp_ref', ref);
+    if (ref || localStorage.getItem('gp_ref')) setHasReferral(true);
   }, []);
 
   useEffect(() => {
@@ -133,6 +135,11 @@ export default function Home() {
       </header>
       {!user && !authLoading && (
         <div className="landing" id="landing-section">
+          {hasReferral && (
+            <div className="referral-banner">
+              You were invited! Sign up to claim <strong>5 bonus packs</strong> for you and your referrer.
+            </div>
+          )}
           <div className="landing-hero">
             <h2>Collect the contributors behind the code</h2>
             <p>Open packs, discover contributors, and complete your collection for any GitHub repo.</p>
@@ -156,8 +163,19 @@ export default function Home() {
             </div>
           </div>
 
+          <div className="landing-ways">
+            <h3>Ways to earn packs</h3>
+            <div className="landing-ways-grid">
+              <div className="landing-way"><strong>10 starter packs</strong> on signup</div>
+              <div className="landing-way"><strong>3 daily task packs</strong> from GitHub activity</div>
+              <div className="landing-way"><strong>Achievement packs</strong> for repos you contribute to</div>
+              <div className="landing-way"><strong>Referral packs</strong> — you both get 5 packs</div>
+              <div className="landing-way"><strong>Pack regen</strong> — 1 new pack every 12 hours</div>
+              <div className="landing-way"><strong>Share on X</strong> for 5 bonus packs</div>
+            </div>
+          </div>
+
           <div className="landing-starter">
-            <p>You get <strong>10 free packs</strong> when you sign up + packs regenerate over time</p>
             <button className="login-btn landing-cta" onClick={handleLogin}>
               <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
               Sign In with GitHub

@@ -98,8 +98,10 @@ function showWelcomeOverlay() {
       <div class="welcome-logo">${GP_ICON}</div>
       <div class="welcome-title">Welcome to GitPacks!</div>
       <div class="welcome-item">You start with <strong>10 packs</strong> to open on any repo</div>
+      <div class="welcome-item">Complete <strong>daily tasks</strong> to earn up to <strong>3 packs per day</strong></div>
       <div class="welcome-item">Packs regenerate: <strong>1 new pack every 12 hours</strong>, up to 2 at a time</div>
-      <div class="welcome-item">Contribute to repos to earn <strong>bonus achievement packs</strong></div>
+      <div class="welcome-item"><strong>Share a card on X</strong> for 5 bonus packs</div>
+      <div class="welcome-item"><strong>Refer friends</strong> — you both get 5 bonus packs</div>
       <button class="welcome-start">Start Collecting</button>
     </div>`;
   document.body.appendChild(overlay);
