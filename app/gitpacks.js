@@ -101,7 +101,7 @@ document.getElementById('share-btn').addEventListener('click', () => shareRepo()
 
 input.addEventListener('keydown', e => { if (e.key === 'Enter') loadRepo(); });
 
-function quickLoad(repo) { input.value = repo; loadRepo(); }
+function quickLoad(repo) { input.value = repo; loadRepo(true); }
 
 // ===== PACK STATE =====
 async function loadPackState() {
@@ -326,7 +326,7 @@ async function loadPopularRepos() {
 
       // Right column: Leaderboard + Discover
       html += `<div class="dashboard-col">`;
-      html += `<div id="leaderboard-section" class="popular-section"></div>`;
+      html += `<div id="leaderboard-section" class="popular-section"><h3 class="popular-title">Leaderboard</h3><div class="leaderboard-list">${Array(10).fill('<div class="lb-row lb-skeleton"><span class="lb-rank">&nbsp;</span><div class="lb-avatar skeleton-pulse"></div><span class="lb-info"><span class="lb-name skeleton-pulse" style="display:inline-block;width:80px;height:1em;border-radius:4px"></span></span><span class="lb-points skeleton-pulse" style="display:inline-block;width:40px;height:1em;border-radius:4px"></span></div>').join('')}</div></div>`;
       if (otherRepos.length) {
         html += `<div class="popular-section">
           <h3 class="popular-title">Discover</h3>
@@ -353,7 +353,7 @@ async function loadPopularRepos() {
         </div>`;
       }
       html += `</div>`;
-      html += `<div class="dashboard-col"><div id="leaderboard-section" class="popular-section"></div></div>`;
+      html += `<div class="dashboard-col"><div id="leaderboard-section" class="popular-section"><h3 class="popular-title">Leaderboard</h3><div class="leaderboard-list">${Array(10).fill('<div class="lb-row lb-skeleton"><span class="lb-rank">&nbsp;</span><div class="lb-avatar skeleton-pulse"></div><span class="lb-info"><span class="lb-name skeleton-pulse" style="display:inline-block;width:80px;height:1em;border-radius:4px"></span></span><span class="lb-points skeleton-pulse" style="display:inline-block;width:40px;height:1em;border-radius:4px"></span></div>').join('')}</div></div></div>`;
       html += `</div>`;
     }
     popularRepos.innerHTML = html;
@@ -518,6 +518,17 @@ if (urlRepo) {
   loadPopularRepos();
 }
 
+// Handle browser back/forward between homepage and repo views
+window.addEventListener('popstate', () => {
+  const repo = new URLSearchParams(window.location.search).get('repo');
+  if (repo && (!repoLoaded || currentRepoName !== repo)) {
+    input.value = repo;
+    loadRepo();
+  } else if (!repo && repoLoaded) {
+    newRepo(true);
+  }
+});
+
 function saveLibrary() {
   if (!currentRepoName) return;
   // Only save to localStorage for logged-out users
@@ -561,7 +572,7 @@ async function loadStarBalance() {
 const REVERT_YIELD = { common: 1, rare: 3, epic: 10, legendary: 30, mythic: 100 };
 const CHERRY_PICK_COST = { common: 5, rare: 15, epic: 50, legendary: 150, mythic: 500 };
 
-async function loadRepo() {
+async function loadRepo(fromHomepage) {
   const repoInput = input.value.trim().replace(/^https?:\/\/github\.com\//, '');
   const match = repoInput.match(/^([^/]+)\/([^/]+)/);
   if (!match) return showError('Enter a valid repo like owner/repo');
@@ -615,7 +626,11 @@ async function loadRepo() {
     loading.style.display = 'none';
     searchContainer.style.display = 'none';
     document.getElementById('gallery-screen').classList.add('repo-loaded');
-    history.replaceState(null, '', `?repo=${owner}/${repo}`);
+    if (fromHomepage) {
+      history.pushState(null, '', `?repo=${owner}/${repo}`);
+    } else {
+      history.replaceState(null, '', `?repo=${owner}/${repo}`);
+    }
     renderRepoInfo(owner, repo);
     renderLibrary();
 
@@ -1848,7 +1863,7 @@ function shareRepo() {
   });
 }
 
-function newRepo() {
+function newRepo(skipHistory) {
   repoLoaded = false;
   allContributors = [];
   library = {};
@@ -1866,7 +1881,7 @@ function newRepo() {
   document.getElementById('gallery-screen').classList.remove('repo-loaded');
   input.value = '';
   input.focus();
-  history.replaceState(null, '', window.location.pathname);
+  if (!skipHistory) history.pushState(null, '', window.location.pathname);
   loadPopularRepos();
 }
 

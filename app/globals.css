@@ -5,6 +5,9 @@
     .spinner-small { display:inline-block; width:14px; height:14px; border:2px solid #2a2a4a; border-top-color:#7873f5; border-radius:50%; animation:spin 0.8s linear infinite; vertical-align:middle; }
     .contrib-loading-row { display:flex; align-items:center; gap:10px; padding:12px 16px; color:#888; font-family:'Rajdhani',sans-serif; font-size:0.85rem; letter-spacing:0.5px; }
     @keyframes spin { to { transform:rotate(360deg); } }
+    .skeleton-pulse { background:#1a1a3a; animation:skeletonPulse 1.2s ease-in-out infinite; }
+    .lb-skeleton { pointer-events:none; opacity:0.4; }
+    @keyframes skeletonPulse { 0%,100% { opacity:0.3; } 50% { opacity:0.6; } }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Rajdhani', sans-serif; background: #0a0a1a; color: #e0e0e0; min-height: 100vh; overflow-x: hidden; }
