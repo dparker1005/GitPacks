@@ -182,11 +182,11 @@
     .user-menu .top-bar-btn { font-size:0.6rem; padding:8px 16px; }
 
     /* === TOP BAR PACKS === */
-    .topbar-packs { display:flex; align-items:center; gap:6px; padding:6px 14px; border:1px solid rgba(120,115,245,0.2); border-radius:8px; background:rgba(120,115,245,0.06); }
+    .topbar-packs { display:flex; align-items:center; gap:4px; padding:6px 14px; border:1px solid rgba(120,115,245,0.2); border-radius:8px; background:rgba(120,115,245,0.06); }
     .topbar-packs-icon { display:flex; align-items:center; }
     .topbar-packs-icon svg { width:16px; height:16px; }
     .topbar-packs-count { font-family:'Orbitron',sans-serif; font-size:0.85rem; font-weight:700; color:#7873f5; letter-spacing:1px; }
-    .topbar-pack-timer { font-family:'Rajdhani',sans-serif; font-size:0.72rem; color:#4adede; letter-spacing:0.3px; margin-left:2px; min-width:7.5em; text-align:right; opacity:0.85; }
+    .topbar-pack-timer { font-family:'Rajdhani',sans-serif; font-size:0.72rem; color:#4adede; letter-spacing:0.3px; margin-left:0; min-width:7.5em; text-align:left; opacity:0.85; }
     .topbar-regen { animation:regen-pulse 2s ease-in-out infinite; }
     @keyframes regen-pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
 
