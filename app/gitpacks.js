@@ -583,6 +583,7 @@ function renderDailies(section, data) {
         <span class="daily-reset-timer" id="daily-reset-timer"></span>
       </div>
     </div>
+    <div class="dailies-desc">Complete any 3 activities on GitHub to earn bonus packs.</div>
     ${allDone ? `<div class="dailies-done">All done for today! Come back tomorrow.</div>` : ''}
     <div class="dailies-grid">${itemsHTML}</div>
     <div class="dailies-hint">Only public GitHub activity counts. Recent activity may take a few minutes to appear.</div>
