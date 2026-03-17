@@ -281,7 +281,11 @@ async function loadPopularRepos() {
 
     if (_currentUser) {
       // Dailies section (above dashboard, only for logged-in users)
-      html += `<div id="dailies-section"></div>`;
+      html += `<div id="dailies-section"><div class="dailies-section dailies-skeleton">
+        <div class="dailies-header"><div class="dailies-title-row"><span class="skeleton-pulse" style="display:inline-block;width:120px;height:1em;border-radius:4px"></span><span class="daily-progress" style="margin-left:auto"><span class="skeleton-pulse" style="display:inline-block;width:60px;height:1em;border-radius:4px"></span></span></div></div>
+        <div class="skeleton-pulse" style="width:70%;height:0.8em;border-radius:4px;margin:0 auto 8px"></div>
+        <div class="dailies-grid">${Array(5).fill('<div class="daily-item"><span class="skeleton-pulse" style="display:inline-block;width:100%;height:1.2em;border-radius:4px"></span></div>').join('')}</div>
+      </div></div>`;
 
       // Dashboard layout for logged-in users
       html += `<div class="dashboard">`;
