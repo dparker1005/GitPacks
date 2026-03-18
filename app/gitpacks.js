@@ -239,7 +239,7 @@ async function loadPopularRepos() {
     let userReposFromCache = _currentUser ? cacheGet('user-repos', 60000) : null; // 1 min
     const [reposRes, urRes] = await Promise.all([
       repos ? Promise.resolve(null) : fetch('/api/repos'),
-      userReposFromCache || !_currentUser ? Promise.resolve(null) : fetch('/api/user-repos'),
+      userReposFromCache || !_currentUser ? Promise.resolve(null) : fetch('/api/user-repos', { cache: 'no-cache' }),
     ]);
     if (!repos) {
       if (!reposRes || !reposRes.ok) return;
