@@ -21,6 +21,19 @@ const fontOpts = {
   defaultFontFamily: 'Rajdhani',
 };
 
+async function fetchEmojiBase64(emoji: string | undefined): Promise<string | null> {
+  if (!emoji) return null;
+  try {
+    const codepoint = [...emoji].map(c => c.codePointAt(0)!.toString(16)).join('-');
+    const res = await fetch(`https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/${codepoint}.png`);
+    if (!res.ok) return null;
+    const buffer = await res.arrayBuffer();
+    return `data:image/png;base64,${Buffer.from(buffer).toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
 async function getContributor(owner: string, repo: string, login: string) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -52,15 +65,27 @@ export async function GET(
   const { contributor, cardNum, total } = result;
   const repoName = `${owner}/${repo}`;
 
-  // Request a smaller avatar (200px) to reduce fetch time
+  // Fetch avatar (smaller 200px) and emoji icon in parallel
   const avatarSmall = contributor.avatar + (contributor.avatar.includes('?') ? '&' : '?') + 's=200';
-  const avatarDataUri = await fetchAvatarBase64(avatarSmall);
+  const [avatarDataUri, emojiDataUri] = await Promise.all([
+    fetchAvatarBase64(avatarSmall),
+    fetchEmojiBase64(contributor.ability?.icon),
+  ]);
   const cardSvg = buildCardSvg(contributor, cardNum, total, repoName, avatarDataUri, { animated: false });
+
+  // Replace emoji <text> with Twemoji <image> so resvg can render it
+  let processedCardSvg = cardSvg;
+  if (emojiDataUri) {
+    processedCardSvg = processedCardSvg.replace(
+      /<text x="52" y="(\d+)" font-size="22" text-anchor="middle">[^<]*<\/text>/,
+      `<image href="${emojiDataUri}" x="40" y="$1" width="22" height="22" transform="translate(0, -18)" />`
+    );
+  }
 
   // Nest the card SVG directly inside the OG SVG (single resvg render instead of two)
   const cardW = Math.round(570 * 480 / 720);
   const cardX = Math.round((1200 - cardW) / 2);
-  const cardSvgInner = cardSvg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+  const cardSvgInner = processedCardSvg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
 
   const ogSvg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="630" viewBox="0 0 1200 630">
     <defs>
