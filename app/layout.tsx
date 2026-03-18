@@ -4,7 +4,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://gitpacks.com"),
+  metadataBase: new URL("https://www.gitpacks.com"),
   title: "GitPacks — Collect the Contributors Behind the Code",
   description: "Open packs, discover contributors, and complete your collection for any GitHub repo. 5 rarities from Common to Mythic. Earn packs through daily tasks, referrals, and achievements.",
   openGraph: {

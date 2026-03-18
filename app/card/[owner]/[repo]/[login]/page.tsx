@@ -15,7 +15,7 @@ export async function generateMetadata({
   params: Promise<Params>;
 }): Promise<Metadata> {
   const { owner, repo, login } = await params;
-  const ogUrl = `https://www.gitpacks.com/api/card/${owner}/${repo}/${login}?format=png&og=1`;
+  const ogUrl = `https://www.gitpacks.com/api/og/card/${owner}/${repo}/${login}`;
   const cardUrl = `https://www.gitpacks.com/card/${owner}/${repo}/${login}`;
 
   return {

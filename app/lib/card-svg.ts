@@ -225,9 +225,9 @@ export function buildCardSvg(
     <text x="${W / 2}" y="338" fill="#888" font-family="'Rajdhani',sans-serif" font-size="19" text-anchor="middle" letter-spacing="1">${escapeXml(c.title.toUpperCase())}</text>
 
     <!-- Power bar -->
-    <text x="${W / 2 - 115}" y="380" fill="#555" font-family="'Orbitron',sans-serif" font-size="12" letter-spacing="2">PWR</text>
-    <rect x="${W / 2 - 80}" y="371" width="190" height="9" rx="4" fill="#1a1a35" />
-    <rect x="${W / 2 - 80}" y="371" width="${Math.round(190 * c.power / 100)}" height="9" rx="4" fill="url(#powerGrad)" />
+    <text x="${W / 2 - 130}" y="380" fill="#555" font-family="'Orbitron',sans-serif" font-size="12" letter-spacing="2">PWR</text>
+    <rect x="${W / 2 - 85}" y="371" width="170" height="9" rx="4" fill="#1a1a35" />
+    <rect x="${W / 2 - 85}" y="371" width="${Math.round(170 * c.power / 100)}" height="9" rx="4" fill="url(#powerGrad)" />
     <text x="${W / 2 + 130}" y="382" fill="${rc}" font-family="'Orbitron',sans-serif" font-size="20" font-weight="900" text-anchor="end">${c.power}</text>
 
     <!-- Stats -->
