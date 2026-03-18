@@ -323,7 +323,7 @@ async function loadPopularRepos() {
       const progressBar = showProgressBar && !isComplete && r.cards > 0
         ? `<div class="repo-progress-bar"><div class="repo-progress-fill" style="width:${pctNum}%"></div></div>`
         : '';
-      const bonusHTML = r.completion_bonus > 0
+      const bonusHTML = isComplete && r.completion_bonus > 0
         ? `<span class="repo-bonus">+${r.completion_bonus.toLocaleString()} bonus</span>`
         : '';
       const pointsHTML = r.total_points > 0
@@ -385,7 +385,7 @@ async function loadPopularRepos() {
       const totalPoints = yourRepos.reduce((sum, r) => sum + (r.total_points || 0), 0);
       if (totalPoints > 0) {
         const totalBase = yourRepos.reduce((sum, r) => sum + (r.base_points || 0), 0);
-        const totalBonus = yourRepos.reduce((sum, r) => sum + (r.completion_bonus || 0), 0);
+        const totalBonus = yourRepos.reduce((sum, r) => sum + ((r.cards > 0 && r.collected >= r.cards) ? (r.completion_bonus || 0) : 0), 0);
         html += `<div class="score-total">
           <span class="score-total-label">Total</span>
           <span class="score-total-value">${totalBase.toLocaleString()}${totalBonus > 0 ? `<span class="score-total-bonus">+${totalBonus.toLocaleString()}</span>` : ''}<span class="score-total-eq"> = ${totalPoints.toLocaleString()} pts</span></span>
