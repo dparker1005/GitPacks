@@ -94,12 +94,6 @@ function buildOgSvg(): string {
     <!-- Title -->
     <text x="${W / 2}" y="148" font-family="Orbitron" font-size="64" font-weight="900" fill="url(#title-grad)" text-anchor="middle" letter-spacing="4">GITPACKS</text>
 
-    <!-- Beta tag -->
-    <g transform="translate(${W / 2 + 230}, 118)">
-      <rect width="52" height="18" rx="4" fill="rgba(120,115,245,0.15)" stroke="rgba(120,115,245,0.3)" stroke-width="1" />
-      <text x="26" y="13" font-family="Orbitron" font-size="7" font-weight="700" fill="#7873f5" text-anchor="middle" letter-spacing="2">BETA</text>
-    </g>
-
     <!-- Tagline -->
     <text x="${W / 2}" y="200" font-family="Rajdhani" font-size="28" font-weight="700" fill="#888888" text-anchor="middle" letter-spacing="1.5">Collect the contributors behind the code</text>
 

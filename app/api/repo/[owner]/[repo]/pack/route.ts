@@ -42,12 +42,12 @@ export async function GET(
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    // Logged-out: limited to 5 packs via cookie
+    // Logged-out: limited to 1 pack via cookie
     const cookieStore = await cookies();
     const packsOpenedCookie = cookieStore.get('gp_packs_opened');
     const guestPacksOpened = packsOpenedCookie ? parseInt(packsOpenedCookie.value, 10) || 0 : 0;
 
-    if (guestPacksOpened >= 5) {
+    if (guestPacksOpened >= 1) {
       return NextResponse.json(
         { error: 'Sign in to open more packs', requiresAuth: true, guestPacksRemaining: 0 },
         { status: 429 }
@@ -55,7 +55,7 @@ export async function GET(
     }
 
     const cards = selectPackCards(allContributors, count);
-    const remaining = 5 - (guestPacksOpened + 1);
+    const remaining = 1 - (guestPacksOpened + 1);
 
     const response = NextResponse.json({ cards, guestPacksRemaining: remaining });
     response.cookies.set('gp_packs_opened', String(guestPacksOpened + 1), {

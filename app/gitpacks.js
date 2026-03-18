@@ -43,7 +43,7 @@ let cardSearch = '';
 // Pack state for all users
 let packState = null; // { readyPacks, bonusPacks, maxPacks, nextRegenAt }
 let packCountdownInterval = null;
-let guestPacksRemaining = 5; // for logged-out users
+let guestPacksRemaining = 1; // for logged-out users
 let lastAchievementData = null; // achievement data for current repo
 let starBalance = 0; // per-repo star balance for card recycling
 let _referralInfo = null; // { referralCode, referralCount, maxReferrals, sharedOnX }
@@ -122,6 +122,7 @@ function showWelcomeOverlay() {
       <div class="welcome-item">You start with <strong>10 packs</strong> to open on any repo</div>
       <div class="welcome-item">Complete <strong>daily tasks</strong> to earn up to <strong>3 packs per day</strong></div>
       <div class="welcome-item">Packs regenerate: <strong>1 new pack every 12 hours</strong>, up to 2 at a time</div>
+      <div class="welcome-item">Earn <strong>achievement packs</strong> for repos you contribute to</div>
       <div class="welcome-item"><strong>Share a card on X</strong> for 5 bonus packs</div>
       <div class="welcome-item"><strong>Refer friends</strong> — you both get 5 bonus packs</div>
       <button class="welcome-start">Start Collecting</button>
@@ -133,10 +134,10 @@ function showWelcomeOverlay() {
   });
 }
 
-btn.addEventListener('click', () => loadRepo());
+if (btn) btn.addEventListener('click', () => loadRepo());
 document.getElementById('share-btn').addEventListener('click', () => shareRepo());
 
-input.addEventListener('keydown', e => { if (e.key === 'Enter') loadRepo(); });
+if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') loadRepo(); });
 
 function quickLoad(repo) { input.value = repo; loadRepo(true); }
 
@@ -174,13 +175,7 @@ function renderTopBarPacks() {
   if (!el) return;
 
   if (!_currentUser) {
-    // Guest packs display
-    const limitReached = localStorage.getItem('gp_guest_limit_reached');
-    const count = limitReached ? 0 : guestPacksRemaining;
-    el.innerHTML = `<div class="topbar-packs">
-      <span class="topbar-packs-icon">${GP_ICON}</span>
-      <span class="topbar-packs-count">${count}</span>
-    </div>`;
+    el.innerHTML = '';
     return;
   }
 
@@ -418,33 +413,33 @@ async function loadPopularRepos() {
 
       html += `</div>`; // close .dashboard
     } else {
-      // Logged-out layout: two-column with collection/popular left, leaderboard right
-      html += `<div class="dashboard">`;
-      html += `<div class="dashboard-col">`;
-      if (yourRepos.length) {
-        html += `<div class="popular-section">
-          <h3 class="popular-title">Your Collection</h3>
-          <div class="popular-grid">${yourRepos.map(r => repoBtn(r, true)).join('')}</div>
-        </div>`;
+      // Logged-out layout: only featured repo buttons for the card fan
+      const featuredEl = document.getElementById('featured-repos');
+      if (featuredEl) {
+        const topRepos = otherRepos.slice(0, 8);
+        if (topRepos.length) {
+          featuredEl.innerHTML = `<p class="featured-repos-label">Every public GitHub repo has cards. Preview a few:</p><div class="featured-repos-grid">${topRepos.map(r =>
+            `<button class="featured-repo-btn" data-repo="${r.name}">
+              <span class="featured-repo-name">${r.name}</span>
+              <span class="featured-repo-cards">${r.cards} cards</span>
+            </button>`
+          ).join('')}</div>`;
+          featuredEl.querySelectorAll('.featured-repo-btn').forEach(b => {
+            b.addEventListener('click', () => selectFeaturedRepo(b.dataset.repo));
+          });
+          // Auto-select first repo
+          selectFeaturedRepo(topRepos[0].name);
+        }
       }
-      if (otherRepos.length) {
-        html += `<div class="popular-section">
-          <h3 class="popular-title">Popular Repos</h3>
-          <div class="popular-grid">${otherRepos.map(r => repoBtn(r, false)).join('')}</div>
-        </div>`;
-      }
-      html += `</div>`;
-      html += `<div class="dashboard-col"><div id="leaderboard-section" class="popular-section"><h3 class="popular-title">Leaderboard</h3><div class="leaderboard-list">${Array(10).fill('<div class="lb-row lb-skeleton"><span class="lb-rank">&nbsp;</span><div class="lb-avatar skeleton-pulse"></div><span class="lb-info"><span class="lb-name skeleton-pulse" style="display:inline-block;width:80px;height:1em;border-radius:4px"></span></span><span class="lb-points skeleton-pulse" style="display:inline-block;width:40px;height:1em;border-radius:4px"></span></div>').join('')}</div></div></div>`;
-      html += `</div>`;
     }
     popularRepos.innerHTML = html;
     popularRepos.querySelectorAll('.popular-repo-btn').forEach(b => {
       b.addEventListener('click', () => quickLoad(b.dataset.repo));
     });
 
-    // Lazy load contributed repos, leaderboard, and dailies
-    loadLeaderboard();
+    // Lazy load contributed repos, leaderboard, dailies, and stats
     if (_currentUser) {
+      loadLeaderboard();
       loadContributedRepos(yourRepos);
       loadDailies();
     }
@@ -525,6 +520,56 @@ async function loadContributedRepos(yourRepos) {
       }
     });
   }
+}
+
+// ===== LANDING CARD FAN =====
+const LANDING_RARITY_ORDER = ['common', 'legendary', 'mythic', 'epic', 'rare'];
+let _landingActiveRepo = null;
+
+async function loadLandingCards(repoName) {
+  const container = document.getElementById('landing-cards');
+  if (!container) return;
+  if (_landingActiveRepo === repoName) return;
+  _landingActiveRepo = repoName;
+
+  // Show shimmer placeholders
+  container.innerHTML = LANDING_RARITY_ORDER.map((r, i) =>
+    `<div class="landing-card landing-card-${i === 2 ? 'center' : 'pos' + i} landing-card-loading" data-rarity="${r}"></div>`
+  ).join('');
+
+  try {
+    const res = await fetch(`/api/repo/${repoName}`);
+    if (!res.ok || _landingActiveRepo !== repoName) return;
+    const contributors = await res.json();
+    if (!Array.isArray(contributors) || _landingActiveRepo !== repoName) return;
+
+    // Pick top contributor from each rarity
+    const picks = {};
+    for (const rarity of LANDING_RARITY_ORDER) {
+      const match = contributors.find(c => c.rarity === rarity && !Object.values(picks).includes(c.login));
+      if (match) picks[rarity] = match.login;
+    }
+
+    // Build image elements
+    if (_landingActiveRepo !== repoName) return;
+    const [owner, repo] = repoName.split('/');
+    container.innerHTML = LANDING_RARITY_ORDER.map((rarity, i) => {
+      const login = picks[rarity];
+      if (!login) return '';
+      const posClass = i === 2 ? 'landing-card-center' : `landing-card-pos${i}`;
+      return `<img src="/api/card/${owner}/${repo}/${login}" alt="${login}" class="landing-card ${posClass}" loading="eager" />`;
+    }).join('');
+  } catch {
+    if (_landingActiveRepo === repoName) container.innerHTML = '';
+  }
+}
+
+function selectFeaturedRepo(repoName) {
+  // Update active state on buttons
+  document.querySelectorAll('.featured-repo-btn').forEach(b => {
+    b.classList.toggle('featured-repo-active', b.dataset.repo === repoName);
+  });
+  loadLandingCards(repoName);
 }
 
 // ===== LEADERBOARD =====
@@ -835,7 +880,7 @@ loadReferralInfo();
 
 // Auto-load from URL param, otherwise show repo browser
 const urlRepo = new URLSearchParams(window.location.search).get('repo');
-if (urlRepo) {
+if (urlRepo && input) {
   input.value = urlRepo;
   loadRepo();
 } else {
@@ -845,7 +890,7 @@ if (urlRepo) {
 // Handle browser back/forward between homepage and repo views
 window.addEventListener('popstate', () => {
   const repo = new URLSearchParams(window.location.search).get('repo');
-  if (repo && (!repoLoaded || currentRepoName !== repo)) {
+  if (repo && input && (!repoLoaded || currentRepoName !== repo)) {
     input.value = repo;
     loadRepo();
   } else if (!repo && repoLoaded) {
@@ -921,6 +966,8 @@ async function loadRepo(fromHomepage) {
   const [, owner, repo] = match;
   showError(''); grid.innerHTML = ''; repoInfo.style.display = 'none';
   popularRepos.style.display = 'none';
+  const landingEl = document.getElementById('landing-section');
+  if (landingEl) landingEl.style.display = 'none';
   loading.style.display = 'block'; btn.disabled = true;
   try {
     loading.innerHTML = `<div style="text-align:center;padding:60px 20px">
@@ -1017,7 +1064,7 @@ function renderRepoInfo(owner, repo) {
   // Sign-in nudge for logged-out users
   let authNudge = '';
   if (!_currentUser) {
-    authNudge = `<div class="auth-nudge"><span class="auth-nudge-icon">&#x1f512;</span> Sign in to save your cards</div>`;
+    authNudge = `<div class="auth-nudge"><span class="auth-nudge-icon">&#x1f512;</span> Sign up to save your cards and get <strong>10 free packs</strong></div>`;
   }
 
   // Achievement panel for logged-in users
@@ -1189,7 +1236,7 @@ function renderRepoInfo(owner, repo) {
     ${authNudge}
     <div class="repo-action-row">
       <div class="action-buttons">
-        <button class="btn-secondary" id="open-pack-btn" ${total === 0 ? 'disabled' : ''} ${_currentUser && packState && ((packState.bonusPacks || 0) + packState.readyPacks) <= 0 ? 'disabled' : ''} ${!_currentUser && localStorage.getItem('gp_guest_limit_reached') ? 'disabled' : ''}>${!_currentUser && localStorage.getItem('gp_guest_limit_reached') ? 'Sign In to Open Packs' : 'Open Pack'}</button>
+        <button class="btn-secondary" id="open-pack-btn" ${total === 0 ? 'disabled' : ''} ${_currentUser && packState && ((packState.bonusPacks || 0) + packState.readyPacks) <= 0 ? 'disabled' : ''} ${!_currentUser && localStorage.getItem('gp_guest_limit_reached') ? '' : ''}>${!_currentUser && localStorage.getItem('gp_guest_limit_reached') ? 'Sign Up for 10 Free Packs' : 'Open Pack'}</button>
         ${packHTML}
       </div>
     </div>
@@ -1291,7 +1338,13 @@ function renderRepoInfo(owner, repo) {
 
   // Wire up open pack button
   const openPackBtn = document.getElementById('open-pack-btn');
-  if (openPackBtn) openPackBtn.addEventListener('click', () => openPack());
+  if (openPackBtn) {
+    if (!_currentUser && localStorage.getItem('gp_guest_limit_reached')) {
+      openPackBtn.addEventListener('click', () => { if (window.__gpLogin) window.__gpLogin(); });
+    } else {
+      openPackBtn.addEventListener('click', () => openPack());
+    }
+  }
 
   // Wire up revert all duplicates button
   const revertAllBtn = document.getElementById('revert-all-btn');
@@ -1403,7 +1456,7 @@ async function openPack() {
   overlay.className = 'pack-overlay';
 
   // Sign-in banner for logged-out users — persistent across all pack stages
-  const packAuthBanner = !_currentUser ? `<div class="pack-auth-banner"><span class="pack-auth-banner-icon">&#x1f512;</span> Sign in to save your cards <button class="login-btn pack-auth-banner-btn" id="pack-sign-in-btn"><svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg> Sign In</button></div>` : '';
+  const packAuthBanner = !_currentUser ? `<div class="pack-auth-banner"><span class="pack-auth-banner-icon">&#x1f512;</span> Sign up for 10 free packs <button class="login-btn pack-auth-banner-btn" id="pack-sign-in-btn"><svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg> Sign Up</button></div>` : '';
 
   const oddsHTML = getPackOddsHTML();
 
@@ -1744,6 +1797,10 @@ function revealCards(overlay, picks, onComplete) {
           const limitReached = localStorage.getItem('gp_guest_limit_reached');
           if (limitReached || guestPacksRemaining <= 0) {
             hasMorePacks = false;
+            // Replace "View Library" with sign-up CTA for guests
+            doneBtn.textContent = 'Sign Up for 10 Free Packs';
+            doneBtn.className = 'reveal-done-btn reveal-signup-btn';
+            doneBtn.onclick = () => { if (window.__gpLogin) window.__gpLogin(); };
           } else {
             anotherBtn.textContent = `Open Another (${guestPacksRemaining})`;
           }
@@ -2224,6 +2281,8 @@ function newRepo(skipHistory) {
   repoInfo.style.display = 'none';
   searchContainer.style.display = '';
   popularRepos.style.display = '';
+  const landingElRestore = document.getElementById('landing-section');
+  if (landingElRestore) landingElRestore.style.display = '';
   document.getElementById('gallery-screen').classList.remove('repo-loaded');
   input.value = '';
   input.focus();
