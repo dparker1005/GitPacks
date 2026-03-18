@@ -61,8 +61,7 @@ function buildOgSvg(): string {
         <stop offset="100%" stop-color="#0a0a1a" />
       </linearGradient>
       <linearGradient id="title-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="#ff6ec7" />
-        <stop offset="50%" stop-color="#7873f5" />
+        <stop offset="0%" stop-color="#7873f5" />
         <stop offset="100%" stop-color="#4adede" />
       </linearGradient>
       <linearGradient id="accent-grad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -85,7 +84,7 @@ function buildOgSvg(): string {
     <rect width="${W}" height="${H}" fill="url(#glow2)" />
 
     <!-- Logo icon (stacked cards) -->
-    <g transform="translate(${W / 2 - 170}, 100)">
+    <g transform="translate(${W / 2 - 260}, 95)">
       <rect x="0" y="0" width="36" height="52" rx="6" fill="none" stroke="url(#accent-grad)" stroke-width="2" opacity="0.3" transform="rotate(-6 18 26)" />
       <rect x="8" y="2" width="36" height="52" rx="6" fill="none" stroke="url(#accent-grad)" stroke-width="2" opacity="0.6" transform="rotate(3 26 28)" />
       <rect x="4" y="1" width="36" height="52" rx="6" fill="none" stroke="url(#accent-grad)" stroke-width="2.5" />
@@ -93,10 +92,10 @@ function buildOgSvg(): string {
     </g>
 
     <!-- Title -->
-    <text x="${W / 2 + 20}" y="148" font-family="Orbitron" font-size="64" font-weight="900" fill="url(#title-grad)" text-anchor="middle" letter-spacing="4">GITPACKS</text>
+    <text x="${W / 2}" y="148" font-family="Orbitron" font-size="64" font-weight="900" fill="url(#title-grad)" text-anchor="middle" letter-spacing="4">GITPACKS</text>
 
     <!-- Beta tag -->
-    <g transform="translate(${W / 2 + 210}, 120)">
+    <g transform="translate(${W / 2 + 270}, 118)">
       <rect width="52" height="18" rx="4" fill="rgba(120,115,245,0.15)" stroke="rgba(120,115,245,0.3)" stroke-width="1" />
       <text x="26" y="13" font-family="Orbitron" font-size="7" font-weight="700" fill="#7873f5" text-anchor="middle" letter-spacing="2">BETA</text>
     </g>
