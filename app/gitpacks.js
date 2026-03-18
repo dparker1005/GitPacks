@@ -761,27 +761,54 @@ async function loadReferralInfo() {
   } catch { /* silent */ }
 }
 
-async function tradeStarsForPack() {
+function showTradeStarsOverlay() {
+  if (!_currentUser || !currentRepoName || starBalance < 100) return;
+  const available = Math.floor(starBalance / 100);
+  const overlay = document.createElement('div');
+  overlay.className = 'trade-overlay';
+  overlay.innerHTML = `<div class="trade-content">
+    <div class="trade-title">Trade Stars for Packs</div>
+    <div class="trade-desc">&starf; ${starBalance} available &mdash; 100 &starf; per pack</div>
+    <div class="trade-buttons">
+      <button class="btn-primary trade-confirm-one">Trade 1 Pack (100 &starf;)</button>
+      ${available > 1 ? `<button class="btn-primary trade-confirm-all">Trade All ${available} Packs (${available * 100} &starf;)</button>` : ''}
+      <button class="btn-secondary trade-confirm-cancel">Cancel</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.trade-confirm-cancel').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('.trade-confirm-one').addEventListener('click', () => { overlay.remove(); executeStarTrade(1); });
+  const allBtn = overlay.querySelector('.trade-confirm-all');
+  if (allBtn) allBtn.addEventListener('click', () => { overlay.remove(); executeStarTrade(available); });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+async function executeStarTrade(count) {
   if (!_currentUser || !currentRepoName || starBalance < 100) return;
   const btn = document.getElementById('trade-stars-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Trading...'; }
+  if (btn) { btn.disabled = true; btn.textContent = `Trading ${count > 1 ? '1/' + count : ''}...`; }
+  let traded = 0;
   try {
-    const res = await fetch('/api/recycling/trade-for-pack', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ owner_repo: currentRepoName }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      starBalance = data.newBalance;
-      if (packState) packState.bonusPacks = data.newBonusPacks;
-      renderTopBarPacks();
-      renderRepoInfoFromCurrent();
-    } else {
-      if (btn) { btn.disabled = false; btn.textContent = 'Not enough stars'; }
+    for (let i = 0; i < count; i++) {
+      if (starBalance < 100) break;
+      const res = await fetch('/api/recycling/trade-for-pack', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner_repo: currentRepoName }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        traded++;
+        starBalance = data.newBalance;
+        if (packState) packState.bonusPacks = data.newBonusPacks;
+        if (btn && count > 1) btn.textContent = `Trading ${traded + 1}/${count}...`;
+      } else { break; }
     }
+    renderTopBarPacks();
+    renderRepoInfoFromCurrent();
   } catch {
-    if (btn) { btn.disabled = false; }
+    if (traded > 0) { renderTopBarPacks(); renderRepoInfoFromCurrent(); }
+    else if (btn) { btn.disabled = false; }
   }
 }
 
@@ -1274,7 +1301,7 @@ function renderRepoInfo(owner, repo) {
 
   // Wire up trade stars for pack button
   const tradeBtn = document.getElementById('trade-stars-btn');
-  if (tradeBtn) tradeBtn.addEventListener('click', () => tradeStarsForPack());
+  if (tradeBtn) tradeBtn.addEventListener('click', () => showTradeStarsOverlay());
 
   // Wire up search input
   const searchInput = document.getElementById('card-search');

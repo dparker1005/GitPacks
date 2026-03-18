@@ -998,6 +998,17 @@
     .revert-confirm-btn:hover { background:rgba(239,68,68,0.35) !important; }
     .revert-cancel-btn { color:#888 !important; }
 
+    /* Trade stars overlay */
+    .trade-overlay { position:fixed; inset:0; z-index:9500; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.92); backdrop-filter:blur(12px); animation:fadeIn 0.3s ease; }
+    .trade-content { text-align:center; max-width:380px; padding:40px 30px; }
+    .trade-title { font-family:'Orbitron',sans-serif; font-size:1.2rem; font-weight:900; letter-spacing:2px; text-transform:uppercase; background:linear-gradient(135deg,#ffd700,#4adede); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:16px; }
+    .trade-desc { font-family:'Rajdhani',sans-serif; font-size:0.95rem; color:#888; margin-bottom:24px; }
+    .trade-buttons { display:flex; flex-direction:column; gap:10px; }
+    .trade-buttons .btn-primary { background:rgba(120,115,245,0.15); border:1px solid rgba(120,115,245,0.4); color:#a78bfa; font-family:'Orbitron',sans-serif; font-size:0.65rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:12px 20px; border-radius:8px; cursor:pointer; transition:all 0.2s; }
+    .trade-buttons .btn-primary:hover { background:rgba(120,115,245,0.25); border-color:#7873f5; color:#c4b5fd; }
+    .trade-buttons .btn-secondary { background:none; border:1px solid #3a3a5a; color:#888; font-family:'Orbitron',sans-serif; font-size:0.6rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:10px 20px; border-radius:8px; cursor:pointer; transition:all 0.2s; }
+    .trade-buttons .btn-secondary:hover { border-color:#555; color:#aaa; }
+
     /* ===== Profile Page ===== */
     .profile-page { max-width:800px; margin:0 auto; padding:40px 20px 60px; min-height:100vh; }
     .profile-loading, .profile-error { text-align:center; padding:80px 20px; color:#888; font-family:'Rajdhani',sans-serif; font-size:1.1rem; }
