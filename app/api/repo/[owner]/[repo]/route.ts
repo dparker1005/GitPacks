@@ -288,7 +288,7 @@ function processAllContributors(
       firstCommitTs = Infinity;
     const recentWindow = Math.min(52, Math.ceil(weeks.length / 2));
     const recTh = weeks.length - recentWindow;
-    const inactiveWindow = Math.max(52, Math.ceil(weeks.length / 3));
+    const inactiveWindow = Math.max(52, Math.ceil(weeks.length / 2));
     const inactiveTh = weeks.length - inactiveWindow;
     let inactiveRecent = 0;
     weeks.forEach((w: any, i: number) => {
