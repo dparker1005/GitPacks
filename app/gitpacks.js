@@ -709,6 +709,10 @@ async function loadLandingCards(repoName) {
     const contributors = await res.json();
     if (!Array.isArray(contributors) || _landingActiveRepo !== repoName) return;
 
+    // Update card count on the featured repo button (for repos added via URL with unknown count)
+    const repoBtn = document.querySelector(`.featured-repo-btn[data-repo="${repoName}"] .featured-repo-cards`);
+    if (repoBtn) repoBtn.textContent = `${contributors.length} cards`;
+
     // Pick top contributor from each rarity
     const picks = {};
     for (const rarity of LANDING_RARITY_ORDER) {
