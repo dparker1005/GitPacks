@@ -226,7 +226,7 @@ function startPackCountdown() {
 }
 
 // ===== POPULAR REPOS =====
-async function loadPopularRepos() {
+async function loadPopularRepos(featuredRepo) {
   popularRepos.innerHTML = `<div style="text-align:center;padding:60px 20px"><div class="spinner"></div></div>`;
   try {
     // Fetch popular repos and user repos in parallel (with client cache)
@@ -416,6 +416,16 @@ async function loadPopularRepos() {
       const featuredEl = document.getElementById('featured-repos');
       if (featuredEl) {
         const topRepos = otherRepos.slice(0, 8);
+        // If a featured repo was requested via URL, ensure it's in the list
+        if (featuredRepo) {
+          const existing = topRepos.find(r => r.name.toLowerCase() === featuredRepo.toLowerCase());
+          if (existing) {
+            featuredRepo = existing.name; // use canonical casing
+          } else {
+            topRepos.unshift({ name: featuredRepo, cards: '?' });
+            topRepos.pop(); // keep list at 8
+          }
+        }
         if (topRepos.length) {
           featuredEl.innerHTML = `<p class="featured-repos-label">Every public GitHub repo has cards. Preview a few:</p><div class="featured-repos-grid">${topRepos.map(r =>
             `<button class="featured-repo-btn" data-repo="${r.name}">
@@ -426,8 +436,9 @@ async function loadPopularRepos() {
           featuredEl.querySelectorAll('.featured-repo-btn').forEach(b => {
             b.addEventListener('click', () => selectFeaturedRepo(b.dataset.repo));
           });
-          // Auto-select first repo
-          selectFeaturedRepo(topRepos[0].name);
+          // Auto-select featured repo from URL, or first in list
+          const defaultRepo = featuredRepo || topRepos[0].name;
+          selectFeaturedRepo(defaultRepo);
         }
       }
     }
@@ -1040,6 +1051,9 @@ if (urlRepo && !_currentUser && urlCard) {
   // Logged-out user with shared card link — show lightweight card overlay
   showSharedCardOverlay(urlRepo, urlCard);
   loadPopularRepos();
+} else if (urlRepo && !_currentUser && !urlCard) {
+  // Logged-out user with repo link — show landing with that repo's cards featured
+  loadPopularRepos(urlRepo);
 } else if (urlRepo && _currentUser) {
   // Logged-in user with URL param — load popular repos first (creates input), then load repo
   loadPopularRepos().then(() => {
