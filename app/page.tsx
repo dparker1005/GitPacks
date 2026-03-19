@@ -16,7 +16,7 @@ export default function Home() {
 
   // Store referral code from URL on first visit
   useEffect(() => {
-    const ref = new URLSearchParams(window.location.search).get('ref');
+    const ref = new URLSearchParams(window.location.search).get('gpref');
     if (ref) localStorage.setItem('gp_ref', ref);
     if (ref || localStorage.getItem('gp_ref')) setHasReferral(true);
   }, []);
@@ -67,7 +67,7 @@ export default function Home() {
     const supabase = getSupabaseBrowser();
     const ref = localStorage.getItem('gp_ref');
     const callbackUrl = ref
-      ? `${window.location.origin}/auth/callback?ref=${encodeURIComponent(ref)}`
+      ? `${window.location.origin}/auth/callback?gpref=${encodeURIComponent(ref)}`
       : `${window.location.origin}/auth/callback`;
     supabase.auth.signInWithOAuth({
       provider: 'github',

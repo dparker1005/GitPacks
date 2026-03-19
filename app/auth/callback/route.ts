@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         }, { onConflict: 'id', ignoreDuplicates: true });
 
         // Process referral for new users only
-        const ref = searchParams.get('ref');
+        const ref = searchParams.get('gpref');
         if (isNewUser && ref) {
           await supabase.rpc('process_referral', {
             p_new_user_id: user.id,

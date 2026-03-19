@@ -78,13 +78,13 @@ function invalidateCardCaches() {
 }
 
 // Store referral code from URL (belt and suspenders with page.tsx)
-const _urlRef = new URLSearchParams(window.location.search).get('ref');
+const _urlRef = new URLSearchParams(window.location.search).get('gpref');
 if (_urlRef) localStorage.setItem('gp_ref', _urlRef);
 
 function getReferralUrl(baseUrl) {
   if (_currentUser) {
     const sep = baseUrl.includes('?') ? '&' : '?';
-    return baseUrl + sep + 'ref=' + encodeURIComponent(_currentUser.username);
+    return baseUrl + sep + 'gpref=' + encodeURIComponent(_currentUser.username);
   }
   return baseUrl;
 }
