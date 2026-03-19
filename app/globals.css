@@ -70,7 +70,7 @@
     .popular-repo-pct { font-size:0.75rem; color:#999; font-family:'Orbitron',sans-serif; letter-spacing:1px; }
 
     /* === DASHBOARD (logged-in homepage) === */
-    .dashboard { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:24px; max-width:1100px; margin:0 auto; padding:0 20px; }
+    .dashboard { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:400px 400px; gap:24px; max-width:1100px; margin:0 auto; padding:0 20px; }
     .dash-quad { border:1px solid rgba(120,115,245,0.15); border-radius:14px; padding:20px; min-width:0; overflow:hidden; display:flex; flex-direction:column; }
     .dash-quad .popular-title { text-align:left; margin-bottom:12px; }
     .dash-quad .dash-scroll { flex:1; overflow-y:auto; scrollbar-width:thin; scrollbar-color:rgba(120,115,245,0.3) transparent; }
