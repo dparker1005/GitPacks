@@ -139,7 +139,7 @@ document.getElementById('share-btn').addEventListener('click', () => shareRepo()
 
 if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') loadRepo(); });
 
-function quickLoad(repo) { input.value = repo; loadRepo(true); }
+function quickLoad(repo) { if (input) input.value = repo; loadRepo(true, repo); }
 
 // ===== PACK STATE =====
 // Show skeleton while pack state loads
@@ -2447,8 +2447,7 @@ function newRepo(skipHistory) {
   const landingElRestore = document.getElementById('landing-section');
   if (landingElRestore) landingElRestore.style.display = '';
   document.getElementById('gallery-screen').classList.remove('repo-loaded');
-  input.value = '';
-  input.focus();
+  if (input) { input.value = ''; input.focus(); }
   if (!skipHistory) history.pushState(null, '', window.location.pathname);
   loadPopularRepos();
 }
@@ -2548,7 +2547,8 @@ function renderLibrary() {
 }
 
 function renderRepoInfoFromCurrent() {
-  const parts = input.value.trim().replace(/^https?:\/\/github\.com\//, '').match(/^([^/]+)\/([^/]+)/);
+  if (!currentRepoName) return;
+  const parts = currentRepoName.match(/^([^/]+)\/([^/]+)/);
   if (parts) renderRepoInfo(parts[1], parts[2]);
 }
 
