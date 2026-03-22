@@ -5,7 +5,8 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-const MAX_CACHE_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days hard max
+const CACHE_TTL = 72 * 60 * 60 * 1000; // 72 hours — skip smart check if younger
+const MAX_CACHE_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days hard max — always refresh
 
 function getGitHubHeaders(): Record<string, string> {
   const token = process.env.GITHUB_TOKEN;
@@ -75,7 +76,10 @@ export async function getCachedRepo(ownerRepo: string): Promise<any | null> {
   // Hard max — always refresh after 7 days
   if (age >= MAX_CACHE_AGE) return null;
 
-  // Smart check: see if repo actually changed (2 API calls)
+  // Fresh enough — serve without checking GitHub at all (0 API calls)
+  if (age < CACHE_TTL) return data.data;
+
+  // Between 72h and 7d — smart check: see if repo actually changed (2 API calls)
   const { changed, commitSha, issueNumber } = await hasRepoChanged(
     ownerRepo,
     data.last_commit_sha,
