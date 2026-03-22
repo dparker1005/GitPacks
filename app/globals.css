@@ -1281,7 +1281,7 @@
     .sprint-lineup-total { display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding:8px 12px; border-radius:8px; border:1px solid rgba(74,222,222,0.2); background:linear-gradient(135deg,rgba(120,115,245,0.06),rgba(74,222,222,0.06)); }
     .sprint-total-label { font-family:'Orbitron',sans-serif; font-size:0.6rem; font-weight:700; color:#888; letter-spacing:2px; text-transform:uppercase; }
     .sprint-total-value { font-family:'Orbitron',sans-serif; font-size:1rem; font-weight:900; background:linear-gradient(135deg,#7873f5,#4adede); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-    .sprint-total-max { font-size:0.6rem; font-weight:700; color:#666; -webkit-text-fill-color:#666; }
+    .sprint-total-max { font-family:'Rajdhani',sans-serif; font-size:0.8rem; font-weight:600; color:#888; -webkit-text-fill-color:#888; }
 
     .sprint-commit-btn { display:block; width:100%; padding:10px 16px; margin-top:10px; border:none; border-radius:8px; background:linear-gradient(135deg,#7873f5,#4adede); color:#fff; font-family:'Orbitron',sans-serif; font-size:0.7rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; transition:all 0.2s; }
     .sprint-commit-btn:hover { transform:translateY(-1px); box-shadow:0 4px 16px rgba(120,115,245,0.4); }
