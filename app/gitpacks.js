@@ -1023,7 +1023,10 @@ function renderSprints(section, data) {
     return;
   }
 
-  function sprintCardHTML(sprint, label) {
+  const maxDaily = 4;
+  const maxWeekly = 12;
+
+  function sprintCardHTML(sprint, label, maxPacks) {
     if (!sprint) {
       return `<div class="sprint-card sprint-card-empty">
         <div class="sprint-card-label">${label}</div>
@@ -1034,15 +1037,18 @@ function renderSprints(section, data) {
     const repoName = `${sprint.repoOwner}/${sprint.repoName}`;
     const hasEntry = sprint.myEntry && sprint.myEntry.committedAt;
     const power = hasEntry ? sprint.myEntry.totalPower : 0;
-    const statusText = hasEntry ? `${power} PWR` : 'Not entered';
+    const statusText = hasEntry ? `Committed &middot; ${power} PWR` : 'Not entered';
     const statusClass = hasEntry ? 'sprint-committed' : 'sprint-not-entered';
     const endsAt = new Date(sprint.endsAt).getTime();
     const remaining = endsAt - Date.now();
     const timeText = remaining > 0 ? formatSprintTime(remaining) : 'Ending...';
 
     return `<div class="sprint-card">
-      <div class="sprint-card-label">${label}</div>
-      <button class="sprint-card-repo" data-sprint-repo="${repoName}">${repoName}</button>
+      <div class="sprint-card-top">
+        <div class="sprint-card-label">${label}</div>
+        <span class="sprint-card-packs">Win up to ${maxPacks} packs</span>
+      </div>
+      <button class="sprint-card-repo" data-sprint-repo="${repoName}">${repoName} &rarr;</button>
       <div class="sprint-card-details">
         <span class="${statusClass}">${statusText}</span>
         <span class="sprint-separator">&middot;</span>
@@ -1063,9 +1069,15 @@ function renderSprints(section, data) {
       ${unclaimedBadge}
       <button class="sprint-past-btn" id="sprint-past-btn">Past Sprints</button>
     </div>
-    <div class="sprints-cards">
-      ${sprintCardHTML(daily, 'Daily Sprint')}
-      ${sprintCardHTML(weekly, 'Weekly Sprint')}
+    <div class="sprints-layout">
+      <div class="sprints-info">
+        <div class="sprints-desc">Open packs on the featured repo, build your best 5-card lineup, and compete for bonus packs.</div>
+        <div class="sprints-how">Your top card from each rarity is auto-selected. Commit your lineup before time runs out!</div>
+      </div>
+      <div class="sprints-cards">
+        ${sprintCardHTML(daily, 'Daily Sprint', maxDaily)}
+        ${sprintCardHTML(weekly, 'Weekly Sprint', maxWeekly)}
+      </div>
     </div>
   </div>`;
 
