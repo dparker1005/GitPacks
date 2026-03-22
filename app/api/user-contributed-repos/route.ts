@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
 import { supabase as anonSupabase } from '@/app/lib/repo-cache';
 
+const EVENTS_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
 export async function GET() {
   const supabase = await getSupabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
@@ -49,24 +51,58 @@ export async function GET() {
       }
     }
 
-    // Source 2: GitHub events API for recent activity (catches uncached repos)
+    // Source 2: GitHub events API — check DB cache first to avoid 3 API calls
     const repoSet = new Set<string>();
 
-    for (let page = 1; page <= 3; page++) {
-      const res = await fetch(
-        `https://api.github.com/users/${username}/events/public?per_page=100&page=${page}`,
-        { headers }
-      );
-      if (!res.ok) break;
-      const events = await res.json();
-      if (!events.length) break;
+    const { data: eventsCache } = await supabase
+      .from('user_contributed_repos_cache')
+      .select('repo_names, last_fetched_at')
+      .eq('user_id', user.id)
+      .single();
 
-      for (const event of events) {
-        const repo = event.repo;
-        if (!repo?.name) continue;
-        if (seenNames.has(repo.name.toLowerCase())) continue;
-        repoSet.add(repo.name);
+    const cacheAge = eventsCache?.last_fetched_at
+      ? Date.now() - new Date(eventsCache.last_fetched_at).getTime()
+      : Infinity;
+
+    if (eventsCache && cacheAge < EVENTS_CACHE_TTL) {
+      // Use cached event repos
+      for (const name of eventsCache.repo_names) {
+        if (!seenNames.has(name.toLowerCase())) {
+          repoSet.add(name);
+        }
       }
+    } else {
+      // Fetch fresh from GitHub events API (3 pages)
+      const allEventRepos: string[] = [];
+
+      for (let page = 1; page <= 3; page++) {
+        const res = await fetch(
+          `https://api.github.com/users/${username}/events/public?per_page=100&page=${page}`,
+          { headers }
+        );
+        if (!res.ok) break;
+        const events = await res.json();
+        if (!events.length) break;
+
+        for (const event of events) {
+          const repo = event.repo;
+          if (!repo?.name) continue;
+          allEventRepos.push(repo.name);
+          if (!seenNames.has(repo.name.toLowerCase())) {
+            repoSet.add(repo.name);
+          }
+        }
+      }
+
+      // Cache the discovered repos for next time
+      const uniqueRepos = [...new Set(allEventRepos)];
+      await supabase
+        .from('user_contributed_repos_cache')
+        .upsert({
+          user_id: user.id,
+          repo_names: uniqueRepos,
+          last_fetched_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
     }
 
     // Check which uncached repos already exist in repo_cache (avoid GitHub API calls)
