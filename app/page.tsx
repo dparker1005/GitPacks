@@ -156,6 +156,66 @@ export default function Home() {
             <p className="landing-cta-sub">Start with <strong>10 packs</strong> to open</p>
             <p className="landing-cta-sub landing-cta-sub2">Contribute to a repo? <strong>You get your own card.</strong></p>
           </div>
+
+          <div className="landing-how">
+            <h2 className="landing-section-title">How It Works</h2>
+            <div className="landing-steps">
+              <div className="landing-step">
+                <div className="landing-step-num">1</div>
+                <div className="landing-step-text">
+                  <h3>Pick any GitHub repo</h3>
+                  <p>Every contributor becomes a collectible card with unique stats, rarity, and power.</p>
+                </div>
+              </div>
+              <div className="landing-step">
+                <div className="landing-step-num">2</div>
+                <div className="landing-step-text">
+                  <h3>Open packs</h3>
+                  <p>Rip open 5-card packs to build your collection. Packs regenerate every 12 hours or earn bonus packs from daily tasks.</p>
+                </div>
+              </div>
+              <div className="landing-step">
+                <div className="landing-step-num">3</div>
+                <div className="landing-step-text">
+                  <h3>Complete the set</h3>
+                  <p>Collect every contributor in a repo for a 1.5x score bonus. Recycle duplicates into stars and cherry-pick the cards you need.</p>
+                </div>
+              </div>
+              <div className="landing-step">
+                <div className="landing-step-num">4</div>
+                <div className="landing-step-text">
+                  <h3>Compete in Sprints</h3>
+                  <p>Daily and weekly competitions on featured repos. Build your best 5-card lineup and compete for bonus packs.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="landing-features">
+            <h2 className="landing-section-title">Every Card Tells a Story</h2>
+            <div className="landing-features-grid">
+              <div className="landing-feature">
+                <div className="landing-feature-icon">&#x2728;</div>
+                <h3>5 Rarity Tiers</h3>
+                <p>Common, Rare, Epic, Legendary, and Mythic. Top contributors get the rarest cards.</p>
+              </div>
+              <div className="landing-feature">
+                <div className="landing-feature-icon">&#x26A1;</div>
+                <h3>Real Stats</h3>
+                <p>Commits, PRs merged, issues, streak, consistency. Every stat is pulled from real GitHub activity.</p>
+              </div>
+              <div className="landing-feature">
+                <div className="landing-feature-icon">&#x1F3C6;</div>
+                <h3>Global Leaderboard</h3>
+                <p>Earn points for every card you collect. Complete sets for bonus multipliers. Climb the ranks.</p>
+              </div>
+              <div className="landing-feature">
+                <div className="landing-feature-icon">&#x1F4AB;</div>
+                <h3>Your Own Card</h3>
+                <p>Contribute to a repo and you become a card in the set. See your stats, rarity, and power level.</p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       <div id="popular-repos"></div>

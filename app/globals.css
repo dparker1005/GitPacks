@@ -1289,6 +1289,29 @@
 
     .sprint-committed-msg { font-family:'Rajdhani',sans-serif; font-size:0.78rem; color:#4ade80; text-align:center; margin-top:6px; }
 
+    /* ===== LANDING PAGE: HOW IT WORKS + FEATURES ===== */
+    .landing-how { margin-top:60px; max-width:600px; margin-left:auto; margin-right:auto; }
+    .landing-section-title { font-family:'Orbitron',sans-serif; font-size:0.8rem; font-weight:700; color:#e0e0e0; letter-spacing:3px; text-transform:uppercase; text-align:center; margin-bottom:28px; background:linear-gradient(135deg,#7873f5,#4adede); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .landing-steps { display:flex; flex-direction:column; gap:20px; }
+    .landing-step { display:flex; align-items:flex-start; gap:16px; text-align:left; }
+    .landing-step-num { font-family:'Orbitron',sans-serif; font-size:0.85rem; font-weight:900; width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,rgba(120,115,245,0.15),rgba(74,222,222,0.15)); border:1px solid rgba(120,115,245,0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#7873f5; }
+    .landing-step-text h3 { font-family:'Orbitron',sans-serif; font-size:0.7rem; font-weight:700; color:#e0e0e0; letter-spacing:1px; text-transform:uppercase; margin:0 0 4px; }
+    .landing-step-text p { font-family:'Rajdhani',sans-serif; font-size:0.88rem; color:#999; margin:0; line-height:1.4; }
+
+    .landing-features { margin-top:60px; max-width:700px; margin-left:auto; margin-right:auto; padding-bottom:40px; }
+    .landing-features-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .landing-feature { background:rgba(255,255,255,0.03); border:1px solid rgba(120,115,245,0.12); border-radius:12px; padding:20px; text-align:left; transition:border-color 0.3s; }
+    .landing-feature:hover { border-color:rgba(120,115,245,0.3); }
+    .landing-feature-icon { font-size:1.4rem; margin-bottom:8px; }
+    .landing-feature h3 { font-family:'Orbitron',sans-serif; font-size:0.6rem; font-weight:700; color:#e0e0e0; letter-spacing:1.5px; text-transform:uppercase; margin:0 0 6px; }
+    .landing-feature p { font-family:'Rajdhani',sans-serif; font-size:0.82rem; color:#888; margin:0; line-height:1.4; }
+
+    @media (max-width:600px) {
+      .landing-features-grid { grid-template-columns:1fr; }
+      .landing-how { padding:0 12px; }
+      .landing-features { padding:0 12px 40px; }
+    }
+
     .sprint-card-rarity { font-family:'Orbitron',sans-serif; font-size:0.45rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:1px 5px; border-radius:3px; border:1px solid; vertical-align:middle; position:relative; top:-1px; margin-left:4px; }
 
     .sprint-packs-tooltip-wrap { position:relative; cursor:help; }
