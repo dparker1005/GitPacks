@@ -1260,13 +1260,14 @@
 
 
     /* ===== SPRINT REPO PANEL (in repo view) ===== */
-    .sprint-repo-panel { padding:12px 0; }
+    .sprint-repo-panel { border:1px solid rgba(120,115,245,0.2); border-radius:12px; padding:16px 18px; background:rgba(15,15,35,0.6); }
     .sprint-repo-header { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
     .sprint-type-badge { font-family:'Orbitron',sans-serif; font-size:0.55rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; padding:3px 8px; border-radius:4px; }
     .sprint-type-badge.daily { color:#4adede; background:rgba(74,222,222,0.15); border:1px solid rgba(74,222,222,0.3); }
     .sprint-type-badge.weekly { color:#ff6ec7; background:rgba(255,110,199,0.15); border:1px solid rgba(255,110,199,0.3); }
-    .sprint-repo-timer { font-family:'Rajdhani',sans-serif; font-size:0.78rem; color:#bbb; }
-    .sprint-repo-participants { font-family:'Rajdhani',sans-serif; font-size:0.78rem; color:#aaa; margin-left:auto; }
+    .sprint-repo-meta { display:flex; align-items:center; gap:6px; margin-bottom:12px; font-family:'Rajdhani',sans-serif; font-size:0.78rem; color:#aaa; }
+    .sprint-repo-timer { color:#bbb; }
+    .sprint-repo-participants { }
 
     .sprint-lineup { display:flex; flex-direction:column; gap:4px; }
     .sprint-lineup-slot { display:flex; align-items:center; gap:8px; padding:6px 10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:6px; }

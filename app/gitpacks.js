@@ -1052,7 +1052,7 @@ function renderSprints(section, data) {
       <div class="sprint-card-details">
         <span class="${statusClass}">${statusText}</span>
         <span class="sprint-separator">&middot;</span>
-        <span class="sprint-participants">${sprint.participants} entered</span>
+        <span class="sprint-participants">${sprint.participants === 0 ? 'No participants yet' : sprint.participants + ' participant' + (sprint.participants !== 1 ? 's' : '')}</span>
         <span class="sprint-separator">&middot;</span>
         <span class="sprint-timer" data-sprint-ends="${sprint.endsAt}">${timeText}</span>
       </div>
@@ -1190,11 +1190,19 @@ function renderSprintPanel(sprint) {
   const remaining = endsAt - Date.now();
   const timeText = remaining > 0 ? formatSprintTime(remaining) : 'Ended';
 
+  const participantsText = sprint.participants === 0 ? 'No participants yet' : `${sprint.participants} participant${sprint.participants !== 1 ? 's' : ''}`;
+  const maxPacks = isDaily ? 4 : 12;
+
   return `<div class="sprint-repo-panel">
+    <div class="panel-desc">Open packs on this repo and compete for bonus packs. Your best card from each rarity is auto-selected into your lineup.</div>
     <div class="sprint-repo-header">
       <span class="sprint-type-badge ${sprint.type}">${typeLabel}</span>
+      <span class="sprint-card-packs">Win up to ${maxPacks} packs</span>
+    </div>
+    <div class="sprint-repo-meta">
       <span class="sprint-repo-timer">${remaining > 0 ? timeText + ' remaining' : timeText}</span>
-      <span class="sprint-repo-participants">${sprint.participants} entered</span>
+      <span class="sprint-separator">&middot;</span>
+      <span class="sprint-repo-participants">${participantsText}</span>
     </div>
     <div class="sprint-lineup">${lineupHTML}</div>
     <div class="sprint-lineup-total">
