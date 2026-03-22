@@ -1548,6 +1548,15 @@ function setFilter(rarity) {
 
 
 // ===== OPEN PACK =====
+function flashPackError(msg) {
+  const btn = document.getElementById('open-pack-btn');
+  if (!btn) return;
+  const orig = btn.textContent;
+  btn.textContent = msg;
+  btn.disabled = true;
+  setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 3000);
+}
+
 let packOpen = false;
 async function openPack() {
   if (!allContributors.length || packOpen) return;
@@ -1562,6 +1571,15 @@ async function openPack() {
   let response, data;
   try {
     response = await fetch(`/api/repo/${owner}/${repo}/pack`);
+
+    // If server cache expired (404), re-fetch repo data to repopulate it, then retry once
+    if (response.status === 404) {
+      const repoRes = await fetch(`/api/repo/${owner}/${repo}`);
+      if (repoRes.ok) {
+        allContributors = await repoRes.json();
+        response = await fetch(`/api/repo/${owner}/${repo}/pack`);
+      }
+    }
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
@@ -1578,6 +1596,8 @@ async function openPack() {
           packState = { readyPacks: 0, bonusPacks: 0, maxPacks: 2, nextRegenAt: errData.nextRegenAt };
           renderRepoInfoFromCurrent();
         }
+      } else {
+        flashPackError('Something went wrong. Try again.');
       }
       packOpen = false;
       return;
@@ -1586,6 +1606,7 @@ async function openPack() {
     data = await response.json();
   } catch (err) {
     console.error('[GHTC] openPack fetch error:', err);
+    flashPackError('Network error. Check your connection and try again.');
     packOpen = false;
     return;
   }
