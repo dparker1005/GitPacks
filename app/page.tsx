@@ -184,15 +184,15 @@ export default function Home() {
               <div className="landing-step">
                 <div className="landing-step-num">4</div>
                 <div className="landing-step-text">
-                  <h3>Climb the leaderboard</h3>
-                  <p>Earn points for every card you collect. Complete full sets for a 1.5x score bonus. See how you stack up globally.</p>
+                  <h3>Compete in Sprints</h3>
+                  <p>Daily and weekly competitions on featured repos. Build your best 5-card lineup and compete for bonus packs.</p>
                 </div>
               </div>
               <div className="landing-step">
                 <div className="landing-step-num">5</div>
                 <div className="landing-step-text">
-                  <h3>Compete in Sprints</h3>
-                  <p>Daily and weekly competitions on featured repos. Build your best 5-card lineup and compete for bonus packs.</p>
+                  <h3>Climb the leaderboard</h3>
+                  <p>Earn points for every card you collect. Complete full sets for a 1.5x score bonus. See how you stack up globally.</p>
                 </div>
               </div>
             </div>
