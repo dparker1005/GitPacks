@@ -184,6 +184,13 @@ export default function Home() {
               <div className="landing-step">
                 <div className="landing-step-num">4</div>
                 <div className="landing-step-text">
+                  <h3>Climb the leaderboard</h3>
+                  <p>Earn points for every card you collect. Complete full sets for a 1.5x score bonus. See how you stack up globally.</p>
+                </div>
+              </div>
+              <div className="landing-step">
+                <div className="landing-step-num">5</div>
+                <div className="landing-step-text">
                   <h3>Compete in Sprints</h3>
                   <p>Daily and weekly competitions on featured repos. Build your best 5-card lineup and compete for bonus packs.</p>
                 </div>
@@ -206,8 +213,8 @@ export default function Home() {
               </div>
               <div className="landing-feature">
                 <div className="landing-feature-icon">&#x1F3C6;</div>
-                <h3>Global Leaderboard</h3>
-                <p>Earn points for every card you collect. Complete sets for bonus multipliers. Climb the ranks.</p>
+                <h3>Daily Challenges</h3>
+                <p>Complete GitHub activities to earn up to 3 bonus packs per day. Push code, open PRs, review — it all counts.</p>
               </div>
               <div className="landing-feature">
                 <div className="landing-feature-icon">&#x1F4AB;</div>
