@@ -1017,6 +1017,12 @@ async function loadSprints() {
 function renderSprints(section, data) {
   const { daily, weekly, unclaimedCount = 0 } = data;
 
+  // Hide entire section if no active sprints and nothing to claim
+  if (!daily && !weekly && unclaimedCount === 0) {
+    section.innerHTML = '';
+    return;
+  }
+
   function sprintCardHTML(sprint, label) {
     if (!sprint) {
       return `<div class="sprint-card sprint-card-empty">
@@ -1066,9 +1072,9 @@ function renderSprints(section, data) {
   // Wire repo links
   section.querySelectorAll('[data-sprint-repo]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const repoName = btn.dataset.sprintRepo;
-      const [o, r] = repoName.split('/');
-      if (o && r) { input.value = repoName; loadRepo(o, r); }
+      const repo = btn.dataset.sprintRepo;
+      const [o, r] = repo.split('/');
+      if (o && r) { if (input) input.value = repo; loadRepo(o, r); }
     });
   });
 
@@ -2010,9 +2016,9 @@ function renderRepoInfo(owner, repo) {
 
       let leftCol = '';
       if (_currentUser && activeSprint) {
-        // Sprint repo: show sprint panel open, achievements locked
-        leftCol = `<details class="repo-panel-collapse" id="sprint-panel" open><summary class="repo-panel-toggle">Sprint <span class="beta-tag">BETA</span></summary>${renderSprintPanel(activeSprint)}</details>
-          <details class="repo-panel-collapse" id="achievements-panel"><summary class="repo-panel-toggle">Your Achievements <span class="panel-summary sprint-ach-locked">Disabled for sprint repos to keep competition fair</span></summary>${achievementHTML}</details>`;
+        // Sprint repo: achievements locked, sprint panel below
+        leftCol = `<details class="repo-panel-collapse" id="achievements-panel"><summary class="repo-panel-toggle">Your Achievements <span class="panel-summary sprint-ach-locked">Disabled for sprint repos to keep competition fair</span></summary>${achievementHTML}</details>
+          <details class="repo-panel-collapse" id="sprint-panel" open><summary class="repo-panel-toggle">Sprint <span class="beta-tag">BETA</span></summary>${renderSprintPanel(activeSprint)}</details>`;
       } else if (_currentUser) {
         leftCol = `<details class="repo-panel-collapse" id="achievements-panel"><summary class="repo-panel-toggle">Your Achievements</summary>${achievementHTML}</details>`;
       }

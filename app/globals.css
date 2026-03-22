@@ -1233,7 +1233,7 @@
     .sprint-unclaimed-badge { font-family:'Orbitron',sans-serif; font-size:0.55rem; font-weight:700; color:#4ade80; background:rgba(74,222,128,0.15); border:1px solid rgba(74,222,128,0.35); border-radius:4px; padding:2px 6px; cursor:pointer; animation:pulse-glow 2s ease-in-out infinite; }
     @keyframes pulse-glow { 0%,100% { box-shadow:0 0 4px rgba(74,222,128,0.2); } 50% { box-shadow:0 0 10px rgba(74,222,128,0.4); } }
 
-    .sprints-cards { display:flex; gap:10px; }
+    .sprints-cards { display:flex; flex-direction:column; gap:8px; }
     .sprint-card { flex:1; background:rgba(15,15,35,0.6); border:1px solid rgba(120,115,245,0.15); border-radius:10px; padding:10px 14px; }
     .sprint-card-empty { opacity:0.5; }
     .sprint-card-label { font-family:'Orbitron',sans-serif; font-size:0.6rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#999; margin-bottom:6px; }
@@ -1249,9 +1249,6 @@
 
     .sprint-card-skeleton { flex:1; }
 
-    @media (max-width:600px) {
-      .sprints-cards { flex-direction:column; }
-    }
 
     /* ===== SPRINT REPO PANEL (in repo view) ===== */
     .sprint-repo-panel { padding:12px 0; }
