@@ -1,9 +1,21 @@
 import { Resvg } from '@resvg/resvg-js';
 import { buildCardSvg, fetchAvatarBase64 } from '@/app/lib/card-svg';
+import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
 
 export const maxDuration = 10;
+
+const BUCKET = 'og-images';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+
+function getStorageClient() {
+  return createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+}
+
+function storagePath(owner: string, repo: string, login: string) {
+  return `cards/${owner}/${repo}/${login}.png`.toLowerCase();
+}
 
 const fontDir = path.join(process.cwd(), 'app/lib/fonts');
 const _fontTrace = [
@@ -59,6 +71,15 @@ export async function GET(
   { params }: { params: Promise<{ owner: string; repo: string; login: string }> }
 ) {
   const { owner, repo, login } = await params;
+  const filePath = storagePath(owner, repo, login);
+
+  // Check for cached image in Supabase Storage
+  const publicUrl = `${supabaseUrl}/storage/v1/object/public/${BUCKET}/${filePath}`;
+  const cached = await fetch(publicUrl, { method: 'HEAD' });
+  if (cached.ok) {
+    return Response.redirect(publicUrl, 302);
+  }
+
   const result = await getContributor(owner, repo, login);
   if (!result) return new Response('Card not found', { status: 404 });
 
@@ -111,6 +132,14 @@ export async function GET(
   const ogResvg = new Resvg(ogSvg, { fitTo: { mode: 'width', value: 1200 }, font: fontOpts });
   const ogPng = ogResvg.render();
   const pngBuffer = ogPng.asPng();
+
+  // Upload to Supabase Storage (fire-and-forget, don't block response)
+  const supabase = getStorageClient();
+  supabase.storage.from(BUCKET).upload(filePath, pngBuffer, {
+    contentType: 'image/png',
+    upsert: true,
+  }).catch(() => {});
+
   return new Response(new Uint8Array(pngBuffer), {
     headers: {
       'Content-Type': 'image/png',

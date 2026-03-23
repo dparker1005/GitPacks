@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCachedRepo, setCachedRepo } from '@/app/lib/repo-cache';
+import { invalidateOgCache } from '@/app/lib/og-cache';
 import { MIN_REPO_CONTRIBUTORS } from '@/app/lib/constants';
 import { gitHubHeaders, getGitHubToken } from '@/app/lib/github-token';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
@@ -595,6 +596,9 @@ export async function GET(
 
     // Cache result with invalidation baseline and issue stats for incremental fetching
     await setCachedRepo(cacheKey, result, commitSha, issueNumber);
+
+    // Invalidate cached OG images so they regenerate with updated card data
+    invalidateOgCache(owner, repo).catch(() => {});
 
     return NextResponse.json(result, {
       headers: { 'Cache-Control': 'public, max-age=86400, s-maxage=86400' },
