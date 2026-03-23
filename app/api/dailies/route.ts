@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
 import { getOrCreateProfile } from '@/app/lib/profile';
 import { detectGitHubEvents, getTodayUTC, getMidnightUTC, MAX_DAILY_CLAIMS } from '@/app/lib/dailies';
+import { getGitHubToken } from '@/app/lib/github-token';
 
 const CACHE_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
 
@@ -39,7 +40,8 @@ export async function GET() {
       detected = cache.detected_types;
       lastCheckedAt = cache.last_checked_at;
     } else {
-      detected = await detectGitHubEvents(profile.github_username);
+      const ghToken = await getGitHubToken(supabase, user.id);
+      detected = await detectGitHubEvents(profile.github_username, ghToken);
       lastCheckedAt = new Date().toISOString();
 
       await supabase

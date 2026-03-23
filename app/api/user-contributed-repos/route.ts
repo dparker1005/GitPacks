@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
 import { supabase as anonSupabase } from '@/app/lib/repo-cache';
+import { getGitHubToken, gitHubHeaders } from '@/app/lib/github-token';
 
 const EVENTS_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
 
@@ -24,9 +25,8 @@ export async function GET() {
 
   const username = profile.github_username;
   const usernameLower = username.toLowerCase();
-  const headers: Record<string, string> = { Accept: 'application/vnd.github+json' };
-  const token = process.env.GITHUB_TOKEN;
-  if (token) headers.Authorization = `token ${token}`;
+  const ghToken = await getGitHubToken(supabase, user.id);
+  const headers = gitHubHeaders(ghToken);
 
   try {
     // Source 1: Search cached repos where user is a contributor (fast GIN index lookup)

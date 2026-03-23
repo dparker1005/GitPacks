@@ -31,9 +31,10 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
       const { data: { user } } = await supabase.auth.getUser();
+      const providerToken = sessionData?.session?.provider_token ?? null;
       if (user) {
         const meta = user.user_metadata;
         const username = meta.user_name || meta.preferred_username || '';
@@ -55,6 +56,13 @@ export async function GET(request: NextRequest) {
           bonus_packs: 10,
           referral_code: username || undefined,
         }, { onConflict: 'id', ignoreDuplicates: true });
+
+        // Always store/refresh the GitHub token (works for new and returning users)
+        if (providerToken) {
+          await supabase.from('profiles')
+            .update({ github_token: providerToken })
+            .eq('id', user.id);
+        }
 
         // Process referral for new users only
         const ref = searchParams.get('gpref');

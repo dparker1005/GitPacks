@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
 import { getOrCreateProfile } from '@/app/lib/profile';
 import { detectGitHubEvents, getTodayUTC, getMidnightUTC, MAX_DAILY_CLAIMS } from '@/app/lib/dailies';
+import { getGitHubToken } from '@/app/lib/github-token';
 
 export async function POST() {
   try {
@@ -20,7 +21,8 @@ export async function POST() {
     const todayUTC = getTodayUTC();
 
     // Always fresh fetch on manual refresh
-    const detected = await detectGitHubEvents(profile.github_username);
+    const ghToken = await getGitHubToken(supabase, user.id);
+    const detected = await detectGitHubEvents(profile.github_username, ghToken);
     const lastCheckedAt = new Date().toISOString();
 
     await supabase

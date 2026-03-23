@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
 import { getOrCreateProfile } from '@/app/lib/profile';
 import { detectGitHubEvents, ELIGIBLE_DAILY_EVENTS } from '@/app/lib/dailies';
+import { getGitHubToken } from '@/app/lib/github-token';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,7 +31,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Always do a fresh check on claim to prevent cheating
-    const detected = await detectGitHubEvents(profile.github_username);
+    const ghToken = await getGitHubToken(supabase, user.id);
+    const detected = await detectGitHubEvents(profile.github_username, ghToken);
 
     if (!detected.includes(event_type)) {
       return NextResponse.json(

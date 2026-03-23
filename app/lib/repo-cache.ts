@@ -8,12 +8,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 const CACHE_TTL = 72 * 60 * 60 * 1000; // 72 hours — skip smart check if younger
 const MAX_CACHE_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days hard max — always refresh
 
-function getGitHubHeaders(): Record<string, string> {
-  const token = process.env.GITHUB_TOKEN;
-  return token
-    ? { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
-    : { Accept: 'application/vnd.github.v3+json' };
-}
+import { gitHubHeaders } from '@/app/lib/github-token';
 
 /**
  * Check if a repo has changed by comparing latest commit SHA and latest issue number.
@@ -22,13 +17,14 @@ function getGitHubHeaders(): Record<string, string> {
 async function hasRepoChanged(
   ownerRepo: string,
   cachedCommitSha: string | null,
-  cachedIssueNumber: number | null
+  cachedIssueNumber: number | null,
+  ghToken?: string
 ): Promise<{ changed: boolean }> {
   if (!cachedCommitSha && !cachedIssueNumber) {
     return { changed: true };
   }
 
-  const headers = getGitHubHeaders();
+  const headers = gitHubHeaders(ghToken);
   let commitSha: string | null = null;
   let issueNumber: number | null = null;
 
@@ -58,7 +54,7 @@ async function hasRepoChanged(
   return { changed: commitSha !== cachedCommitSha || issueNumber !== cachedIssueNumber };
 }
 
-export async function getCachedRepo(ownerRepo: string): Promise<any | null> {
+export async function getCachedRepo(ownerRepo: string, ghToken?: string): Promise<any | null> {
   const { data, error } = await supabase
     .from('repo_cache')
     .select('data, fetched_at, last_commit_sha, last_issue_number')
@@ -79,7 +75,8 @@ export async function getCachedRepo(ownerRepo: string): Promise<any | null> {
   const { changed } = await hasRepoChanged(
     ownerRepo,
     data.last_commit_sha,
-    data.last_issue_number
+    data.last_issue_number,
+    ghToken
   );
 
   if (!changed) {

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCachedRepo, setCachedRepo } from '@/app/lib/repo-cache';
 import { MIN_REPO_CONTRIBUTORS } from '@/app/lib/constants';
+import { gitHubHeaders, getGitHubToken } from '@/app/lib/github-token';
+import { getSupabaseServer } from '@/app/lib/supabase-server';
 
 // ===== Helpers =====
 function sleep(ms: number) {
@@ -13,14 +15,9 @@ function fmt(n: number): string {
   return n.toString();
 }
 
-function getHeaders(): Record<string, string> {
-  const token = process.env.GITHUB_TOKEN;
-  return token ? { Authorization: `token ${token}` } : {};
-}
-
 // ===== fetchWithRetry =====
-async function fetchWithRetry(url: string): Promise<any> {
-  const headers = getHeaders();
+async function fetchWithRetry(url: string, ghToken?: string): Promise<any> {
+  const headers = gitHubHeaders(ghToken);
   const maxAttempts = 4;
   const delays = [3000, 8000, 15000]; // increasing delays between retries
   for (let i = 0; i < maxAttempts; i++) {
@@ -39,8 +36,9 @@ async function fetchWithRetry(url: string): Promise<any> {
 async function fetchAllIssues(
   owner: string,
   repo: string,
+  ghToken?: string,
 ): Promise<Record<string, { prsMerged: number; issues: number; avatar: string }>> {
-  const headers = getHeaders();
+  const headers = gitHubHeaders(ghToken);
   const stats: Record<string, { prsMerged: number; issues: number; avatar: string }> = {};
 
   const ensure = (login: string, avatar: string) => {
@@ -96,8 +94,9 @@ async function fetchAllIssues(
 async function fetchPaginatedContributors(
   owner: string,
   repo: string,
+  ghToken?: string,
 ): Promise<Array<{ login: string; avatar: string; contributions: number }>> {
-  const headers = getHeaders();
+  const headers = gitHubHeaders(ghToken);
   const all: Array<{ login: string; avatar: string; contributions: number }> = [];
 
   // Fetch pages sequentially, stop when a page returns < 100 results
@@ -522,12 +521,22 @@ export async function GET(
 
   const cacheKey = `${owner}/${repo}`.toLowerCase();
 
+  // Resolve user's GitHub token for rate-limit distribution (falls back to server token)
+  let ghToken: string | undefined;
+  try {
+    const supabase = await getSupabaseServer();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      ghToken = await getGitHubToken(supabase, user.id);
+    }
+  } catch { /* anonymous request — use server token */ }
+
   // Check for refresh bypass
   const refresh = request.nextUrl.searchParams.get('refresh') === 'true';
 
   // Check cache
   if (!refresh) {
-    const cached = await getCachedRepo(cacheKey);
+    const cached = await getCachedRepo(cacheKey, ghToken);
     if (cached) {
       return NextResponse.json(cached, {
         headers: { 'Cache-Control': 'public, max-age=86400, s-maxage=86400' },
@@ -538,9 +547,9 @@ export async function GET(
   try {
     // Fetch all three data sources in parallel
     const [statsData, issueStats, extraContributors] = await Promise.all([
-      fetchWithRetry(`https://api.github.com/repos/${owner}/${repo}/stats/contributors`),
-      fetchAllIssues(owner, repo),
-      fetchPaginatedContributors(owner, repo),
+      fetchWithRetry(`https://api.github.com/repos/${owner}/${repo}/stats/contributors`, ghToken),
+      fetchAllIssues(owner, repo, ghToken),
+      fetchPaginatedContributors(owner, repo, ghToken),
     ]);
 
     if (!Array.isArray(statsData)) {
@@ -569,7 +578,7 @@ export async function GET(
     let commitSha: string | null = null;
     let issueNumber: number | null = null;
     try {
-      const ghHeaders = getHeaders();
+      const ghHeaders = gitHubHeaders(ghToken);
       const [commitRes, issueRes] = await Promise.all([
         fetch(`https://api.github.com/repos/${owner}/${repo}/commits?per_page=1`, { headers: ghHeaders }),
         fetch(`https://api.github.com/repos/${owner}/${repo}/issues?per_page=1&state=all&sort=created&direction=desc`, { headers: ghHeaders }),

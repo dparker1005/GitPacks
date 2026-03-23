@@ -18,9 +18,9 @@ export function getMidnightUTC(): string {
   return tomorrow.toISOString();
 }
 
-export async function detectGitHubEvents(username: string): Promise<string[]> {
+export async function detectGitHubEvents(username: string, ghToken?: string): Promise<string[]> {
+  const token = ghToken || process.env.GITHUB_TOKEN;
   const headers: Record<string, string> = { Accept: 'application/vnd.github+json' };
-  const token = process.env.GITHUB_TOKEN;
   if (token) headers.Authorization = `token ${token}`;
 
   const todayUTC = getTodayUTC();
