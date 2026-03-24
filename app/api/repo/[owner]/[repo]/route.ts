@@ -540,6 +540,22 @@ export async function GET(
     }
   } catch { /* anonymous request — use server token */ }
 
+  // Block forked repos — forks share contributors with the parent and are exploitable
+  try {
+    const headers = gitHubHeaders(ghToken);
+    const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+    if (repoRes.ok) {
+      const repoData = await repoRes.json();
+      if (repoData.fork) {
+        const parent = repoData.parent?.full_name;
+        return NextResponse.json(
+          { error: `This is a fork. Search for the original repo${parent ? `: ${parent}` : ''} instead.` },
+          { status: 400 }
+        );
+      }
+    }
+  } catch { /* non-critical — allow through if check fails */ }
+
   // Check for refresh bypass
   const refresh = request.nextUrl.searchParams.get('refresh') === 'true';
 
