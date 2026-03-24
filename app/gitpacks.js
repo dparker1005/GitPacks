@@ -1723,6 +1723,12 @@ async function loadRepo(fromHomepage, repoOverride) {
   const match = repoInput.match(/^([^/]+)\/([^/]+)/);
   if (!match) return showError('Enter a valid repo like owner/repo');
   const [, owner, repo] = match;
+
+  // Update URL so the page can be refreshed without retyping
+  const url = new URL(window.location);
+  url.searchParams.set('repo', `${owner}/${repo}`);
+  window.history.replaceState({}, '', url);
+
   showError(''); grid.innerHTML = ''; repoInfo.style.display = 'none';
   popularRepos.style.display = 'none';
   const landingEl = document.getElementById('landing-section');
