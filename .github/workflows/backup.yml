@@ -27,11 +27,43 @@ jobs:
             --clean \
             --if-exists \
             > "backup_${TIMESTAMP}.sql"
-          echo "BACKUP_FILE=backup_${TIMESTAMP}.sql" >> $GITHUB_ENV
+          gzip "backup_${TIMESTAMP}.sql"
+          echo "BACKUP_FILE=backup_${TIMESTAMP}.sql.gz" >> $GITHUB_ENV
 
-      - name: Upload backup artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: db-backup-${{ github.run_id }}
-          path: ${{ env.BACKUP_FILE }}
-          retention-days: 90
+      - name: Upload to Supabase Storage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          curl -s -o /dev/null -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/gzip" \
+            --data-binary @"${BACKUP_FILE}" \
+            "${SUPABASE_URL}/storage/v1/object/db-backups/${BACKUP_FILE}" \
+            | grep -q "200" && echo "Backup uploaded successfully" || { echo "Upload failed"; exit 1; }
+
+      - name: Delete backups older than 30 days
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          CUTOFF=$(date -d '30 days ago' +%Y-%m-%d 2>/dev/null || date -v-30d +%Y-%m-%d)
+          FILES=$(curl -s \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            "${SUPABASE_URL}/storage/v1/object/list/db-backups" \
+            -d '{"prefix":"","limit":1000}' \
+            -H "Content-Type: application/json")
+          OLD=$(echo "$FILES" | jq -r --arg cutoff "$CUTOFF" '.[] | select(.name < "backup_\($cutoff)") | .name')
+          if [ -n "$OLD" ]; then
+            PAYLOAD=$(echo "$OLD" | jq -R -s 'split("\n") | map(select(. != ""))')
+            curl -s -o /dev/null \
+              -X DELETE \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Content-Type: application/json" \
+              -d "{\"prefixes\": $PAYLOAD}" \
+              "${SUPABASE_URL}/storage/v1/object/db-backups"
+            echo "Deleted $(echo "$OLD" | wc -l) old backups"
+          else
+            echo "No old backups to delete"
+          fi
