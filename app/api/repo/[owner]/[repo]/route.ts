@@ -60,12 +60,12 @@ async function fetchAllIssues(
     });
   };
 
-  // Fetch pages in parallel batches of 5, up to 50 pages (5000 issues)
+  // Fetch pages in parallel batches of 10, up to 50 pages (5000 issues)
   let page = 1;
   let done = false;
   while (!done && page <= 50) {
     const batch = [];
-    for (let i = 0; i < 5 && page + i <= 50; i++) {
+    for (let i = 0; i < 10 && page + i <= 50; i++) {
       const p = page + i;
       batch.push(
         fetch(`https://api.github.com/repos/${owner}/${repo}/issues?state=all&per_page=100&page=${p}`, { headers })
@@ -86,7 +86,7 @@ async function fetchAllIssues(
       if (!r.data || !r.data.length) { done = true; break; }
       processPage(r.data);
     }
-    page += 5;
+    page += 10;
   }
 
   return stats;
@@ -100,20 +100,28 @@ async function fetchPaginatedContributors(
   const headers = gitHubHeaders(ghToken);
   const all: Array<{ login: string; avatar: string; contributions: number }> = [];
 
-  // Fetch pages sequentially, stop when a page returns < 100 results
-  for (let page = 1; page <= 10; page++) {
-    try {
-      const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contributors?per_page=100&page=${page}`, { headers });
-      if (!res.ok) break;
-      const data = await res.json();
-      if (!Array.isArray(data) || data.length === 0) break;
-      data.forEach((c: any) => {
-        if (c.login && c.type !== 'Bot') {
-          all.push({ login: c.login, avatar: c.avatar_url, contributions: c.contributions });
-        }
-      });
-      if (data.length < 100) break; // last page
-    } catch { break; }
+  // Fetch all 10 pages in parallel
+  const batch = [];
+  for (let p = 1; p <= 10; p++) {
+    batch.push(
+      fetch(`https://api.github.com/repos/${owner}/${repo}/contributors?per_page=100&page=${p}`, { headers })
+        .then(async (res) => {
+          if (!res.ok) return { page: p, data: null };
+          const data = await res.json();
+          return { page: p, data: Array.isArray(data) ? data : null };
+        })
+        .catch(() => ({ page: p, data: null }))
+    );
+  }
+  const results = await Promise.all(batch);
+  for (const r of results.sort((a, b) => a.page - b.page)) {
+    if (!r.data || r.data.length === 0) break;
+    r.data.forEach((c: any) => {
+      if (c.login && c.type !== 'Bot') {
+        all.push({ login: c.login, avatar: c.avatar_url, contributions: c.contributions });
+      }
+    });
+    if (r.data.length < 100) break; // last page
   }
   return all;
 }
