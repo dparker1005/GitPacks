@@ -32,6 +32,10 @@ export async function GET(request: NextRequest) {
     );
 
     const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code);
+    console.log('[auth callback] exchangeCode error:', error?.message ?? 'none');
+    console.log('[auth callback] session exists:', !!sessionData?.session);
+    console.log('[auth callback] provider_token:', sessionData?.session?.provider_token ? 'present' : 'missing');
+    console.log('[auth callback] session keys:', Object.keys(sessionData?.session ?? {}));
     if (!error) {
       const { data: { user } } = await supabase.auth.getUser();
       const providerToken = sessionData?.session?.provider_token ?? null;
