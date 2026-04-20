@@ -1356,6 +1356,11 @@
     .sprint-past-loading { font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:#888; text-align:center; padding:20px; }
     .sprint-past-empty { font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:#888; text-align:center; padding:20px; }
 
+    .sprint-past-tabs { display:flex; gap:6px; margin-bottom:12px; }
+    .sprint-past-tab { font-family:'Orbitron',sans-serif; font-size:0.68rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#888; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:6px 14px; cursor:pointer; transition:all 0.2s; }
+    .sprint-past-tab:hover { color:#e0e0e0; border-color:rgba(120,115,245,0.3); }
+    .sprint-past-tab.active { color:#7873f5; background:rgba(120,115,245,0.1); border-color:rgba(120,115,245,0.4); }
+
     .sprint-past-entry { border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:12px; margin-bottom:8px; background:rgba(255,255,255,0.02); }
     .sprint-past-main { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; }
     .sprint-past-info { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }

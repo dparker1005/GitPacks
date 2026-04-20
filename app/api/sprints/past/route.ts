@@ -10,77 +10,95 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
+    const typeParam = request.nextUrl.searchParams.get('type');
+    const type = typeParam === 'weekly' ? 'weekly' : 'daily';
     const limit = Math.min(parseInt(request.nextUrl.searchParams.get('limit') || '20', 10) || 20, 50);
     const offset = parseInt(request.nextUrl.searchParams.get('offset') || '0', 10) || 0;
 
-    // Get user's past sprint entries (finished sprints only — rank is set)
-    const { data: entries, error: entriesErr, count } = await supabase
-      .from('sprint_entries')
-      .select(`
-        id,
-        sprint_id,
-        total_power,
-        committed_at,
-        rank,
-        percentile,
-        packs_won,
-        packs_claimed,
-        card_common,
-        card_rare,
-        card_epic,
-        card_legendary,
-        card_mythic,
-        sprints!inner(repo_owner, repo_name, type, starts_at, ends_at)
-      `, { count: 'exact' })
-      .eq('user_id', user.id)
-      .not('rank', 'is', null)
-      .order('created_at', { ascending: false })
+    // List all finished sprints of this type (any user may or may not have participated)
+    const { data: sprints, error: sprintsErr, count } = await supabase
+      .from('sprints')
+      .select('id, repo_owner, repo_name, type, starts_at, ends_at', { count: 'exact' })
+      .eq('type', type)
+      .lt('ends_at', new Date().toISOString())
+      .order('ends_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (entriesErr) {
-      return NextResponse.json({ error: entriesErr.message }, { status: 500 });
+    if (sprintsErr) {
+      return NextResponse.json({ error: sprintsErr.message }, { status: 500 });
     }
 
-    // Get total participant counts for each sprint
-    const sprintIds = [...new Set((entries || []).map((e: any) => e.sprint_id))];
-    let participantCounts: Record<string, number> = {};
+    const sprintIds = (sprints || []).map((s: any) => s.id);
 
+    // Fetch user's entries for these sprints (if any)
+    let userEntries: Record<string, any> = {};
     if (sprintIds.length > 0) {
-      for (const sid of sprintIds) {
-        const { count } = await supabase
-          .from('sprint_entries')
-          .select('id', { count: 'exact', head: true })
-          .eq('sprint_id', sid)
-          .not('committed_at', 'is', null);
-        participantCounts[sid] = count || 0;
+      const { data: entries } = await supabase
+        .from('sprint_entries')
+        .select(`
+          id,
+          sprint_id,
+          total_power,
+          committed_at,
+          rank,
+          percentile,
+          packs_won,
+          packs_claimed,
+          card_common,
+          card_rare,
+          card_epic,
+          card_legendary,
+          card_mythic
+        `)
+        .eq('user_id', user.id)
+        .in('sprint_id', sprintIds);
+
+      for (const e of entries || []) {
+        userEntries[(e as any).sprint_id] = e;
       }
     }
 
-    const results = (entries || []).map((e: any) => ({
-      id: e.id,
-      sprintId: e.sprint_id,
-      repoOwner: e.sprints.repo_owner,
-      repoName: e.sprints.repo_name,
-      type: e.sprints.type,
-      startsAt: e.sprints.starts_at,
-      endsAt: e.sprints.ends_at,
-      totalPower: e.total_power,
-      committedAt: e.committed_at,
-      rank: e.rank,
-      percentile: e.percentile,
-      packsWon: e.packs_won,
-      packsClaimed: e.packs_claimed,
-      participants: participantCounts[e.sprint_id] || 0,
-      cardCommon: e.card_common,
-      cardRare: e.card_rare,
-      cardEpic: e.card_epic,
-      cardLegendary: e.card_legendary,
-      cardMythic: e.card_mythic,
-    }));
+    // Fetch participant counts per sprint (committed entries)
+    const participantCounts: Record<string, number> = {};
+    for (const sid of sprintIds) {
+      const { count: c } = await supabase
+        .from('sprint_entries')
+        .select('id', { count: 'exact', head: true })
+        .eq('sprint_id', sid)
+        .not('committed_at', 'is', null);
+      participantCounts[sid] = c || 0;
+    }
+
+    const results = (sprints || []).map((s: any) => {
+      const entry = userEntries[s.id];
+      return {
+        sprintId: s.id,
+        repoOwner: s.repo_owner,
+        repoName: s.repo_name,
+        type: s.type,
+        startsAt: s.starts_at,
+        endsAt: s.ends_at,
+        participants: participantCounts[s.id] || 0,
+        // User-specific fields — null/0/false when the user didn't participate
+        id: entry?.id ?? null,
+        totalPower: entry?.total_power ?? 0,
+        committedAt: entry?.committed_at ?? null,
+        rank: entry?.rank ?? null,
+        percentile: entry?.percentile ?? null,
+        packsWon: entry?.packs_won ?? 0,
+        packsClaimed: entry?.packs_claimed ?? false,
+        cardCommon: entry?.card_common ?? null,
+        cardRare: entry?.card_rare ?? null,
+        cardEpic: entry?.card_epic ?? null,
+        cardLegendary: entry?.card_legendary ?? null,
+        cardMythic: entry?.card_mythic ?? null,
+      };
+    });
 
     return NextResponse.json({
       entries: results,
       total: count || 0,
+      type,
     });
   } catch (e: any) {
     return NextResponse.json({ error: 'Unexpected error', detail: e?.message }, { status: 500 });

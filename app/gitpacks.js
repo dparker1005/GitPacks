@@ -1315,6 +1315,10 @@ async function showPastSprintsOverlay() {
   overlay.innerHTML = `<div class="sprint-overlay-content">
     <button class="sprint-overlay-close" id="sprint-overlay-close">&times;</button>
     <h2 class="sprint-overlay-title">Past Sprints</h2>
+    <div class="sprint-past-tabs">
+      <button class="sprint-past-tab active" data-past-tab="daily">Daily</button>
+      <button class="sprint-past-tab" data-past-tab="weekly">Weekly</button>
+    </div>
     <div class="sprint-past-list" id="sprint-past-list">
       <div class="sprint-past-loading">Loading...</div>
     </div>
@@ -1332,22 +1336,36 @@ async function showPastSprintsOverlay() {
   overlay.querySelector('#sprint-overlay-close').addEventListener('click', close);
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 
-  // Load past sprints
+  // Wire tabs
+  overlay.querySelectorAll('[data-past-tab]').forEach(tab => {
+    tab.addEventListener('click', () => {
+      overlay.querySelectorAll('[data-past-tab]').forEach(t => t.classList.toggle('active', t === tab));
+      loadPastSprintsTab(overlay, tab.dataset.pastTab);
+    });
+  });
+
+  loadPastSprintsTab(overlay, 'daily');
+}
+
+async function loadPastSprintsTab(overlay, type) {
+  const list = overlay.querySelector('#sprint-past-list');
+  if (!list) return;
+  list.innerHTML = '<div class="sprint-past-loading">Loading...</div>';
+
   try {
-    const res = await fetch('/api/sprints/past?limit=20');
+    const res = await fetch(`/api/sprints/past?type=${encodeURIComponent(type)}&limit=20`);
     if (!res.ok) throw new Error();
     const data = await res.json();
     renderPastSprintsList(overlay, data.entries, data.total);
   } catch {
-    const el = document.getElementById('sprint-past-list');
-    if (el) el.innerHTML = '<div class="sprint-past-empty">Failed to load past sprints.</div>';
+    list.innerHTML = '<div class="sprint-past-empty">Failed to load past sprints.</div>';
   }
 }
 
 function renderPastSprintsList(overlay, entries, total) {
   const list = overlay.querySelector('#sprint-past-list');
   if (!entries || entries.length === 0) {
-    list.innerHTML = '<div class="sprint-past-empty">No past sprints yet. Enter your first sprint from the dashboard!</div>';
+    list.innerHTML = '<div class="sprint-past-empty">No past sprints yet.</div>';
     return;
   }
 
@@ -1355,16 +1373,24 @@ function renderPastSprintsList(overlay, entries, total) {
     const repoName = `${e.repoOwner}/${e.repoName}`;
     const typeLabel = e.type === 'daily' ? 'Daily' : 'Weekly';
     const date = new Date(e.startsAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const rankText = e.committedAt ? `#${e.rank}/${e.participants}` : 'Did not commit';
-    const bracketText = e.committedAt ? getBracketLabel(e.packsWon, e.type) : '';
+    const participated = !!e.committedAt;
+    const pending = participated && e.rank == null;
+    const rankText = pending
+      ? 'Results pending'
+      : participated
+        ? `#${e.rank}/${e.participants}`
+        : (e.id ? 'Did not commit' : 'Did not enter');
+    const bracketText = participated && !pending ? getBracketLabel(e.rank, e.participants) : '';
     const packsText = e.packsWon > 0 ? `${e.packsWon} pack${e.packsWon > 1 ? 's' : ''}` : '';
 
     let actionHTML = '';
-    if (e.packsWon > 0 && !e.packsClaimed) {
+    if (e.packsWon > 0 && !e.packsClaimed && e.id) {
       actionHTML = `<button class="sprint-claim-btn" data-claim-entry="${e.id}">Claim ${e.packsWon} pack${e.packsWon > 1 ? 's' : ''}</button>`;
     } else if (e.packsClaimed) {
       actionHTML = `<span class="sprint-claimed-check">Claimed</span>`;
     }
+
+    const powerHTML = participated ? `<span class="sprint-past-power">${e.totalPower} PWR</span>` : '';
 
     return `<div class="sprint-past-entry" data-sprint-id="${e.sprintId}">
       <div class="sprint-past-main">
@@ -1374,7 +1400,7 @@ function renderPastSprintsList(overlay, entries, total) {
           <span class="sprint-past-date">${date}</span>
         </div>
         <div class="sprint-past-result">
-          <span class="sprint-past-power">${e.totalPower} PWR</span>
+          ${powerHTML}
           <span class="sprint-past-rank">${rankText}</span>
           ${bracketText ? `<span class="sprint-past-bracket">${bracketText}</span>` : ''}
           ${packsText ? `<span class="sprint-past-packs">${packsText}</span>` : ''}
@@ -1428,11 +1454,45 @@ function renderPastSprintsList(overlay, entries, total) {
   });
 }
 
-function getBracketLabel(packsWon, type) {
-  const daily = { 4: 'Top 10%', 3: 'Top 25%', 2: 'Top 50%', 1: 'Participated' };
-  const weekly = { 12: 'Top 10%', 9: 'Top 25%', 6: 'Top 50%', 3: 'Participated' };
-  const map = type === 'weekly' ? weekly : daily;
-  return map[packsWon] || 'Participated';
+// Tier boundaries must match the server finalize_sprint function:
+//   top10 = max(ceil(total * 0.10), 1)
+//   top25 = max(ceil(total * 0.25), top10 + 1)
+//   top50 = max(ceil(total * 0.50), top25 + 1)
+// Each tier holds ≥ 1 user, so with few participants the "Top 10%" bracket
+// really is just 1st place — label it that way instead of a misleading percentage.
+function getBracketLabel(rank, totalParticipants) {
+  const total = Number(totalParticipants) || 0;
+  if (!rank || !total) return '';
+  if (rank > total) return 'Did not commit';
+
+  const top10 = Math.max(Math.ceil(total * 0.10), 1);
+  const top25 = Math.max(Math.ceil(total * 0.25), top10 + 1);
+  const top50 = Math.max(Math.ceil(total * 0.50), top25 + 1);
+
+  let tierStart, tierEnd, pctLabel;
+  if (rank <= top10) {
+    tierStart = 1; tierEnd = top10; pctLabel = 'Top 10%';
+  } else if (rank <= top25) {
+    tierStart = top10 + 1; tierEnd = top25; pctLabel = 'Top 25%';
+  } else if (rank <= top50) {
+    tierStart = top25 + 1; tierEnd = top50; pctLabel = 'Top 50%';
+  } else {
+    return 'Participated';
+  }
+
+  if (tierStart === tierEnd) return `${ordinalSuffix(tierStart)} Place`;
+  return pctLabel;
+}
+
+function ordinalSuffix(n) {
+  const v = n % 100;
+  if (v >= 11 && v <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1: return `${n}st`;
+    case 2: return `${n}nd`;
+    case 3: return `${n}rd`;
+    default: return `${n}th`;
+  }
 }
 
 async function showRankingsOverlay(sprintId) {
@@ -1487,7 +1547,7 @@ function renderRankingsList(overlay, data, sprintId) {
     const medal = e.rank === 1 ? '<span class="lb-medal" style="color:#ffd700">&#x1F947;</span>' :
                   e.rank === 2 ? '<span class="lb-medal" style="color:#c0c0c0">&#x1F948;</span>' :
                   e.rank === 3 ? '<span class="lb-medal" style="color:#cd7f32">&#x1F949;</span>' : '';
-    const bracket = getBracketLabel(e.packsWon, sprint.type);
+    const bracket = getBracketLabel(e.rank, total);
     const isYou = _currentUser && _currentUser.username === e.githubUsername;
 
     return `<div class="sprint-rank-row${isYou ? ' sprint-rank-you' : ''}">
@@ -1527,7 +1587,7 @@ function wireRankingsLoadMore(list, sprintId) {
 
       const newRows = (moreData.entries || []).map(e => {
         const medal = e.rank <= 3 ? ['&#x1F947;', '&#x1F948;', '&#x1F949;'][e.rank - 1] : '';
-        const bracket = getBracketLabel(e.packsWon, moreData.sprint.type);
+        const bracket = getBracketLabel(e.rank, moreData.total);
         const isYou = _currentUser && _currentUser.username === e.githubUsername;
         return `<div class="sprint-rank-row${isYou ? ' sprint-rank-you' : ''}">
           <span class="sprint-rank-num">${medal ? `<span class="lb-medal">${medal}</span>` : ''}#${e.rank}</span>
