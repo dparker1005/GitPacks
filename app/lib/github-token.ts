@@ -28,3 +28,15 @@ export function gitHubHeaders(token?: string): Record<string, string> {
     ? { Authorization: `token ${t}`, Accept: 'application/vnd.github.v3+json' }
     : { Accept: 'application/vnd.github.v3+json' };
 }
+
+// Headers for github.com/{owner}/{repo}/graphs/contributors-data — the
+// undocumented endpoint that github.com's own contributors graph uses.
+// Only this exact combination resolves; `token` auth or vnd.github accept
+// types make the endpoint return 202 indefinitely. Used as a stopgap while
+// /stats/contributors is broken — see github/community#192970.
+export function gitHubGraphsHeaders(token?: string): Record<string, string> {
+  const t = token || process.env.GITHUB_TOKEN;
+  return t
+    ? { Authorization: `Bearer ${t}`, Accept: 'application/json' }
+    : { Accept: 'application/json' };
+}

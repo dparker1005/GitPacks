@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCachedRepo, setCachedRepo } from '@/app/lib/repo-cache';
 import { invalidateOgCache } from '@/app/lib/og-cache';
 import { MIN_REPO_CONTRIBUTORS } from '@/app/lib/constants';
-import { gitHubHeaders, getGitHubToken } from '@/app/lib/github-token';
+import { gitHubHeaders, gitHubGraphsHeaders, getGitHubToken } from '@/app/lib/github-token';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
 
 // ===== Helpers =====
@@ -38,19 +38,31 @@ type StepResult<T> = StepOk<T> | StepErr;
 
 // ===== fetchWithRetry =====
 // Returns a structured result so callers can surface per-attempt status codes.
-// Retries on 202 (GitHub's async-computing signal) with increasing backoff.
+// Retries on 202 (GitHub's async-computing signal) with increasing backoff,
+// and gives one slow retry on 429 (rate-limited) before surfacing a friendly
+// error. Schedule is intentionally sparse — per-IP rate limits on the
+// github.com graphs-data workaround endpoint don't expose any X-RateLimit-*
+// headers, so we err on the side of fewer requests.
 async function fetchWithRetry(
   step: StepFailure['step'],
   url: string,
-  ghToken?: string
+  ghToken?: string,
+  customHeaders?: Record<string, string>,
 ): Promise<StepResult<any>> {
-  const headers = gitHubHeaders(ghToken);
-  const delays = [3000, 8000, 15000, 25000, 40000]; // up to ~91s total for slow repos
+  const headers = customHeaders || gitHubHeaders(ghToken);
+  // 5 attempts total over ~115s. Spaced wider than the prior [3,8,15,25,40]
+  // schedule so we hit GitHub less often per repo load — that matters because
+  // the graphs-data fallback shares an opaque per-IP budget across all users.
+  const retry202 = [5000, 15000, 35000, 60000];
+  // One 30s pause on 429, then bail. Hammering further just deepens the lockout.
+  const retry429Wait = 30000;
   const attempts: AttemptLog[] = [];
   let totalWaitedMs = 0;
   let lastStatus: number | null = null;
+  let retries202 = 0;
+  let used429Retry = false;
 
-  for (let i = 0; i <= delays.length; i++) {
+  while (true) {
     let res: Response;
     try {
       res = await fetch(url, { headers });
@@ -70,11 +82,31 @@ async function fetchWithRetry(
     attempts.push({ status: res.status, waitedMs: totalWaitedMs });
 
     if (res.status === 202) {
-      if (i >= delays.length) break;
-      await sleep(delays[i]);
-      totalWaitedMs += delays[i];
+      if (retries202 >= retry202.length) break;
+      await sleep(retry202[retries202]);
+      totalWaitedMs += retry202[retries202];
+      retries202++;
       continue;
     }
+
+    if (res.status === 429) {
+      if (!used429Retry) {
+        used429Retry = true;
+        await sleep(retry429Wait);
+        totalWaitedMs += retry429Wait;
+        continue;
+      }
+      return {
+        ok: false,
+        step,
+        endpoint: publicUrl(url),
+        attempts,
+        totalWaitedMs,
+        lastStatus,
+        message: `GitHub is rate-limiting requests right now. Please try again in a few minutes.`,
+      };
+    }
+
     if (!res.ok) {
       return {
         ok: false,
@@ -99,7 +131,7 @@ async function fetchWithRetry(
     lastStatus,
     message:
       step === 'stats'
-        ? `GitHub is still computing contributor stats after ${attempts.length} attempts (${Math.round(totalWaitedMs / 1000)}s). For large/active repos this can take 60s+ or fail repeatedly.`
+        ? `GitHub is still computing contributor stats after ${attempts.length} attempts (${Math.round(totalWaitedMs / 1000)}s). For large/active repos this can take 2 minutes or fail repeatedly.`
         : `GitHub kept returning 202 after ${attempts.length} attempts.`,
   };
 }
@@ -431,7 +463,9 @@ function processAllContributors(
     const is = issueStats[c.author.login] || { prsMerged: 0, issues: 0 };
     return {
       login: c.author.login,
-      avatar: c.author.avatar_url,
+      // `avatar_url` from /stats/contributors, `avatar` from the graphs-data
+      // workaround endpoint — see github/community#192970 note at fetch site.
+      avatar: c.author.avatar_url || c.author.avatar,
       commits: totalCommits,
       activeWeeks,
       totalWeeks: weeks.length,
@@ -671,8 +705,30 @@ async function fetchAndCacheRepo(owner: string, repo: string, ghToken: string | 
   // Fetch all three data sources in parallel. We require ALL to succeed — partial
   // data produces broken cards (missing weekly stats collapse streaks/peak/consistency
   // to 0, and every contributor ends up tagged as first committer).
+  //
+  // TEMP WORKAROUND — github/community#192970
+  //   Since 2026-04-12, GitHub's /repos/.../stats/contributors API returns 202
+  //   forever and never produces data. We've swapped to the undocumented endpoint
+  //   github.com's own contributors graph uses, which returns the same
+  //   {author, total, weeks[]} shape but requires `Bearer` auth + `application/json`
+  //   Accept (other header combinations 202 forever, same as the broken API).
+  //
+  //   Why a stopgap and not a full migration: the GraphQL alternative requires
+  //   paginating commit history and bucketing by week ourselves — different code
+  //   path, different scoring inputs, ongoing maintenance. This swap keeps the
+  //   one-and-only scoring path intact.
+  //
+  //   To revert when the API is fixed, undo ONLY this call site (URL + 4th arg).
+  //   The two adapter sites below are revert-safe and can stay:
+  //     - the [bot] login filter at line ~728 (works on API responses too)
+  //     - the avatar field fallback at line ~436 (avatar_url is preferred)
   const [statsRes, issuesRes, contribRes] = await Promise.all([
-    fetchWithRetry('stats', `https://api.github.com/repos/${owner}/${repo}/stats/contributors`, ghToken),
+    fetchWithRetry(
+      'stats',
+      `https://github.com/${owner}/${repo}/graphs/contributors-data`,
+      ghToken,
+      gitHubGraphsHeaders(ghToken),
+    ),
     fetchAllIssues(owner, repo, ghToken),
     fetchPaginatedContributors(owner, repo, ghToken),
   ]);
@@ -708,8 +764,12 @@ async function fetchAndCacheRepo(owner: string, repo: string, ghToken: string | 
   // Past the failure gate — all three are ok. Narrow the union so we can read .data.
   if (!statsRes.ok || !issuesRes.ok || !contribRes.ok) throw new Error('unreachable');
 
+  // Bot filter — see github/community#192970 note at fetch site. The graphs-data
+  // endpoint omits author.type, so we detect bots by GitHub's '[bot]' login
+  // suffix (dependabot[bot], github-actions[bot], etc.). This convention also
+  // applies to /stats/contributors responses, so this filter is revert-safe.
   const validStats: any[] = Array.isArray(statsRes.data)
-    ? statsRes.data.filter((c: any) => c.author && c.author.login && c.author.type !== 'Bot')
+    ? statsRes.data.filter((c: any) => c.author && c.author.login && !c.author.login.endsWith('[bot]'))
     : [];
 
   const result = processAllContributors(validStats, issuesRes.data, contribRes.data);
