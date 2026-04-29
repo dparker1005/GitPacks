@@ -29,6 +29,7 @@
 
     /* === HEADER === */
     header { text-align:center; padding:40px 20px 10px; }
+    header .site-title-link { display:block; color:inherit; text-decoration:none; cursor:pointer; }
     header h1 { font-family:'Orbitron',sans-serif; font-size:2.5rem; font-weight:900; background:linear-gradient(135deg,#ff6ec7,#7873f5,#4adede); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; letter-spacing:3px; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; justify-content:center; gap:12px; }
     header h1 svg { width:48px; height:48px; -webkit-text-fill-color:initial; }
     header p { color:#888; font-size:1.1rem; letter-spacing:1px; }
@@ -50,13 +51,14 @@
     .popular-title { font-family:'Orbitron',sans-serif; font-size:0.7rem; color:#999; letter-spacing:3px; text-transform:uppercase; margin-bottom:16px; }
     .popular-hint { color:#999; font-size:0.95rem; }
     .popular-grid { display:flex; flex-direction:column; gap:8px; }
-    .popular-repo-btn { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; border:1px solid #2a2a4a; border-radius:12px; background:rgba(20,20,40,0.6); color:#e0e0e0; font-family:'Rajdhani',sans-serif; font-size:1rem; cursor:pointer; transition:all 0.2s; text-align:left; }
+    .popular-repo-btn { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; border:1px solid #2a2a4a; border-radius:12px; background:rgba(20,20,40,0.6); color:#e0e0e0; font-family:'Rajdhani',sans-serif; font-size:1rem; cursor:pointer; transition:all 0.2s; text-align:left; text-decoration:none; }
     .popular-repo-btn:hover { border-color:#7873f5; background:rgba(120,115,245,0.08); transform:translateY(-1px); }
     .popular-repo-btn.repo-complete { border-color:rgba(74,222,222,0.4); background:linear-gradient(135deg,rgba(120,115,245,0.08),rgba(74,222,222,0.08)); }
     .popular-repo-btn.repo-complete .popular-repo-pct { background:linear-gradient(135deg,#7873f5,#4adede); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; font-weight:700; }
     .popular-repo-btn.repo-complete::after { content:'Complete'; position:absolute; right:12px; top:-8px; font-family:'Orbitron',sans-serif; font-size:0.5rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; padding:2px 8px; border-radius:4px; background:linear-gradient(135deg,#7873f5,#4adede); color:#fff; }
-    .popular-repo-btn.repo-broken { border-color:rgba(251,146,60,0.35); background:linear-gradient(135deg,rgba(251,146,60,0.06),rgba(251,113,133,0.06)); }
-    .popular-repo-btn.repo-broken::after { content:'Broken Set'; position:absolute; right:12px; top:-8px; font-family:'Orbitron',sans-serif; font-size:0.5rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; padding:2px 8px; border-radius:4px; background:linear-gradient(135deg,#fb923c,#fb7185); color:#fff; }
+    .popular-repo-btn.repo-broken { border-color:rgba(239,68,68,0.55); background:linear-gradient(135deg,rgba(239,68,68,0.12),rgba(244,63,94,0.08)); }
+    .popular-repo-btn.repo-broken:hover { border-color:rgba(239,68,68,0.8); background:linear-gradient(135deg,rgba(239,68,68,0.16),rgba(244,63,94,0.12)); }
+    .popular-repo-btn.repo-broken::after { content:'Broken Set'; position:absolute; right:12px; top:-8px; font-family:'Orbitron',sans-serif; font-size:0.55rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; padding:2px 8px; border-radius:4px; background:linear-gradient(135deg,#dc2626,#f43f5e); color:#fff; box-shadow:0 0 10px rgba(239,68,68,0.45); }
     .popular-repo-btn { position:relative; }
     .popular-repo-name { font-weight:600; flex:1; min-width:0; }
     .my-rarity-badge { display:inline-block; font-family:'Orbitron',sans-serif; font-size:0.45rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; padding:2px 6px; border-radius:4px; margin-left:8px; vertical-align:middle; position:relative; top:-1px; }
@@ -1265,7 +1267,7 @@
     .sprint-card-label { font-family:'Orbitron',sans-serif; font-size:0.6rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#999; }
     .sprint-card-packs { font-family:'Rajdhani',sans-serif; font-size:0.72rem; font-weight:700; color:#4ade80; }
     .sprint-card-none { font-family:'Rajdhani',sans-serif; font-size:0.8rem; color:#666; }
-    .sprint-card-repo { font-family:'Rajdhani',sans-serif; font-size:0.88rem; font-weight:600; color:#7873f5; background:none; border:none; padding:0; cursor:pointer; text-align:left; transition:color 0.2s; }
+    .sprint-card-repo { font-family:'Rajdhani',sans-serif; font-size:0.88rem; font-weight:600; color:#7873f5; background:none; border:none; padding:0; cursor:pointer; text-align:left; transition:color 0.2s; text-decoration:none; display:inline-block; }
     .sprint-card-repo:hover { color:#4adede; }
     .sprint-card-details { display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin-top:4px; font-family:'Rajdhani',sans-serif; font-size:0.75rem; color:#aaa; }
     .sprint-committed { color:#4ade80; font-weight:700; }

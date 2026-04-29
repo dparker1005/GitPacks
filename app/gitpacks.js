@@ -143,6 +143,11 @@ if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') loadR
 
 function quickLoad(repo) { if (input) input.value = repo; loadRepo(true, repo); }
 
+// True for a plain left-click — modifier/middle clicks fall through so the browser opens a new tab.
+function isPlainNavClick(e) {
+  return e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey;
+}
+
 // ===== PACK STATE =====
 // Show skeleton while pack state loads
 if (_currentUser) {
@@ -293,7 +298,11 @@ async function loadPopularRepos(featuredRepo) {
     // Split yourRepos into completed and in-progress for logged-in dashboard
     const completedRepos = yourRepos.filter(r => r.cards > 0 && r.collected >= r.cards);
     const inProgressRepos = yourRepos.filter(r => r.collected > 0 && (r.cards === 0 || r.collected < r.cards))
-      .sort((a, b) => b.pct - a.pct);
+      .sort((a, b) => {
+        // Broken sets pinned to top so the user notices and can re-complete them.
+        if (!!a.was_complete !== !!b.was_complete) return a.was_complete ? -1 : 1;
+        return b.pct - a.pct;
+      });
 
     function myRarityBadge(r) {
       if (!r.my_rarity || !_currentUser) return '';
@@ -306,13 +315,13 @@ async function loadPopularRepos(featuredRepo) {
       const progressBar = showProgressBar && !isComplete && r.cards > 0
         ? `<div class="repo-progress-bar"><div class="repo-progress-fill" style="width:${pctNum}%"></div></div>`
         : '';
-      return `<button class="popular-repo-btn${isComplete ? ' repo-complete' : ''}" data-repo="${r.name}">
+      return `<a class="popular-repo-btn${isComplete ? ' repo-complete' : ''}" href="?repo=${r.name}" data-repo="${r.name}">
           <span class="popular-repo-name">${r.name}${myRarityBadge(r)}${progressBar}</span>
           <span class="popular-repo-meta">
             <span class="popular-repo-progress">${r.collected}/${r.cards}</span>
             <span class="popular-repo-pct">${pctNum}%</span>
           </span>
-        </button>`;
+        </a>`;
     }
 
     function repoBtnScored(r, showProgressBar) {
@@ -333,13 +342,13 @@ async function loadPopularRepos(featuredRepo) {
         ? `<div class="repo-stars-hint">&starf; ${r.stars} &rarr; ${tradablePacks} pack${tradablePacks !== 1 ? 's' : ''}</div>`
         : '';
       const isBroken = !isComplete && r.was_complete;
-      return `<button class="popular-repo-btn scored${isComplete ? ' repo-complete' : ''}${isBroken ? ' repo-broken' : ''}" data-repo="${r.name}">
+      return `<a class="popular-repo-btn scored${isComplete ? ' repo-complete' : ''}${isBroken ? ' repo-broken' : ''}" href="?repo=${r.name}" data-repo="${r.name}">
           <span class="popular-repo-name">${r.name}${myRarityBadge(r)}${progressBar}${starsHint}</span>
           <span class="popular-repo-meta-stacked">
             <span class="popular-repo-progress">${r.collected}/${r.cards} cards</span>
             ${pointsHTML}
           </span>
-        </button>`;
+        </a>`;
     }
 
     let html = '';
@@ -445,7 +454,9 @@ async function loadPopularRepos(featuredRepo) {
     }
     popularRepos.innerHTML = html;
     popularRepos.querySelectorAll('.popular-repo-btn').forEach(b => {
-      b.addEventListener('click', () => quickLoad(b.dataset.repo));
+      b.addEventListener('click', (e) => {
+        if (isPlainNavClick(e)) { e.preventDefault(); quickLoad(b.dataset.repo); }
+      });
     });
 
     // Re-grab search elements (now rendered inside Discover for logged-in users)
@@ -490,11 +501,11 @@ async function loadContributedRepos(yourRepos) {
     const meta = r.cached
       ? `<span class="popular-repo-progress">0/${r.cards}</span><span class="popular-repo-pct">0%</span>`
       : `<span class="contrib-loading"><span class="spinner-small"></span></span>`;
-    return `<button class="popular-repo-btn contributed-repo-btn" data-repo="${r.name}"${r.cached ? '' : ' data-preload="true"'}>
+    return `<a class="popular-repo-btn contributed-repo-btn" href="?repo=${r.name}" data-repo="${r.name}"${r.cached ? '' : ' data-preload="true"'}>
         <span class="contributed-badge">Your repo</span>
         <span class="popular-repo-name">${r.name}</span>
         <span class="popular-repo-meta">${meta}</span>
-      </button>`;
+      </a>`;
   }
 
   // Prepend contributed repos at top of Discover grid
@@ -502,7 +513,9 @@ async function loadContributedRepos(yourRepos) {
   grid.prepend(fragment);
 
   grid.querySelectorAll('.contributed-repo-btn').forEach(b => {
-    b.addEventListener('click', () => quickLoad(b.dataset.repo));
+    b.addEventListener('click', (e) => {
+      if (isPlainNavClick(e)) { e.preventDefault(); quickLoad(b.dataset.repo); }
+    });
   });
 
   // Preload uncached repos in background
@@ -1050,7 +1063,7 @@ function renderSprints(section, data) {
         <div class="sprint-card-label">${label}</div>
         <span class="sprint-card-packs">Win up to ${maxPacks} packs</span>
       </div>
-      <button class="sprint-card-repo" data-sprint-repo="${repoName}">${repoName} &rarr;</button>
+      <a class="sprint-card-repo" href="?repo=${repoName}" data-sprint-repo="${repoName}">${repoName} &rarr;</a>
       <div class="sprint-card-details">
         <span class="${statusClass}">${statusText}</span>
         <span class="sprint-separator">&middot;</span>
@@ -1080,7 +1093,9 @@ function renderSprints(section, data) {
 
   // Wire repo links
   section.querySelectorAll('[data-sprint-repo]').forEach(btn => {
-    btn.addEventListener('click', () => quickLoad(btn.dataset.sprintRepo));
+    btn.addEventListener('click', (e) => {
+      if (isPlainNavClick(e)) { e.preventDefault(); quickLoad(btn.dataset.sprintRepo); }
+    });
   });
 
   // Wire past sprints button
