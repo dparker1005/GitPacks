@@ -1941,7 +1941,7 @@ async function refreshRepoData() {
 
 function renderRepoInfo(owner, repo) {
   repoInfo.style.display = 'block';
-  const collected = Object.keys(library).length;
+  const collected = allContributors.reduce((n, c) => n + (library[c.login] ? 1 : 0), 0);
   const total = allContributors.length;
 
   // Pack state UI for logged-in users

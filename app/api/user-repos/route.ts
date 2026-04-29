@@ -55,7 +55,7 @@ export async function GET() {
       .in('owner_repo', repoNames),
     anonSupabase
       .from('leaderboard_scores')
-      .select('owner_repo, base_points, completion_bonus, total_points, updated_at')
+      .select('owner_repo, base_points, completion_bonus, total_points, unique_cards, total_cards_in_repo, updated_at')
       .eq('user_id', user.id)
       .in('owner_repo', repoNames),
     supabase
@@ -86,7 +86,7 @@ export async function GET() {
     await refreshUserScores(supabase, user.id);
     const refreshed = await anonSupabase
       .from('leaderboard_scores')
-      .select('owner_repo, base_points, completion_bonus, total_points, updated_at')
+      .select('owner_repo, base_points, completion_bonus, total_points, unique_cards, total_cards_in_repo, updated_at')
       .eq('user_id', user.id)
       .in('owner_repo', repoNames);
     scoresData = refreshed.data;
@@ -109,11 +109,13 @@ export async function GET() {
     const totalCards = cached?.card_count || 0;
     const score = scoresData?.find((s: any) => s.owner_repo === name);
     const comp = completionsMap[name];
+    // unique_cards stays in sync with the current contributor list; raw row count drifts after a reshuffle.
+    const collected = score?.unique_cards ?? repoMap[name];
     return {
       name,
-      collected: repoMap[name],
+      collected,
       cards: totalCards,
-      pct: totalCards > 0 ? repoMap[name] / totalCards : 0,
+      pct: totalCards > 0 ? collected / totalCards : 0,
       base_points: score?.base_points || 0,
       completion_bonus: score?.completion_bonus || 0,
       total_points: score?.total_points || 0,
