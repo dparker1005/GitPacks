@@ -60,6 +60,122 @@ function clearSpaceAction() { _spaceAction = null; }
 let searchContainer = document.getElementById('search-container');
 const popularRepos = document.getElementById('popular-repos');
 
+// ===== REPO STREAM =====
+// /api/repo/{owner}/{repo} returns NDJSON: one JSON object per line.
+// Events: probe → commits (many) → issues, contributors → done | error.
+// onEvent receives every parsed event; the resolved value is the final `done`
+// event (with .data, .source, .fetchedAt, optional .partialMeta).
+async function fetchRepoStream(url, onEvent) {
+  const res = await fetch(url, { headers: { Accept: 'application/x-ndjson' } });
+  if (!res.ok) {
+    let body = {};
+    try { body = await res.json(); } catch { /* non-JSON */ }
+    const e = new Error(body.error || `Repo fetch failed: ${res.status}`);
+    e.status = res.status;
+    e.details = body.details || null;
+    throw e;
+  }
+  if (!res.body) throw new Error('Repo fetch failed: no response body');
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let result = null;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl;
+    while ((nl = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (!line) continue;
+      let event;
+      try { event = JSON.parse(line); } catch { continue; }
+      if (onEvent) { try { onEvent(event); } catch (e) { console.error('[GHTC] onEvent threw:', e); } }
+      if (event.stage === 'done') result = event;
+      else if (event.stage === 'error') {
+        const e = new Error(event.message || 'Repo fetch failed');
+        e.code = event.code;
+        e.details = event.details;
+        throw e;
+      }
+    }
+  }
+  if (!result) throw new Error('Repo stream ended without a result');
+  return result;
+}
+
+// Progress UI helpers — manipulate the existing #loading / .progress-* markup
+// in page.tsx. Steps: step-commits, step-issues, step-processing.
+function _setStep(id, state) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('active', 'done');
+  if (state) el.classList.add(state);
+}
+function _setProgressFill(pct) {
+  const el = document.getElementById('progress-fill');
+  if (el) el.style.width = Math.min(100, Math.max(0, pct)) + '%';
+}
+function _setProgressDetail(text) {
+  const el = document.getElementById('progress-detail');
+  if (el) el.textContent = text || '';
+}
+function _resetProgress() {
+  _setStep('step-commits', null);
+  _setStep('step-issues', null);
+  _setStep('step-processing', null);
+  _setProgressFill(0);
+  _setProgressDetail('');
+}
+
+// Drive the progress UI from a single repo-stream event. Returns an updater
+// closure — call it once per event.
+function makeProgressDriver() {
+  let totalCommits = 0;
+  let issuesDone = false;
+  let contribsDone = false;
+  let allFetchDone = false;
+  return (e) => {
+    switch (e.stage) {
+      case 'probe':
+        totalCommits = e.totalCommits || 0;
+        _setStep('step-commits', 'active');
+        _setStep('step-issues', 'active');
+        _setProgressDetail(
+          totalCommits > 0
+            ? `Scoring ${totalCommits.toLocaleString()} commits…`
+            : 'Loading repository…'
+        );
+        _setProgressFill(2);
+        break;
+      case 'commits': {
+        // Reserve 10% for the post-fetch aggregation; commits-fetched fills 0-90%.
+        const pct = totalCommits > 0 ? Math.min(90, (e.fetched / totalCommits) * 90) : 50;
+        _setProgressFill(pct);
+        _setProgressDetail(`${e.fetched.toLocaleString()} of ${totalCommits.toLocaleString()} commits`);
+        break;
+      }
+      case 'issues':
+        issuesDone = true;
+        if (issuesDone && contribsDone) _setStep('step-issues', 'done');
+        break;
+      case 'contributors':
+        contribsDone = true;
+        if (issuesDone && contribsDone) _setStep('step-issues', 'done');
+        break;
+      case 'done':
+        allFetchDone = true;
+        _setStep('step-commits', 'done');
+        _setStep('step-issues', 'done');
+        _setStep('step-processing', 'done');
+        _setProgressFill(100);
+        _setProgressDetail('');
+        break;
+    }
+  };
+}
+
 // ===== CLIENT-SIDE CACHE =====
 const _cache = {};
 function cacheGet(key, maxAgeMs) {
@@ -534,13 +650,9 @@ async function loadContributedRepos(yourRepos) {
   for (const r of newContributed.filter(r => !r.cached)) {
     const [ow, rp] = r.name.split('/');
     if (!ow || !rp) continue;
-    fetch(`/api/repo/${ow}/${rp}`).then(async res => {
+    fetchRepoStream(`/api/repo/${ow}/${rp}`).then((result) => {
       const btn = grid.querySelector(`.contributed-repo-btn[data-repo="${r.name}"][data-preload]`);
-      if (!res.ok) {
-        if (btn) btn.remove();
-        return;
-      }
-      const data = await res.json();
+      const data = result.data;
       const cardCount = Array.isArray(data) ? data.length : 0;
       if (btn) {
         btn.removeAttribute('data-preload');
@@ -717,9 +829,9 @@ async function loadLandingCards(repoName) {
   ).join('');
 
   try {
-    const res = await fetch(`/api/repo/${repoName}`);
-    if (!res.ok || _landingActiveRepo !== repoName) return;
-    const contributors = await res.json();
+    const result = await fetchRepoStream(`/api/repo/${repoName}`);
+    if (_landingActiveRepo !== repoName) return;
+    const contributors = result.data;
     if (!Array.isArray(contributors) || _landingActiveRepo !== repoName) return;
 
     // Update card count on the featured repo button (for repos added via URL with unknown count)
@@ -1823,24 +1935,13 @@ async function loadRepo(fromHomepage, repoOverride) {
   const landingEl = document.getElementById('landing-section');
   if (landingEl) landingEl.style.display = 'none';
   loading.style.display = 'block'; if (btn) btn.disabled = true;
+  _resetProgress();
   try {
-    loading.innerHTML = `<div style="text-align:center;padding:60px 20px">
-      <div class="spinner"></div>
-      <p style="color:#888;font-family:'Orbitron',sans-serif;font-size:0.8rem;letter-spacing:2px;margin-top:20px">Loading contributors...</p>
-      <p style="color:#555;font-size:0.75rem;margin-top:8px">This may take a moment</p>
-    </div>`;
-
-    const response = await fetch(`/api/repo/${owner}/${repo}`);
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      const e = new Error(err.error || 'Failed to load repo');
-      e.details = err.details || null;
-      throw e;
-    }
-    allContributors = await response.json();
-    repoFetchedAt = response.headers.get('X-Gitpacks-Fetched-At') || null;
-    const partialMetaHeader = response.headers.get('X-Gitpacks-Partial-Meta');
-    repoPartialMeta = partialMetaHeader ? tryDecodePartialMeta(partialMetaHeader) : null;
+    const onEvent = makeProgressDriver();
+    const result = await fetchRepoStream(`/api/repo/${owner}/${repo}`, onEvent);
+    allContributors = result.data;
+    repoFetchedAt = result.fetchedAt || null;
+    repoPartialMeta = result.partialMeta || null;
 
     library = {};
     repoLoaded = true;
@@ -1901,17 +2002,6 @@ async function loadRepo(fromHomepage, repoOverride) {
   if (btn) btn.disabled = false;
 }
 
-// Decode the base64-JSON X-Gitpacks-Partial-Meta header. Any error → null (we
-// degrade silently; the UI still has cards, just no failure breakdown).
-function tryDecodePartialMeta(header) {
-  try {
-    const json = atob(header);
-    return JSON.parse(json);
-  } catch {
-    return null;
-  }
-}
-
 // Human-readable "2 hours ago" / "5 days ago" for the updated-at pill.
 function formatTimeAgo(iso) {
   if (!iso) return 'unknown';
@@ -1946,17 +2036,10 @@ async function refreshRepoData() {
   showError('');
 
   try {
-    const res = await fetch(`/api/repo/${owner}/${repo}?refresh=true`);
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const e = new Error(err.error || 'Refresh failed');
-      e.details = err.details || null;
-      throw e;
-    }
-    allContributors = await res.json();
-    repoFetchedAt = res.headers.get('X-Gitpacks-Fetched-At') || new Date().toISOString();
-    const partialMetaHeader = res.headers.get('X-Gitpacks-Partial-Meta');
-    repoPartialMeta = partialMetaHeader ? tryDecodePartialMeta(partialMetaHeader) : null;
+    const result = await fetchRepoStream(`/api/repo/${owner}/${repo}?refresh=true`);
+    allContributors = result.data;
+    repoFetchedAt = result.fetchedAt || new Date().toISOString();
+    repoPartialMeta = result.partialMeta || null;
     renderRepoInfo(owner, repo);
     renderLibrary();
   } catch (err) {
@@ -2381,11 +2464,11 @@ async function openPack() {
 
     // If server cache expired (404), re-fetch repo data to repopulate it, then retry once
     if (response.status === 404) {
-      const repoRes = await fetch(`/api/repo/${owner}/${repo}`);
-      if (repoRes.ok) {
-        allContributors = await repoRes.json();
+      try {
+        const repoResult = await fetchRepoStream(`/api/repo/${owner}/${repo}`);
+        allContributors = repoResult.data;
         response = await fetch(`/api/repo/${owner}/${repo}/pack`);
-      }
+      } catch { /* fall through — pack call already failed, surface that error */ }
     }
 
     if (!response.ok) {
