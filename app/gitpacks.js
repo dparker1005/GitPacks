@@ -380,6 +380,12 @@ async function loadPopularRepos(featuredRepo) {
       repos.forEach(r => {
         const ur = userRepos.find(u => u.name === r.name.toLowerCase());
         r.collected = ur ? ur.collected : 0;
+        // Prefer the fresh `cards` count from /api/user-repos over the popular
+        // list's value — both come from repo_cache.card_count, but user-repos
+        // is fetched no-cache while popular has historically been CDN-cached.
+        // Keeping the user-repos value avoids any "36/37" drift after a repo's
+        // contributor list shifts and one cache lags the other.
+        if (ur && typeof ur.cards === 'number') r.cards = ur.cards;
         r.pct = r.cards > 0 ? r.collected / r.cards : 0;
         r.base_points = ur ? ur.base_points : 0;
         r.completion_bonus = ur ? ur.completion_bonus : 0;

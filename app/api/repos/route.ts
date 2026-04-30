@@ -15,7 +15,11 @@ export async function GET() {
       }));
       repos.sort((a: any, b: any) => b.cards - a.cards);
       return NextResponse.json(repos, {
-        headers: { 'Cache-Control': 'public, max-age=3600, s-maxage=3600' },
+        // Was 1h CDN cache — but card counts here drive the dashboard's "X/Y"
+        // display, and a stale entry made completed sets read as e.g. 36/37
+        // for up to an hour after the contributor list shifted. Fresh-every-
+        // request is cheap (one small Supabase query) and prevents that drift.
+        headers: { 'Cache-Control': 'no-store' },
       });
     }
 
@@ -36,7 +40,7 @@ export async function GET() {
 
     repos.sort((a: any, b: any) => b.cards - a.cards);
     return NextResponse.json(repos, {
-      headers: { 'Cache-Control': 'public, max-age=3600, s-maxage=3600' },
+      headers: { 'Cache-Control': 'no-store' },
     });
   } catch {
     return NextResponse.json([]);
