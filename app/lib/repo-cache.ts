@@ -22,6 +22,27 @@ export async function getCachedRepo(
 }
 
 /**
+ * Like getCachedRepo, but also returns the change-detection markers used by
+ * the background refresh path (last commit SHA + last issue number).
+ */
+export async function getCachedRepoWithMarkers(
+  ownerRepo: string
+): Promise<{ data: any; fetchedAt: string; lastCommitSha: string | null; lastIssueNumber: number | null } | null> {
+  const { data, error } = await supabase
+    .from('repo_cache')
+    .select('data, fetched_at, last_commit_sha, last_issue_number')
+    .eq('owner_repo', ownerRepo)
+    .single();
+  if (error || !data) return null;
+  return {
+    data: data.data,
+    fetchedAt: data.fetched_at,
+    lastCommitSha: data.last_commit_sha ?? null,
+    lastIssueNumber: data.last_issue_number ?? null,
+  };
+}
+
+/**
  * Convenience wrapper that returns just the contributor array — most consumers
  * (pack opening, achievements, sprints, recycling) don't care about the
  * timestamp, they just need to look up contributors.

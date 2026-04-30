@@ -176,25 +176,6 @@ function makeProgressDriver() {
   };
 }
 
-// ===== CLIENT-SIDE CACHE =====
-const _cache = {};
-function cacheGet(key, maxAgeMs) {
-  const entry = _cache[key];
-  if (!entry) return null;
-  if (Date.now() - entry.ts > maxAgeMs) { delete _cache[key]; return null; }
-  return entry.data;
-}
-function cacheSet(key, data) { _cache[key] = { data, ts: Date.now() }; }
-function cacheInvalidate(...prefixes) {
-  for (const k of Object.keys(_cache)) {
-    if (prefixes.some(p => k.startsWith(p))) delete _cache[k];
-  }
-}
-// Invalidate caches that depend on card acquisition
-function invalidateCardCaches() {
-  cacheInvalidate('leaderboard', 'score', 'user-repos');
-}
-
 // Store referral code from URL (belt and suspenders with page.tsx)
 const _urlRef = new URLSearchParams(window.location.search).get('gpref');
 if (_urlRef) localStorage.setItem('gp_ref', _urlRef);
@@ -363,19 +344,15 @@ function startPackCountdown() {
 async function loadPopularRepos(featuredRepo) {
   popularRepos.innerHTML = `<div style="text-align:center;padding:60px 20px"><div class="spinner"></div></div>`;
   try {
-    // Fetch popular repos and user repos in parallel (with client cache)
-    let repos = cacheGet('repos', 300000); // 5 min client cache
-    let userReposFromCache = _currentUser ? cacheGet('user-repos', 60000) : null; // 1 min
+    // Always fetch fresh — these queries are small and run in parallel.
+    // We tried client caching and it just hid stale state (broken sets still
+    // reading as complete, stale leaderboards) without buying meaningful perf.
     const [reposRes, urRes] = await Promise.all([
-      repos ? Promise.resolve(null) : fetch('/api/repos'),
-      userReposFromCache || !_currentUser ? Promise.resolve(null) : fetch('/api/user-repos', { cache: 'no-cache' }),
+      fetch('/api/repos'),
+      _currentUser ? fetch('/api/user-repos', { cache: 'no-cache' }) : Promise.resolve(null),
     ]);
-    if (!repos) {
-      if (!reposRes || !reposRes.ok) return;
-      repos = await reposRes.json();
-      cacheSet('repos', repos);
-    }
-    repos = JSON.parse(JSON.stringify(repos)); // deep clone so we don't mutate cache
+    if (!reposRes || !reposRes.ok) return;
+    const repos = await reposRes.json();
     if (!repos.length) {
       popularRepos.innerHTML = `<div class="popular-section">
         <p class="popular-hint">Enter a GitHub repo above to get started!</p>
@@ -383,9 +360,9 @@ async function loadPopularRepos(featuredRepo) {
       return;
     }
 
-    let userRepos = userReposFromCache || [];
-    if (!userReposFromCache && urRes && urRes.ok) {
-      try { userRepos = await urRes.json(); cacheSet('user-repos', userRepos); } catch { /* silent */ }
+    let userRepos = [];
+    if (urRes && urRes.ok) {
+      try { userRepos = await urRes.json(); } catch { /* silent */ }
     }
 
     // For logged-out users, use localStorage
@@ -876,29 +853,22 @@ async function loadLeaderboard() {
   if (!section) return;
 
   try {
-    let cached = cacheGet('leaderboard', 300000); // 5 min
-    let entries = cached?.entries;
-    let userScore = _currentUser ? cacheGet('score', 60000) : null; // 1 min
-
     const [lbRes, scoreRes] = await Promise.all([
-      entries ? Promise.resolve(null) : fetch('/api/leaderboard?limit=10'),
-      userScore || !_currentUser ? Promise.resolve(null) : fetch('/api/score'),
+      fetch('/api/leaderboard?limit=10'),
+      _currentUser ? fetch('/api/score') : Promise.resolve(null),
     ]);
 
-    if (!entries && lbRes && lbRes.ok) {
+    let entries = [];
+    if (lbRes && lbRes.ok) {
       const data = await lbRes.json();
       entries = data.entries || [];
       _lbTotal = data.total_entries || 0;
-      cacheSet('leaderboard', data);
-    } else if (cached) {
-      _lbTotal = cached.total_entries || 0;
     }
-    entries = entries || [];
     _lbEntries = entries;
 
-    if (!userScore && scoreRes && scoreRes.ok) {
+    let userScore = null;
+    if (scoreRes && scoreRes.ok) {
       userScore = await scoreRes.json();
-      cacheSet('score', userScore);
     }
 
     renderLeaderboard(section, entries, userScore);
@@ -919,11 +889,14 @@ async function loadMoreLeaderboard() {
     _lbTotal = data.total_entries || _lbTotal;
     _lbEntries = _lbEntries.concat(newEntries);
 
-    // Update cache
-    cacheSet('leaderboard', { entries: _lbEntries, total_entries: _lbTotal });
-
     const section = document.getElementById('leaderboard-section');
-    const userScore = _currentUser ? cacheGet('score', 60000) : null;
+    let userScore = null;
+    if (_currentUser) {
+      try {
+        const scoreRes = await fetch('/api/score');
+        if (scoreRes.ok) userScore = await scoreRes.json();
+      } catch { /* silent */ }
+    }
     renderLeaderboard(section, _lbEntries, userScore);
   } catch {
     btn.disabled = false;
@@ -2031,21 +2004,39 @@ async function refreshRepoData() {
   const parts = currentRepoName.match(/^([^/]+)\/([^/]+)/);
   if (!parts) return;
   const [, owner, repo] = parts;
-  const btn = document.getElementById('refresh-repo-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Refreshing…'; }
+
+  // Snapshot the current view in case the refresh fails — restore on error.
+  const priorContributors = allContributors;
+  const priorFetchedAt = repoFetchedAt;
+  const priorPartialMeta = repoPartialMeta;
+
   showError('');
+  grid.innerHTML = '';
+  repoInfo.style.display = 'none';
+  loading.style.display = 'block';
+  _resetProgress();
 
   try {
-    const result = await fetchRepoStream(`/api/repo/${owner}/${repo}?refresh=true`);
+    const onEvent = makeProgressDriver();
+    const result = await fetchRepoStream(`/api/repo/${owner}/${repo}?refresh=true`, onEvent);
     allContributors = result.data;
     repoFetchedAt = result.fetchedAt || new Date().toISOString();
     repoPartialMeta = result.partialMeta || null;
+    loading.style.display = 'none';
     renderRepoInfo(owner, repo);
     renderLibrary();
   } catch (err) {
     console.error('[GHTC] refreshRepoData error:', err);
+    loading.style.display = 'none';
     showError(err.message, err.details);
-    if (btn) { btn.disabled = false; btn.textContent = 'Refresh data'; }
+    // Restore the previously-loaded view so the user keeps their cards.
+    if (priorContributors && priorContributors.length) {
+      allContributors = priorContributors;
+      repoFetchedAt = priorFetchedAt;
+      repoPartialMeta = priorPartialMeta;
+      renderRepoInfo(owner, repo);
+      renderLibrary();
+    }
   }
 }
 
@@ -2509,7 +2500,6 @@ async function openPack() {
     picks = data.cards;
     if (data.packState) {
       packState = data.packState;
-      invalidateCardCaches();
     }
     if (data.guestPacksRemaining !== undefined) {
       guestPacksRemaining = data.guestPacksRemaining;
@@ -2776,7 +2766,7 @@ function revealCards(overlay, picks, onComplete) {
               if (Array.isArray(d)) { nextPicks = d; }
               else {
                 nextPicks = d.cards;
-                if (d.packState) { packState = d.packState; invalidateCardCaches(); }
+                if (d.packState) { packState = d.packState; }
                 if (d.guestPacksRemaining !== undefined) { guestPacksRemaining = d.guestPacksRemaining; localStorage.setItem('gp_guest_packs_remaining', String(guestPacksRemaining)); }
               }
               renderTopBarPacks();
@@ -3040,7 +3030,6 @@ async function claimMilestone(statType, threshold) {
     }
 
     // Update the achievements panel
-    invalidateCardCaches();
     renderRepoInfoFromCurrent();
 
     // Open the pack reveal with the drawn cards
@@ -3992,7 +3981,6 @@ async function revertSingleCard(c) {
     // Update local state inline
     if (library[c.login]) library[c.login]--;
     starBalance += data.starsEarned || 0;
-    invalidateCardCaches();
     saveLibrary();
     return { starsEarned: data.starsEarned || 0 };
   } catch (err) {
@@ -4015,7 +4003,6 @@ async function cherryPickCard(c) {
     // Update local state
     library[c.login] = (library[c.login] || 0) + 1;
     starBalance = data.newBalance;
-    invalidateCardCaches();
     saveLibrary();
     return { success: true, newBalance: data.newBalance };
   } catch (err) {

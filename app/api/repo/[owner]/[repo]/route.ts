@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { getCachedRepo, setCachedRepo } from '@/app/lib/repo-cache';
 import { invalidateOgCache } from '@/app/lib/og-cache';
 import { MIN_REPO_CONTRIBUTORS } from '@/app/lib/constants';
@@ -10,6 +10,7 @@ import {
   bucketCommitsByContributor,
   type StatsContributor,
 } from '@/app/lib/github-stats';
+import { tryClaimRefreshSlot, runBackgroundRefresh } from '@/app/lib/refresh-coordinator';
 
 // Hobby plan caps function duration at 60s. Set explicitly so the GraphQL
 // fanout + REST issues/contributors can run alongside without an unrelated
@@ -781,6 +782,16 @@ export async function GET(
   if (!refresh) {
     const cached = await getCachedRepo(cacheKey);
     if (cached) {
+      // Site-wide background refresh: every cache-hit serve attempts to claim
+      // a global 5-min cooldown slot. If we win, run the cheap probe + maybe
+      // full refresh after the response is sent. Cooldown is shared across
+      // all repos and all users — one refresh per 5 min for the whole site.
+      const claimed = await tryClaimRefreshSlot();
+      if (claimed) {
+        const origin = request.nextUrl.origin;
+        after(runBackgroundRefresh(origin, owner, repo, ghToken));
+      }
+
       return ndjsonResponse(
         singleEventStream({
           stage: 'done',
