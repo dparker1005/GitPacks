@@ -1183,7 +1183,7 @@ function renderSprints(section, data) {
 
   section.innerHTML = `<div class="sprints-section">
     <div class="sprints-header">
-      <span class="sprints-title">${GP_ICON} Sprints <span class="beta-tag">BETA</span></span>
+      <span class="sprints-title">${GP_ICON} Sprints</span>
       ${unclaimedBadge}
       <button class="sprint-past-btn" id="sprint-past-btn">Past Sprints</button>
     </div>
@@ -1898,6 +1898,55 @@ function computeCompletionBonus(basePoints, isComplete) {
 const REVERT_YIELD = { common: 1, rare: 3, epic: 10, legendary: 30, mythic: 100 };
 const CHERRY_PICK_COST = { common: 5, rare: 15, epic: 50, legendary: 150, mythic: 500 };
 
+// Collection stats shown alongside the pack-opening screen — per-rarity progress
+// plus the three star figures: current balance, stars recoverable from duplicates,
+// and stars needed to cherry-pick the rest of the set.
+function buildPackStatsHTML() {
+  if (!allContributors || !allContributors.length) return '';
+  const rarityList = ['common', 'rare', 'epic', 'legendary', 'mythic'];
+  const rarityClrs = { common: '#888', rare: '#60a5fa', epic: '#c084fc', legendary: '#ffd700', mythic: '#ff0040' };
+  let totalRevertStars = 0;
+  let totalCherryStars = 0;
+  let collectedTotal = 0;
+  const rows = rarityList.map(r => {
+    const allOfR = allContributors.filter(c => c.rarity === r);
+    const collectedOfR = allOfR.filter(c => library[c.login]).length;
+    const dupesOfR = allOfR.reduce((sum, c) => sum + Math.max(0, (library[c.login] || 0) - 1), 0);
+    const missingOfR = allOfR.length - collectedOfR;
+    totalRevertStars += dupesOfR * REVERT_YIELD[r];
+    totalCherryStars += missingOfR * CHERRY_PICK_COST[r];
+    collectedTotal += collectedOfR;
+    return { rarity: r, collected: collectedOfR, total: allOfR.length };
+  }).filter(row => row.total > 0);
+
+  const rowsHTML = rows.map(row => `<div class="pack-stats-row">
+      <span class="pack-stats-rarity" style="color:${rarityClrs[row.rarity]}">${row.rarity}</span>
+      <span class="pack-stats-count${row.collected >= row.total ? ' pack-stats-done' : ''}">${row.collected}/${row.total}</span>
+    </div>`).join('');
+
+  let starsHTML = '';
+  if (_currentUser) {
+    const isComplete = collectedTotal >= allContributors.length;
+    starsHTML = `<div class="pack-stats-divider"></div>
+      <div class="pack-stats-star-line pack-stats-balance">&starf; ${starBalance} stars</div>
+      ${totalRevertStars > 0 ? `<div class="pack-stats-star-line pack-stats-revert">+${totalRevertStars} &starf; from reverting dupes</div>` : ''}
+      ${isComplete
+        ? `<div class="pack-stats-star-line pack-stats-cherry pack-stats-done">Set complete &starf;</div>`
+        : `<div class="pack-stats-star-line pack-stats-cherry">${totalCherryStars} &starf; to finish via cherry-pick</div>`}`;
+  }
+
+  return `<div class="pack-stats-title">Collection</div>
+    <div class="pack-stats-repo">${currentRepoName || ''}</div>
+    <div class="pack-stats-progress">${collectedTotal}/${allContributors.length} cards</div>
+    <div class="pack-stats-rows">${rowsHTML}</div>
+    ${starsHTML}`;
+}
+
+function updatePackStats(overlay) {
+  const el = overlay && overlay.querySelector('#pack-stats');
+  if (el) el.innerHTML = buildPackStatsHTML();
+}
+
 async function loadRepo(fromHomepage, repoOverride) {
   const repoInput = (repoOverride || (input ? input.value : '')).trim().replace(/^https?:\/\/github\.com\//, '');
   const match = repoInput.match(/^([^/]+)\/([^/]+)/);
@@ -2299,7 +2348,7 @@ function renderRepoInfo(owner, repo) {
         // Sprint repo: achievements locked, sprint panel stacked below (wrapped like right column)
         leftCol = `<div class="repo-panels-left">
           <details class="repo-panel-collapse" id="achievements-panel"><summary class="repo-panel-toggle">Your Achievements <span class="panel-summary sprint-ach-locked">Disabled for sprint repos to keep competition fair</span></summary>${achievementHTML}</details>
-          <details class="repo-panel-collapse" id="sprint-panel" open><summary class="repo-panel-toggle">Sprint <span class="beta-tag">BETA</span></summary>${renderSprintPanel(activeSprint)}</details>
+          <details class="repo-panel-collapse" id="sprint-panel" open><summary class="repo-panel-toggle">Sprint</summary>${renderSprintPanel(activeSprint)}</details>
         </div>`;
       } else if (_currentUser) {
         leftCol = `<details class="repo-panel-collapse" id="achievements-panel"><summary class="repo-panel-toggle">Your Achievements</summary>${achievementHTML}</details>`;
@@ -2525,6 +2574,7 @@ async function openPack() {
   overlay.innerHTML = `
     <button class="pack-close-btn" id="pack-close-btn">&times;</button>
     ${packAuthBanner}
+    <div class="pack-stats" id="pack-stats">${buildPackStatsHTML()}</div>
     <div class="pack-container">
       <div class="pack-wrapper" id="pack-wrapper">
         <div class="pack-face">
@@ -2733,6 +2783,8 @@ function revealCards(overlay, picks, onComplete) {
       // Just update the in-memory cache
       library[slot._contributor.login] = (library[slot._contributor.login] || 0) + 1;
     }
+
+    updatePackStats(overlay);
 
     flipped++;
 

@@ -1026,6 +1026,24 @@
     .pack-odds-guarantee { font-family:'Rajdhani',sans-serif; font-size:0.7rem; color:#999; border-top:1px solid rgba(255,255,255,0.05); padding-top:8px; line-height:1.4; }
     @media (max-width:900px) { .pack-odds-box { display:none; } }
 
+    /* ===== PACK COLLECTION STATS (left panel, mirrors odds box) ===== */
+    .pack-stats { position:fixed; left:24px; top:50%; transform:translateY(-50%); background:rgba(15,15,35,0.9); border:1px solid rgba(120,115,245,0.15); border-radius:12px; padding:16px 18px; width:190px; z-index:9998; backdrop-filter:blur(8px); }
+    .pack-stats:empty { display:none; }
+    .pack-stats-title { font-family:'Orbitron',sans-serif; font-size:0.6rem; font-weight:700; color:#7873f5; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px; }
+    .pack-stats-repo { font-family:'Rajdhani',sans-serif; font-size:0.78rem; color:#bbb; line-height:1.2; word-break:break-all; margin-bottom:2px; }
+    .pack-stats-progress { font-family:'Orbitron',sans-serif; font-size:0.7rem; font-weight:700; color:#fff; margin-bottom:10px; }
+    .pack-stats-rows { display:flex; flex-direction:column; gap:3px; }
+    .pack-stats-row { display:flex; justify-content:space-between; align-items:center; padding:1px 0; }
+    .pack-stats-rarity { font-family:'Rajdhani',sans-serif; font-size:0.8rem; font-weight:600; text-transform:capitalize; }
+    .pack-stats-count { font-family:'Orbitron',sans-serif; font-size:0.6rem; font-weight:700; color:#aaa; font-variant-numeric:tabular-nums; }
+    .pack-stats-count.pack-stats-done, .pack-stats-star-line.pack-stats-done { color:#4ade80; }
+    .pack-stats-divider { height:1px; background:rgba(255,255,255,0.08); margin:10px 0; }
+    .pack-stats-star-line { font-family:'Rajdhani',sans-serif; font-size:0.78rem; line-height:1.5; }
+    .pack-stats-balance { font-size:0.9rem; font-weight:700; color:#ffd700; }
+    .pack-stats-revert { color:#4ade80; }
+    .pack-stats-cherry { color:#999; }
+    @media (max-width:900px) { .pack-stats { display:none; } }
+
     @media (max-width:600px) {
       .landing-cards { height:200px; min-height:200px; }
       .landing-card { height:150px; }
