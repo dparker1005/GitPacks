@@ -1,6 +1,7 @@
 let _initialized = false;
 let _currentUser = null;
 let _dashTab = 'inprogress'; // active mobile dashboard tab; survives re-renders
+let _yourReposForSearch = []; // started/completed repos, surfaced in Discover search results
 
 export function initGitPacks(user) {
 // Prevent double-init — just update user reference on re-calls
@@ -405,6 +406,7 @@ async function loadPopularRepos(featuredRepo) {
 
     const yourRepos = repos.filter(r => r.collected > 0).sort((a, b) => b.pct - a.pct || b.cards - a.cards);
     const otherRepos = repos.filter(r => r.collected === 0).sort((a, b) => b.cards - a.cards);
+    _yourReposForSearch = yourRepos;
 
     // Split yourRepos into completed and in-progress for logged-in dashboard
     const completedRepos = yourRepos.filter(r => r.cards > 0 && r.collected >= r.cards);
@@ -619,15 +621,44 @@ async function loadPopularRepos(featuredRepo) {
 }
 
 // Filter the Discover grid to repos whose org or repo name starts with the query.
+// While a search is active, matching repos the user has already started or
+// completed surface at the top (they normally live in the other sections, so
+// without this a search for them comes up empty).
 function filterDiscoverGrid() {
   const input = document.getElementById('repo-input');
   const grid = document.getElementById('discover-grid');
   if (!input || !grid) return;
   const q = input.value.trim().toLowerCase();
-  grid.querySelectorAll('.popular-repo-btn').forEach(btn => {
-    const full = (btn.dataset.repo || '').toLowerCase();
+  const matches = (full) => {
     const [owner = '', name = ''] = full.split('/');
-    btn.style.display = (!q || owner.startsWith(q) || name.startsWith(q) || full.startsWith(q)) ? '' : 'none';
+    return !q || owner.startsWith(q) || name.startsWith(q) || full.startsWith(q);
+  };
+
+  grid.querySelectorAll('.popular-repo-btn:not(.your-repo-match)').forEach(btn => {
+    btn.style.display = matches((btn.dataset.repo || '').toLowerCase()) ? '' : 'none';
+  });
+
+  grid.querySelectorAll('.your-repo-match').forEach(el => el.remove());
+  if (!q) return;
+  const mine = _yourReposForSearch.filter(r => matches(r.name.toLowerCase()));
+  if (!mine.length) return;
+
+  const html = mine.map(r => {
+    const done = r.cards > 0 && r.collected >= r.cards;
+    return `<a class="popular-repo-btn your-repo-match${done ? ' repo-complete' : ''}" href="?repo=${r.name}" data-repo="${r.name}">
+        ${done ? '' : '<span class="contributed-badge">In Progress</span>'}
+        <span class="popular-repo-name">${r.name}</span>
+        <span class="popular-repo-meta">
+          <span class="popular-repo-progress">${r.collected}/${r.cards}</span>
+          <span class="popular-repo-pct">${Math.round(r.pct * 100)}%</span>
+        </span>
+      </a>`;
+  }).join('');
+  grid.prepend(document.createRange().createContextualFragment(html));
+  grid.querySelectorAll('.your-repo-match').forEach(b => {
+    b.addEventListener('click', (e) => {
+      if (isPlainNavClick(e)) { e.preventDefault(); quickLoad(b.dataset.repo); }
+    });
   });
 }
 
