@@ -12,7 +12,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Not authenticated', detail: authError?.message }, { status: 401 });
     }
 
-    const profile = await getOrCreateProfile(supabase, user, 'ready_packs, bonus_packs, last_regen_at, created_at');
+    const profile = await getOrCreateProfile(supabase, user, 'ready_packs, bonus_packs, last_regen_at, created_at, last_seen_at');
     if (!profile) {
       return NextResponse.json({ error: 'Failed to create profile' }, { status: 500 });
     }
@@ -22,11 +22,19 @@ export async function GET() {
       new Date(profile.last_regen_at).getTime()
     );
 
+    // Touch last_seen_at at most once per hour. Every logged-in session loads
+    // pack state, so this is the reliable "who still plays?" signal
+    // (auth.users.last_sign_in_at goes stale on long-lived sessions).
+    const updates: Record<string, any> = {};
     if (regen.updated) {
-      await supabase
-        .from('profiles')
-        .update({ ready_packs: regen.readyPacks, last_regen_at: new Date(regen.lastRegenAt).toISOString() })
-        .eq('id', user.id);
+      updates.ready_packs = regen.readyPacks;
+      updates.last_regen_at = new Date(regen.lastRegenAt).toISOString();
+    }
+    if (!profile.last_seen_at || Date.now() - new Date(profile.last_seen_at).getTime() > 3600_000) {
+      updates.last_seen_at = new Date().toISOString();
+    }
+    if (Object.keys(updates).length) {
+      await supabase.from('profiles').update(updates).eq('id', user.id);
     }
 
     const nextRegenAt = regen.readyPacks < MAX_PACKS

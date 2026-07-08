@@ -11,6 +11,7 @@ export interface Profile {
   shared_on_x: boolean;
   referral_code: string;
   referred_by: string | null;
+  last_seen_at: string | null;
 }
 
 /**
