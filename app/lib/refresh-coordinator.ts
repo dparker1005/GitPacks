@@ -6,14 +6,20 @@
 // `system_state` row; the claim is one atomic UPDATE ... WHERE updated_at < ...
 // RETURNING — if 0 rows return, someone else just claimed it.
 //
-// Once claimed, we do the cheap probe (latest commit SHA + latest issue
-// number, 2 REST calls). If those match what we have cached, we just bump
-// fetched_at silently. If anything changed, we kick the existing
-// /api/repo/{owner}/{repo}?refresh=true streaming path so the full GraphQL
+// Once claimed, we refresh the STALEST cached repo (oldest fetched_at), not
+// the repo that was visited. Every pass bumps that row's fetched_at, so the
+// "oldest" pointer advances round-robin through the whole cache — with steady
+// traffic every repo gets checked once per (cache size × cooldown) and stays
+// up to date without anyone having to visit it.
+//
+// Each pass does the cheap probe (latest commit SHA + latest issue number,
+// 2 REST calls). If those match what we have cached, we just bump fetched_at
+// silently. If anything changed, we kick the existing
+// /api/repo/{owner}/{repo}?refresh=true streaming path so the full stats
 // fetch + process + cache write reuses the one canonical pipeline.
 
 import { gitHubHeaders } from './github-token';
-import { supabase, getCachedRepoWithMarkers } from './repo-cache';
+import { supabase } from './repo-cache';
 
 const COOLDOWN_MINUTES = 5;
 const COOLDOWN_KEY = 'last_repo_refresh';
@@ -36,6 +42,26 @@ export async function tryClaimRefreshSlot(): Promise<boolean> {
     .select('key');
   if (error) return false;
   return Array.isArray(data) && data.length > 0;
+}
+
+/**
+ * The stalest cache row — the next candidate in the round-robin rotation.
+ */
+async function getOldestCachedRepo(): Promise<
+  { ownerRepo: string; lastCommitSha: string | null; lastIssueNumber: number | null } | null
+> {
+  const { data, error } = await supabase
+    .from('repo_cache')
+    .select('owner_repo, last_commit_sha, last_issue_number')
+    .order('fetched_at', { ascending: true })
+    .limit(1)
+    .single();
+  if (error || !data) return null;
+  return {
+    ownerRepo: data.owner_repo,
+    lastCommitSha: data.last_commit_sha ?? null,
+    lastIssueNumber: data.last_issue_number ?? null,
+  };
 }
 
 /**
@@ -102,6 +128,20 @@ async function touchCacheRow(
 }
 
 /**
+ * Advance the rotation without touching the change-detection markers. Used
+ * when the probe fails (repo deleted, rate limit) or before a full refresh:
+ * either way the row must stop being "oldest" so one bad repo can't jam the
+ * site-wide rotation, but the stale markers must survive so change detection
+ * retries on the next lap.
+ */
+async function bumpFetchedAt(ownerRepo: string): Promise<void> {
+  await supabase
+    .from('repo_cache')
+    .update({ fetched_at: new Date().toISOString() })
+    .eq('owner_repo', ownerRepo);
+}
+
+/**
  * Full refresh: re-enter our own /api/repo route with ?refresh=true. The
  * route writes to cache as a side effect of the stream, so we just have to
  * drain the body to keep the producer alive to completion.
@@ -129,28 +169,39 @@ async function triggerFullRefresh(origin: string, owner: string, repo: string): 
 }
 
 /**
- * Background refresh entry point. Caller is responsible for having claimed
- * the slot via tryClaimRefreshSlot first.
+ * Background refresh entry point: refresh the stalest cached repo. Caller is
+ * responsible for having claimed the slot via tryClaimRefreshSlot first.
+ * ghToken is the visiting user's token (if any) — spends their rate limit
+ * quota rather than the shared server token.
  */
 export async function runBackgroundRefresh(
   origin: string,
-  owner: string,
-  repo: string,
   ghToken: string | undefined,
 ): Promise<void> {
-  const cacheKey = `${owner}/${repo}`.toLowerCase();
   try {
-    const cached = await getCachedRepoWithMarkers(cacheKey);
-    if (!cached) return;
+    const oldest = await getOldestCachedRepo();
+    if (!oldest) return;
+    const [owner, repo] = oldest.ownerRepo.split('/');
+    if (!owner || !repo) return;
 
-    const probe = await probeForChanges(owner, repo, ghToken, cached);
-    if (!probe.ok) return;
-
-    if (!probe.changed) {
-      await touchCacheRow(cacheKey, probe.commitSha, probe.issueNumber);
+    const probe = await probeForChanges(owner, repo, ghToken, oldest);
+    if (!probe.ok) {
+      // Probe failed (deleted repo, rate limit, network) — advance the
+      // rotation anyway; markers stay stale so we re-check next lap.
+      await bumpFetchedAt(oldest.ownerRepo);
       return;
     }
 
+    if (!probe.changed) {
+      await touchCacheRow(oldest.ownerRepo, probe.commitSha, probe.issueNumber);
+      return;
+    }
+
+    // Advance rotation before the full refresh: on success setCachedRepo
+    // rewrites fetched_at + markers anyway; on failure the old markers are
+    // still in place, so the change is picked up again on the next lap
+    // instead of this repo monopolizing every slot.
+    await bumpFetchedAt(oldest.ownerRepo);
     await triggerFullRefresh(origin, owner, repo);
   } catch (err) {
     // Background work; never throw.

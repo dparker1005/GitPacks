@@ -149,8 +149,15 @@
     .pb-total .pb-rarity { color:#4adede; }
     .pb-total .pb-pts { color:#4adede; font-size:0.8rem; }
 
+    .dash-tabs { display:none; }
     @media (max-width:768px) {
       .dashboard { grid-template-columns:1fr; grid-template-rows:auto; gap:16px; }
+      .dash-tabs { display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; }
+      .dash-tabs::-webkit-scrollbar { display:none; }
+      .dash-tab { flex:1; white-space:nowrap; padding:9px 6px; border:1px solid rgba(120,115,245,0.2); border-radius:8px; background:none; color:#aaa; font-family:'Rajdhani',sans-serif; font-size:0.78rem; font-weight:600; letter-spacing:0.3px; cursor:pointer; transition:all 0.2s; }
+      .dash-tab.active { color:#e0e0e0; border-color:rgba(120,115,245,0.6); background:rgba(120,115,245,0.12); }
+      .dashboard .dash-quad { display:none; }
+      .dashboard .dash-quad.dash-active { display:flex; }
     }
 
     /* === REPO CONTENT LAYOUT === */

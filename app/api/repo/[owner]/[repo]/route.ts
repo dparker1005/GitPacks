@@ -6,6 +6,7 @@ import { gitHubHeaders, getGitHubToken } from '@/app/lib/github-token';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
 import {
   probeRepo,
+  fetchStatsViaREST,
   fetchCommitsViaGraphQL,
   bucketCommitsByContributor,
   type StatsContributor,
@@ -17,7 +18,10 @@ import { tryClaimRefreshSlot, runBackgroundRefresh } from '@/app/lib/refresh-coo
 // default cutting them short.
 export const maxDuration = 60;
 
-const COMMIT_LIMIT = 50_000;
+// No upfront size limit: REST /stats/contributors returns any repo in one
+// call. The GraphQL fallback still can't paginate huge histories inside the
+// 60s cap, so this bounds only that path (checked when REST has failed).
+const GRAPHQL_FALLBACK_COMMIT_LIMIT = 50_000;
 
 // ===== Helpers =====
 function fmt(n: number): string {
@@ -634,24 +638,38 @@ function buildFetchStream(owner: string, repo: string, ghToken: string | undefin
           return;
         }
 
-        if (probe.totalCommits > COMMIT_LIMIT) {
-          write({
-            stage: 'error',
-            code: 'too-large',
-            message: `This repo has ${fmt(probe.totalCommits)} commits — too many to score live (limit ${fmt(COMMIT_LIMIT)}). Try a smaller repo.`,
-            details: { totalCommits: probe.totalCommits, limit: COMMIT_LIMIT },
-          });
-          controller.close();
-          return;
-        }
-
         write({ stage: 'probe', totalCommits: probe.totalCommits });
 
-        // Fan out: commits via GraphQL (with progress callback) + issues + contributors.
-        const [commitsRes, issuesRes, contribRes] = await Promise.all([
-          fetchCommitsViaGraphQL(owner, repo, ghToken, probe.createdAt, (fetched) => {
+        // Fan out: stats (REST first, GraphQL fallback) + issues + contributors.
+        const fetchStats = async (): Promise<
+          | { ok: true; contributors: StatsContributor[] }
+          | { ok: false; status: number; message: string }
+        > => {
+          // REST /stats/contributors: one call for the full matrix. No
+          // per-page progress, so jump the bar to full on success.
+          const rest = await fetchStatsViaREST(owner, repo, ghToken);
+          if (rest.ok) {
+            write({ stage: 'commits', fetched: probe.totalCommits, total: probe.totalCommits });
+            return rest;
+          }
+          // GraphQL reconstruction — the 2026-04..07 primary path, kept as
+          // fallback in case the REST endpoint regresses (github/community#192970).
+          if (probe.totalCommits > GRAPHQL_FALLBACK_COMMIT_LIMIT) {
+            return {
+              ok: false,
+              status: rest.status,
+              message: `GitHub's stats service is unavailable (${rest.message}) and this repo is too large (${fmt(probe.totalCommits)} commits) to rebuild live. Try again shortly.`,
+            };
+          }
+          const gql = await fetchCommitsViaGraphQL(owner, repo, ghToken, probe.createdAt, (fetched) => {
             write({ stage: 'commits', fetched, total: probe.totalCommits });
-          }),
+          });
+          if (!gql.ok) return gql;
+          return { ok: true, contributors: bucketCommitsByContributor(gql.commits) };
+        };
+
+        const [statsRes, issuesRes, contribRes] = await Promise.all([
+          fetchStats(),
           fetchAllIssues(owner, repo, ghToken).then((r) => {
             write({ stage: 'issues', ok: r.ok });
             return r;
@@ -665,15 +683,15 @@ function buildFetchStream(owner: string, repo: string, ghToken: string | undefin
         // Failure gate. If a refresh fails but we have a cached row, hand back
         // the cached data so the user keeps seeing good cards.
         const failures: StepErr[] = [];
-        if (!commitsRes.ok) {
+        if (!statsRes.ok) {
           failures.push({
             ok: false,
             step: 'stats',
-            endpoint: 'graphql:repository.history',
-            attempts: [{ status: commitsRes.status, waitedMs: 0 }],
+            endpoint: 'stats/contributors + graphql:repository.history',
+            attempts: [{ status: statsRes.status, waitedMs: 0 }],
             totalWaitedMs: 0,
-            lastStatus: commitsRes.status,
-            message: commitsRes.message,
+            lastStatus: statsRes.status,
+            message: statsRes.message,
           });
         }
         if (!issuesRes.ok) failures.push(issuesRes as StepErr);
@@ -703,10 +721,9 @@ function buildFetchStream(owner: string, repo: string, ghToken: string | undefin
           return;
         }
 
-        if (!commitsRes.ok || !issuesRes.ok || !contribRes.ok) throw new Error('unreachable');
+        if (!statsRes.ok || !issuesRes.ok || !contribRes.ok) throw new Error('unreachable');
 
-        const stats = bucketCommitsByContributor(commitsRes.commits);
-        const result = processAllContributors(stats, issuesRes.data, contribRes.data);
+        const result = processAllContributors(statsRes.contributors, issuesRes.data, contribRes.data);
 
         if (result.length < MIN_REPO_CONTRIBUTORS) {
           write({
@@ -783,13 +800,14 @@ export async function GET(
     const cached = await getCachedRepo(cacheKey);
     if (cached) {
       // Site-wide background refresh: every cache-hit serve attempts to claim
-      // a global 5-min cooldown slot. If we win, run the cheap probe + maybe
-      // full refresh after the response is sent. Cooldown is shared across
-      // all repos and all users — one refresh per 5 min for the whole site.
+      // a global 5-min cooldown slot. If we win, refresh the STALEST cached
+      // repo (not necessarily this one) after the response is sent — the
+      // rotation walks the whole cache so every repo eventually gets and
+      // stays up to date. One refresh per 5 min for the whole site.
       const claimed = await tryClaimRefreshSlot();
       if (claimed) {
         const origin = request.nextUrl.origin;
-        after(runBackgroundRefresh(origin, owner, repo, ghToken));
+        after(runBackgroundRefresh(origin, ghToken));
       }
 
       return ndjsonResponse(

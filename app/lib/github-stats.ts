@@ -1,11 +1,20 @@
-// GitHub commit-stats reconstruction via the GraphQL API.
+// GitHub commit-stats via REST /stats/contributors, with GraphQL reconstruction
+// as fallback.
 //
-// Replaces the broken /repos/{owner}/{repo}/stats/contributors endpoint
-// (github/community#192970, 202-forever since 2026-04-12) and its now-flaky
-// /graphs/contributors-data fallback. We paginate `repository.history`
-// directly, bucket by author × Sunday-aligned UTC week, and emit the same
+// The REST endpoint broke on 2026-04-12 (github/community#192970, 202-forever)
+// and we replaced it with a GraphQL `repository.history` reconstruction. As of
+// 2026-07 the endpoint works again (cold repos 202 → 200 in ~15s), so REST is
+// primary — one call instead of a paginated fanout. The GraphQL path is kept
+// intact as the fallback in case the endpoint regresses. Both emit the same
 // `{ author: { login, avatar_url }, total, weeks: [{w, c}] }` shape that
-// processAllContributors already consumes — so scoring code is untouched.
+// processAllContributors consumes — so scoring code is untouched.
+
+const REST_STATS_URL = (owner: string, repo: string) => `https://api.github.com/repos/${owner}/${repo}/stats/contributors`;
+// 202 means GitHub is computing stats for a cold repo; warm-up is ~15s in
+// practice. 7 attempts × 3s sleeps = ~18s of polling, leaving room for the
+// GraphQL fallback within the route's 60s duration cap.
+const REST_STATS_MAX_ATTEMPTS = 7;
+const REST_STATS_POLL_MS = 3000;
 
 const GRAPHQL_URL = 'https://api.github.com/graphql';
 const PAGE_SIZE = 100;
@@ -90,6 +99,65 @@ export async function probeRepo(owner: string, repo: string, token: string | und
     return { ok: true, totalCommits, createdAt: repoNode.createdAt, isFork: true, parentFullName: repoNode.parent?.nameWithOwner ?? null };
   }
   return { ok: true, totalCommits, createdAt: repoNode.createdAt, isFork: false };
+}
+
+export type RestStatsResult =
+  | { ok: true; contributors: StatsContributor[] }
+  | { ok: false; status: number; message: string };
+
+// One REST call returns the full contributor × week matrix (top 100 by
+// commits — same cap processAllContributors applies anyway). Bots and
+// commits without a resolved GitHub user are dropped, matching the GraphQL
+// path's behavior.
+export async function fetchStatsViaREST(
+  owner: string,
+  repo: string,
+  token: string | undefined,
+): Promise<RestStatsResult> {
+  const url = REST_STATS_URL(owner, repo);
+  const headers = { Accept: 'application/vnd.github+json', ...authHeader(token) };
+
+  for (let attempt = 0; attempt < REST_STATS_MAX_ATTEMPTS; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(url, { headers });
+    } catch (e: any) {
+      return { ok: false, status: 0, message: `Network error contacting GitHub REST stats: ${e?.message || 'unknown'}` };
+    }
+
+    if (res.status === 202) {
+      await new Promise((r) => setTimeout(r, REST_STATS_POLL_MS));
+      continue;
+    }
+    if (!res.ok) {
+      return { ok: false, status: res.status, message: `GitHub returned ${res.status} for /stats/contributors` };
+    }
+
+    let body: any;
+    try { body = await res.json(); } catch {
+      return { ok: false, status: res.status, message: 'GitHub /stats/contributors returned non-JSON body' };
+    }
+    if (!Array.isArray(body) || body.length === 0) {
+      return { ok: false, status: res.status, message: 'Empty /stats/contributors response' };
+    }
+
+    const contributors: StatsContributor[] = [];
+    for (const c of body) {
+      const login = c?.author?.login;
+      if (!login || login.endsWith('[bot]')) continue;
+      contributors.push({
+        author: { login, avatar_url: c.author.avatar_url || `https://github.com/${login}.png` },
+        total: c.total ?? 0,
+        weeks: Array.isArray(c.weeks) ? c.weeks.map((w: any) => ({ w: w.w, c: w.c })) : [],
+      });
+    }
+    if (contributors.length === 0) {
+      return { ok: false, status: res.status, message: 'No human contributors in /stats/contributors response' };
+    }
+    return { ok: true, contributors };
+  }
+
+  return { ok: false, status: 202, message: 'GitHub is still computing stats (202) — timed out waiting' };
 }
 
 const HISTORY_QUERY = `

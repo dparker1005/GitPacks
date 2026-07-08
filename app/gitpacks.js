@@ -1,5 +1,6 @@
 let _initialized = false;
 let _currentUser = null;
+let _dashTab = 'inprogress'; // active mobile dashboard tab; survives re-renders
 
 export function initGitPacks(user) {
 // Prevent double-init — just update user reference on re-calls
@@ -483,13 +484,24 @@ async function loadPopularRepos(featuredRepo) {
 
       html += `</div>`; // .engagement-row
 
-      // Dashboard layout: 4 quadrants
+      // Dashboard layout: 4 quadrants. On mobile the quads collapse into tabs
+      // (one visible at a time); dailies + sprints above stay always visible.
       html += `<div class="dashboard">`;
 
       const hasCollection = inProgressRepos.length || completedRepos.length;
 
+      const tab = (key, label) =>
+        `<button class="dash-tab${_dashTab === key ? ' active' : ''}" data-tab="${key}">${label}</button>`;
+      html += `<div class="dash-tabs" id="dash-tabs">
+        ${tab('inprogress', hasCollection ? 'In Progress' : 'Collection')}
+        ${tab('completed', 'Completed')}
+        ${tab('leaderboard', 'Leaderboard')}
+        ${tab('discover', 'Discover')}
+      </div>`;
+      const activeCls = (key) => (_dashTab === key ? ' dash-active' : '');
+
       // Top-left: In Progress
-      html += `<div class="dash-quad dash-q-inprogress">
+      html += `<div class="dash-quad dash-q-inprogress${activeCls('inprogress')}">
         <h3 class="popular-title">${hasCollection ? 'In Progress' : 'Your Collection'}</h3>`;
       if (inProgressRepos.length) {
         html += `<div class="popular-grid dash-scroll">${inProgressRepos.map(r => repoBtnScored(r, true)).join('')}</div>`;
@@ -499,13 +511,13 @@ async function loadPopularRepos(featuredRepo) {
       html += `</div>`;
 
       // Top-right: Leaderboard (score summary is injected by loadLeaderboard)
-      html += `<div id="leaderboard-section" class="dash-quad dash-q-leaderboard"><h3 class="popular-title">Leaderboard</h3><div class="leaderboard-list dash-scroll">${Array(10).fill('<div class="lb-row lb-skeleton"><span class="lb-rank">&nbsp;</span><div class="lb-avatar skeleton-pulse"></div><span class="lb-info"><span class="lb-name skeleton-pulse" style="display:inline-block;width:80px;height:1em;border-radius:4px"></span></span><span class="lb-points skeleton-pulse" style="display:inline-block;width:40px;height:1em;border-radius:4px"></span></div>').join('')}</div></div>`;
+      html += `<div id="leaderboard-section" class="dash-quad dash-q-leaderboard${activeCls('leaderboard')}"><h3 class="popular-title">Leaderboard</h3><div class="leaderboard-list dash-scroll">${Array(10).fill('<div class="lb-row lb-skeleton"><span class="lb-rank">&nbsp;</span><div class="lb-avatar skeleton-pulse"></div><span class="lb-info"><span class="lb-name skeleton-pulse" style="display:inline-block;width:80px;height:1em;border-radius:4px"></span></span><span class="lb-points skeleton-pulse" style="display:inline-block;width:40px;height:1em;border-radius:4px"></span></div>').join('')}</div></div>`;
 
       // Bottom-left: Completed + Score Total + Your Repos
       const totalBase = yourRepos.reduce((sum, r) => sum + (r.base_points || 0), 0);
       const totalBonus = yourRepos.reduce((sum, r) => sum + (r.completion_bonus || 0), 0);
       const totalPoints = yourRepos.reduce((sum, r) => sum + (r.total_points || 0), 0);
-      html += `<div class="dash-quad dash-q-completed">
+      html += `<div class="dash-quad dash-q-completed${activeCls('completed')}">
         <h3 class="popular-title">Completed</h3>`;
       if (completedRepos.length) {
         html += `<div class="popular-grid dash-scroll">${completedRepos.map(r => repoBtnScored(r, false)).join('')}</div>`;
@@ -519,7 +531,7 @@ async function loadPopularRepos(featuredRepo) {
       html += `</div>`;
 
       // Bottom-right: Discover (contributed repos get prepended after async load)
-      html += `<div class="dash-quad dash-q-discover">
+      html += `<div class="dash-quad dash-q-discover${activeCls('discover')}">
         <h3 class="popular-title">Discover</h3>
         <div class="discover-search" id="search-container">
           <input type="text" id="repo-input" placeholder="Search any repo..." />
@@ -570,13 +582,30 @@ async function loadPopularRepos(featuredRepo) {
       });
     });
 
+    // Mobile dashboard tabs: swap which quad is visible (CSS only hides
+    // non-active quads below 768px, so desktop is unaffected)
+    const dashTabs = document.getElementById('dash-tabs');
+    if (dashTabs) {
+      dashTabs.querySelectorAll('.dash-tab').forEach(t => {
+        t.addEventListener('click', () => {
+          _dashTab = t.dataset.tab;
+          dashTabs.querySelectorAll('.dash-tab').forEach(x => x.classList.toggle('active', x === t));
+          document.querySelectorAll('.dashboard .dash-quad').forEach(q =>
+            q.classList.toggle('dash-active', q.classList.contains(`dash-q-${_dashTab}`)));
+        });
+      });
+    }
+
     // Re-grab search elements (now rendered inside Discover for logged-in users)
     if (_currentUser) {
       input = document.getElementById('repo-input');
       btn = document.getElementById('generate-btn');
       searchContainer = document.getElementById('search-container');
       if (btn) btn.addEventListener('click', () => loadRepo());
-      if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') loadRepo(); });
+      if (input) {
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') loadRepo(); });
+        input.addEventListener('input', filterDiscoverGrid);
+      }
     }
 
     // Lazy load contributed repos, leaderboard, dailies, sprints, and stats
@@ -587,6 +616,19 @@ async function loadPopularRepos(featuredRepo) {
       loadSprints();
     }
   } catch { /* silent */ }
+}
+
+// Filter the Discover grid to repos whose org or repo name starts with the query.
+function filterDiscoverGrid() {
+  const input = document.getElementById('repo-input');
+  const grid = document.getElementById('discover-grid');
+  if (!input || !grid) return;
+  const q = input.value.trim().toLowerCase();
+  grid.querySelectorAll('.popular-repo-btn').forEach(btn => {
+    const full = (btn.dataset.repo || '').toLowerCase();
+    const [owner = '', name = ''] = full.split('/');
+    btn.style.display = (!q || owner.startsWith(q) || name.startsWith(q) || full.startsWith(q)) ? '' : 'none';
+  });
 }
 
 async function loadContributedRepos(yourRepos) {
@@ -622,6 +664,7 @@ async function loadContributedRepos(yourRepos) {
   // Prepend contributed repos at top of Discover grid
   const fragment = document.createRange().createContextualFragment(newContributed.map(contribBtn).join(''));
   grid.prepend(fragment);
+  filterDiscoverGrid();
 
   grid.querySelectorAll('.contributed-repo-btn').forEach(b => {
     b.addEventListener('click', (e) => {
