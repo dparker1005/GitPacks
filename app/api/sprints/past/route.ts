@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fetch participant counts per sprint (committed entries)
+    // Fetch automatic participant counts per sprint.
     const participantCounts: Record<string, number> = {};
     for (const sid of sprintIds) {
       const { count: c } = await supabase
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
         // User-specific fields — null/0/false when the user didn't participate
         id: entry?.id ?? null,
         totalPower: entry?.total_power ?? 0,
-        committedAt: entry?.committed_at ?? null,
+        participatedAt: entry?.committed_at ?? null,
         rank: entry?.rank ?? null,
         percentile: entry?.percentile ?? null,
         packsWon: entry?.packs_won ?? 0,

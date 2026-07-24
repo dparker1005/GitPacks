@@ -29,7 +29,7 @@ export async function GET(
       return NextResponse.json({ error: 'Sprint has not ended yet' }, { status: 400 });
     }
 
-    // Get rankings (only committed entries with ranks)
+    // Get finalized rankings for automatic participants.
     const { data: entries, error: entriesErr, count } = await supabase
       .from('sprint_entries')
       .select(`

@@ -21,7 +21,7 @@ export async function GET() {
     const daily = sprints?.find((s: any) => s.type === 'daily') || null;
     const weekly = sprints?.find((s: any) => s.type === 'weekly') || null;
 
-    // Get participant counts for active sprints
+    // Automatic participants are stored as entries with their participation timestamp.
     const sprintIds = [daily?.id, weekly?.id].filter(Boolean);
     let participantCounts: Record<string, number> = {};
 
@@ -36,7 +36,7 @@ export async function GET() {
       }
     }
 
-    // Try to get current user's entries (optional — not required)
+    // Try to get the current user's automatically managed entries.
     let userEntries: Record<string, any> = {};
     let unclaimedCount = 0;
 
@@ -85,7 +85,7 @@ export async function GET() {
       participants: participantCounts[s.id] || 0,
       myEntry: userEntries[s.id] ? {
         totalPower: userEntries[s.id].total_power,
-        committedAt: userEntries[s.id].committed_at,
+        participatedAt: userEntries[s.id].committed_at,
         cardCommon: userEntries[s.id].card_common,
         cardRare: userEntries[s.id].card_rare,
         cardEpic: userEntries[s.id].card_epic,

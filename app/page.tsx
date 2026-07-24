@@ -189,7 +189,7 @@ export default function Home() {
                 <div className="landing-step-num">4</div>
                 <div className="landing-step-text">
                   <h3>Compete in Sprints</h3>
-                  <p>Daily and weekly competitions on featured repos. Build your best 5-card lineup and compete for bonus packs.</p>
+                  <p>Daily and weekly competitions on featured repos. Own a card to participate automatically with your strongest lineup.</p>
                 </div>
               </div>
               <div className="landing-step">

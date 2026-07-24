@@ -1227,10 +1227,10 @@ function renderSprints(section, data) {
     }
 
     const repoName = `${sprint.repoOwner}/${sprint.repoName}`;
-    const hasEntry = sprint.myEntry && sprint.myEntry.committedAt;
+    const hasEntry = sprint.myEntry && sprint.myEntry.totalPower > 0;
     const power = hasEntry ? sprint.myEntry.totalPower : 0;
-    const statusText = hasEntry ? `Committed &middot; ${power} PWR` : 'Not entered';
-    const statusClass = hasEntry ? 'sprint-committed' : 'sprint-not-entered';
+    const statusText = hasEntry ? `Participating &middot; ${power} PWR` : 'No cards yet';
+    const statusClass = hasEntry ? 'sprint-participating' : 'sprint-no-cards';
     const endsAt = new Date(sprint.endsAt).getTime();
     const remaining = endsAt - Date.now();
     const timeText = remaining > 0 ? formatSprintTime(remaining) : 'Ending...';
@@ -1261,7 +1261,7 @@ function renderSprints(section, data) {
       ${unclaimedBadge}
       <button class="sprint-past-btn" id="sprint-past-btn">Past Sprints</button>
     </div>
-    <div class="sprints-desc">Open packs on the featured repo, build your best 5-card lineup, and compete for bonus packs.</div>
+    <div class="sprints-desc">Own a card on the featured repo to participate automatically. Your best lineup updates as your collection grows.</div>
     <div class="sprints-cards">
       ${sprintCardHTML(daily, 'Daily Sprint', maxDaily)}
       ${sprintCardHTML(weekly, 'Weekly Sprint', maxWeekly)}
@@ -1328,8 +1328,6 @@ function getActiveSprintForRepo(ownerRepo) {
 
 // Sprint section in repo view
 function renderSprintPanel(sprint) {
-  const hasEntry = sprint.myEntry && sprint.myEntry.committedAt;
-  const power = hasEntry ? sprint.myEntry.totalPower : 0;
   const isDaily = sprint.type === 'daily';
   const typeLabel = isDaily ? 'Daily Sprint' : 'Weekly Sprint';
 
@@ -1382,8 +1380,6 @@ function renderSprintPanel(sprint) {
     }
   }
 
-  const commitLabel = hasEntry ? 'Update Lineup' : 'Commit Lineup';
-  const canCommit = lineupPower > 0;
   const endsAt = new Date(sprint.endsAt).getTime();
   const remaining = endsAt - Date.now();
   const timeText = remaining > 0 ? formatSprintTime(remaining) : 'Ended';
@@ -1392,7 +1388,7 @@ function renderSprintPanel(sprint) {
   const maxPacks = isDaily ? 4 : 12;
 
   return `<div class="sprint-repo-panel">
-    <div class="panel-desc">Open packs on this repo and compete for bonus packs. Your best card from each rarity is auto-selected into your lineup.</div>
+    <div class="panel-desc">Own any card from this repo to participate automatically. Your strongest eligible lineup updates whenever your collection changes.</div>
     <div class="sprint-repo-header">
       <span class="sprint-type-badge ${sprint.type}">${typeLabel}</span>
       <span class="sprint-packs-tooltip-wrap">
@@ -1419,8 +1415,9 @@ function renderSprintPanel(sprint) {
       <span class="sprint-total-label">Total Power</span>
       <span class="sprint-total-value">${lineupPower} <span class="sprint-total-max">/ ${maxPower} max</span></span>
     </div>
-    <button class="sprint-commit-btn" id="sprint-commit-btn" ${canCommit ? '' : 'disabled'} data-sprint-id="${sprint.id}">${commitLabel}</button>
-    ${hasEntry ? `<div class="sprint-committed-msg">Committed with ${power} PWR${lineupPower > power ? ` — new lineup has ${lineupPower} PWR` : ''}</div>` : ''}
+    <div class="sprint-auto-msg ${lineupPower > 0 ? 'participating' : ''}">
+      ${lineupPower > 0 ? 'You are participating automatically with this lineup.' : 'Collect any card from this repo to enter automatically.'}
+    </div>
   </div>`;
 }
 
@@ -1452,52 +1449,6 @@ function autoSelectLineupClient() {
   result.card_rare = pickBest(1);       // rare or lower
   result.card_common = pickBest(0);     // common only
   return result;
-}
-
-async function commitSprintLineup(sprintId) {
-  const btn = document.getElementById('sprint-commit-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Committing...'; }
-
-  try {
-    const res = await fetch('/api/sprints/commit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sprintId }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      // Update sprint data in memory
-      if (_sprintData) {
-        for (const key of ['daily', 'weekly']) {
-          const s = _sprintData[key];
-          if (s && s.id === sprintId) {
-            const wasAlreadyCommitted = s.myEntry && s.myEntry.committedAt;
-            s.myEntry = {
-              totalPower: data.lineup.totalPower,
-              committedAt: data.committedAt,
-              cardCommon: data.lineup.cardCommon,
-              cardRare: data.lineup.cardRare,
-              cardEpic: data.lineup.cardEpic,
-              cardLegendary: data.lineup.cardLegendary,
-              cardMythic: data.lineup.cardMythic,
-            };
-            if (!wasAlreadyCommitted) {
-              s.participants = (s.participants || 0) + 1;
-            }
-          }
-        }
-      }
-      // Re-render repo view to show updated sprint panel
-      if (repoLoaded) renderRepoInfoFromCurrent();
-      // Re-render dashboard sprint section
-      const section = document.getElementById('sprints-section');
-      if (section && _sprintData) renderSprints(section, _sprintData);
-    } else {
-      if (btn) { btn.disabled = false; btn.textContent = 'Commit Lineup'; }
-    }
-  } catch {
-    if (btn) { btn.disabled = false; btn.textContent = 'Commit Lineup'; }
-  }
 }
 
 async function showPastSprintsOverlay() {
@@ -1565,13 +1516,13 @@ function renderPastSprintsList(overlay, entries, total) {
     const repoName = `${e.repoOwner}/${e.repoName}`;
     const typeLabel = e.type === 'daily' ? 'Daily' : 'Weekly';
     const date = new Date(e.startsAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const participated = !!e.committedAt;
+    const participated = !!e.participatedAt;
     const pending = participated && e.rank == null;
     const rankText = pending
       ? 'Results pending'
       : participated
         ? `#${e.rank}/${e.participants}`
-        : (e.id ? 'Did not commit' : 'Did not enter');
+        : 'Did not participate';
     const bracketText = participated && !pending ? getBracketLabel(e.rank, e.participants) : '';
     const packsText = e.packsWon > 0 ? `${e.packsWon} pack${e.packsWon > 1 ? 's' : ''}` : '';
 
@@ -1655,7 +1606,7 @@ function renderPastSprintsList(overlay, entries, total) {
 function getBracketLabel(rank, totalParticipants) {
   const total = Number(totalParticipants) || 0;
   if (!rank || !total) return '';
-  if (rank > total) return 'Did not commit';
+  if (rank > total) return 'Did not participate';
 
   const top10 = Math.max(Math.ceil(total * 0.10), 1);
   const top25 = Math.max(Math.ceil(total * 0.25), top10 + 1);
@@ -2491,12 +2442,6 @@ function renderRepoInfo(owner, repo) {
     }
   }
 
-  // Wire up sprint commit button
-  const sprintCommitBtn = document.getElementById('sprint-commit-btn');
-  if (sprintCommitBtn) {
-    sprintCommitBtn.addEventListener('click', () => commitSprintLineup(sprintCommitBtn.dataset.sprintId));
-  }
-
   // Wire up open pack button
   const openPackBtn = document.getElementById('open-pack-btn');
   if (openPackBtn) {
@@ -2636,6 +2581,9 @@ async function openPack() {
     }
   }
   renderTopBarPacks();
+  if (_currentUser && getActiveSprintForRepo(currentRepoName)) {
+    loadSprints();
+  }
 
   const overlay = document.createElement('div');
   overlay.className = 'pack-overlay';
@@ -2902,6 +2850,9 @@ function revealCards(overlay, picks, onComplete) {
                 if (d.guestPacksRemaining !== undefined) { guestPacksRemaining = d.guestPacksRemaining; localStorage.setItem('gp_guest_packs_remaining', String(guestPacksRemaining)); }
               }
               renderTopBarPacks();
+              if (_currentUser && getActiveSprintForRepo(currentRepoName)) {
+                loadSprints();
+              }
             } else if (res.status === 429) {
               const errData = await res.json().catch(() => ({}));
               packState = { readyPacks: 0, bonusPacks: 0, maxPacks: 2, nextRegenAt: errData.nextRegenAt };
