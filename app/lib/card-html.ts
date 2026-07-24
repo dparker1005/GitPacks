@@ -15,6 +15,7 @@ export interface CardData {
   activeWeeks: number;
   totalWeeks: number;
   pctScores?: Record<string, number>;
+  rankPctScores?: Record<string, number>;
   dominantStat?: string | null;
   firstCommitTs?: number | null;
 }

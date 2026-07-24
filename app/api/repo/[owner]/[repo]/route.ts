@@ -12,6 +12,7 @@ import {
   type StatsContributor,
 } from '@/app/lib/github-stats';
 import { tryClaimRefreshSlot, runBackgroundRefresh } from '@/app/lib/refresh-coordinator';
+import { withCompetitionRankScores } from '@/app/lib/competition-ranks';
 
 // Hobby plan caps function duration at 60s. Set explicitly so the GraphQL
 // fanout + REST issues/contributors can run alongside without an unrelated
@@ -552,7 +553,9 @@ function processAllContributors(
     return { ...c, title, ability, dominantStat };
   });
 
-  return entries.sort((a: any, b: any) => b.power - a.power);
+  return withCompetitionRankScores(
+    entries.sort((a: any, b: any) => b.power - a.power)
+  );
 }
 
 function failureToJson(f: StepFailure) {
@@ -702,7 +705,7 @@ function buildFetchStream(owner: string, repo: string, ghToken: string | undefin
           if (existing) {
             write({
               stage: 'done',
-              data: existing.data,
+              data: withCompetitionRankScores(existing.data),
               source: 'cache-refresh-failed',
               fetchedAt: existing.fetchedAt,
               refreshFailed: failures[0].step,
@@ -813,7 +816,7 @@ export async function GET(
       return ndjsonResponse(
         singleEventStream({
           stage: 'done',
-          data: cached.data,
+          data: withCompetitionRankScores(cached.data),
           source: 'cache',
           fetchedAt: cached.fetchedAt,
         }),

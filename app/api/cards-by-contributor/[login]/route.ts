@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
 import { supabase as anonSupabase } from '@/app/lib/repo-cache';
+import { withCompetitionRankScores } from '@/app/lib/competition-ranks';
 
 export async function GET(
   _request: NextRequest,
@@ -48,7 +49,8 @@ export async function GET(
   const cards: CardRow[] = [];
   for (const row of rows || []) {
     if (!Array.isArray(row.data)) continue;
-    const idx = row.data.findIndex(
+    const rankedData = withCompetitionRankScores(row.data);
+    const idx = rankedData.findIndex(
       (c: { login?: string }) => c?.login && c.login.toLowerCase() === loginLower
     );
     if (idx < 0) continue;
@@ -56,7 +58,7 @@ export async function GET(
       owner_repo: row.owner_repo,
       card_num: idx + 1,
       total_cards: row.card_count || row.data.length,
-      contributor: row.data[idx],
+      contributor: rankedData[idx],
       owned_count: ownedMap.get(row.owner_repo) || 0,
     });
   }

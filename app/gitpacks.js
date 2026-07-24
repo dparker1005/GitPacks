@@ -3589,13 +3589,14 @@ function openFullscreenCard(c) {
 
   const weeksSinceFirst = (c.firstCommitTs && isFinite(c.firstCommitTs)) ? Math.round((Date.now() / 1000 - c.firstCommitTs) / 604800) : 0;
   const pct = c.pctScores || {};
+  const rankPct = c.rankPctScores || pct;
   const rc = rarityColor(c.rarity);
 
   const dom = c.dominantStat;
-  function statRow(label, value, pctVal, color, highlight) {
+  function statRow(label, value, pctVal, rankPctVal, color, highlight) {
     const p = Math.round((pctVal || 0) * 100);
     const hl = highlight ? ' fs-highlight' : '';
-    const topPct = Math.max(1, Math.ceil(100 - (pctVal || 0) * 100));
+    const topPct = Math.max(1, Math.ceil(100 - (rankPctVal || 0) * 100));
     const pctLabel = topPct > 80 ? 'Bottom 20%' : `Top ${topPct}%`;
     const bar = pctVal != null ? `<div class="fs-pct-inline"><div class="fs-pct-track"><div class="fs-pct-fill" style="width:${p}%;background:${color}"></div></div><span class="fs-pct-val"${highlight ? ` style="color:${color}"` : ''}>${pctLabel}</span></div>` : '';
     return `<div class="fs-stat-row${hl}"${highlight ? ` style="border-bottom-color:${color}30;border-left-color:${color}"` : ''}><div class="fs-stat-top"><span class="fs-stat-label"${highlight ? ` style="color:${color}"` : ''}>${label}</span><span class="fs-stat-value">${value}</span></div>${bar}</div>`;
@@ -3609,14 +3610,14 @@ function openFullscreenCard(c) {
       </div>
       <div class="fullscreen-stats-panel">
         <h3>Details</h3>
-        ${statRow('Total Commits', fmt(c.commits) + ' commits', pct.commits, rc, false)}
-        ${statRow('PRs Merged', fmt(c.prsMerged) + ' PRs', pct.prsMerged, '#4ade80', dom === 'prs')}
-        ${statRow('Issues', fmt(c.issues) + ' issues', pct.issues, '#f472b6', dom === 'issues')}
-        ${statRow('Active Weeks', `${c.activeWeeks} <span class="fs-stat-pct">/ ${c.totalWeeks}</span> weeks`, pct.activeWeeks, '#4adede', dom === 'consistency')}
-        ${statRow('Best Streak', c.maxStreak + ' weeks', pct.streak, '#facc15', dom === 'streak')}
-        ${statRow('Peak Week', c.peak + ' commits', pct.peak, '#c084fc', dom === 'peak')}
+        ${statRow('Total Commits', fmt(c.commits) + ' commits', pct.commits, rankPct.commits, rc, false)}
+        ${statRow('PRs Merged', fmt(c.prsMerged) + ' PRs', pct.prsMerged, rankPct.prsMerged, '#4ade80', dom === 'prs')}
+        ${statRow('Issues', fmt(c.issues) + ' issues', pct.issues, rankPct.issues, '#f472b6', dom === 'issues')}
+        ${statRow('Active Weeks', `${c.activeWeeks} <span class="fs-stat-pct">/ ${c.totalWeeks}</span> weeks`, pct.activeWeeks, rankPct.activeWeeks, '#4adede', dom === 'consistency')}
+        ${statRow('Best Streak', c.maxStreak + ' weeks', pct.streak, rankPct.streak, '#facc15', dom === 'streak')}
+        ${statRow('Peak Week', c.peak + ' commits', pct.peak, rankPct.peak, '#c084fc', dom === 'peak')}
 
-        ${statRow('Tenure', weeksSinceFirst < 52 ? weeksSinceFirst + 'w' : Math.round(weeksSinceFirst / 52 * 10) / 10 + 'y', null, null)}
+        ${statRow('Tenure', weeksSinceFirst < 52 ? weeksSinceFirst + 'w' : Math.round(weeksSinceFirst / 52 * 10) / 10 + 'y', null, null, null, false)}
         <div class="fs-stat-row"><div class="fs-stat-top"><span class="fs-stat-label">Owned</span><span class="fs-stat-value" id="fs-owned-value">${(library[c.login] || 0)}x</span></div></div>
         ${(() => {
           if (!_currentUser) return '';

@@ -356,6 +356,7 @@ function CardFullscreen({ entry, onClose }: { entry: CardEntry; onClose: () => v
   const rc = rarityColor(c.rarity);
   const dom = c.dominantStat;
   const pct = c.pctScores || {};
+  const rankPct = c.rankPctScores || pct;
   const [weeksSinceFirst] = useState(() =>
     c.firstCommitTs && isFinite(c.firstCommitTs)
       ? Math.round((Date.now() / 1000 - c.firstCommitTs) / 604800)
@@ -367,12 +368,13 @@ function CardFullscreen({ entry, onClose }: { entry: CardEntry; onClose: () => v
     label: string,
     value: string,
     pctVal: number | null,
+    rankPctVal: number | null,
     color: string | null,
     highlight: boolean
   ) {
     const p = Math.round((pctVal || 0) * 100);
     const hl = highlight ? " fs-highlight" : "";
-    const topPct = Math.max(1, Math.ceil(100 - (pctVal || 0) * 100));
+    const topPct = Math.max(1, Math.ceil(100 - (rankPctVal || 0) * 100));
     const pctLabel = topPct > 80 ? "Bottom 20%" : `Top ${topPct}%`;
     const hlBorder =
       highlight && color
@@ -423,11 +425,19 @@ function CardFullscreen({ entry, onClose }: { entry: CardEntry; onClose: () => v
         </div>
         <div className="fullscreen-stats-panel">
           <h3>Details</h3>
-          {statRow("Total Commits", `${fmt(c.commits)} commits`, pct.commits ?? null, rc, false)}
+          {statRow(
+            "Total Commits",
+            `${fmt(c.commits)} commits`,
+            pct.commits ?? null,
+            rankPct.commits ?? null,
+            rc,
+            false
+          )}
           {statRow(
             "PRs Merged",
             `${fmt(c.prsMerged)} PRs`,
             pct.prsMerged ?? null,
+            rankPct.prsMerged ?? null,
             "#4ade80",
             dom === "prs"
           )}
@@ -435,6 +445,7 @@ function CardFullscreen({ entry, onClose }: { entry: CardEntry; onClose: () => v
             "Issues",
             `${fmt(c.issues)} issues`,
             pct.issues ?? null,
+            rankPct.issues ?? null,
             "#f472b6",
             dom === "issues"
           )}
@@ -460,15 +471,24 @@ function CardFullscreen({ entry, onClose }: { entry: CardEntry; onClose: () => v
             "Best Streak",
             `${c.maxStreak} weeks`,
             pct.streak ?? null,
+            rankPct.streak ?? null,
             "#facc15",
             dom === "streak"
           )}
-          {statRow("Peak Week", `${c.peak} commits`, pct.peak ?? null, "#c084fc", dom === "peak")}
+          {statRow(
+            "Peak Week",
+            `${c.peak} commits`,
+            pct.peak ?? null,
+            rankPct.peak ?? null,
+            "#c084fc",
+            dom === "peak"
+          )}
           {statRow(
             "Tenure",
             weeksSinceFirst < 52
               ? `${weeksSinceFirst}w`
               : `${Math.round((weeksSinceFirst / 52) * 10) / 10}y`,
+            null,
             null,
             null,
             false
