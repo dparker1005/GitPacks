@@ -26,7 +26,7 @@ Every contributor gets a card with real stats pulled from GitHub — commits, PR
 - **Collection Completion** — Collect every contributor in a repo for a 1.5x score bonus.
 - **Recycling System** — Recycle duplicates into stars. Use stars to cherry-pick specific missing cards or trade for extra packs.
 - **Daily Tasks** — Earn up to 3 bonus packs per day through GitHub activity (commits, PRs, issues).
-- **Sprints** — Daily and weekly competitions on featured repos. Own a card to participate automatically with your strongest lineup.
+- **Sprints** — Daily and weekly competitions on featured repos. Collect cards from the featured repo to build power; everyone holding cards is scored when the sprint ends.
 - **Leaderboard** — Global rankings based on card points and collection bonuses.
 - **Achievements** — Milestone-based rewards for contribution stats.
 - **Your Own Card** — Contribute to a repo and you become a collectible card in that collection.

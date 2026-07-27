@@ -1,21 +1,33 @@
--- Sprint participation is automatic. Owning at least one card for the featured
--- repo creates an entry, and the entry always uses the user's best valid lineup.
+-- Sprints no longer require a commit step.
+--
+-- During a sprint nothing is written to sprint_entries at all. Power is derived
+-- on demand from the user's collection so it always reflects the cards they own
+-- right now. At finalization every user holding at least one card for the
+-- featured repo is scored, whether or not they ever visited the repo.
+--
+-- Also widens repo eligibility: daily sprints need any repo containing a mythic
+-- (Math.round(card_count * 0.03) >= 1, so 17 cards), weekly sprints stay
+-- reserved for complete 100-card repos.
 
-CREATE OR REPLACE FUNCTION refresh_sprint_entry(
+-- Shared lineup selection: fill the five slots from the top down. Each lower
+-- slot excludes cards already used above it and enforces its maximum rarity.
+CREATE OR REPLACE FUNCTION sprint_lineup_for_user(
   p_sprint_id UUID,
-  p_user_id UUID
-) RETURNS VOID AS $$
+  p_user_id UUID,
+  OUT card_common TEXT,
+  OUT card_rare TEXT,
+  OUT card_epic TEXT,
+  OUT card_legendary TEXT,
+  OUT card_mythic TEXT,
+  OUT total_power INT
+) AS $$
 DECLARE
   v_owner_repo TEXT;
   v_repo_data JSONB;
-  v_card_common TEXT;
-  v_card_rare TEXT;
-  v_card_epic TEXT;
-  v_card_legendary TEXT;
-  v_card_mythic TEXT;
-  v_card_power INT;
-  v_total_power INT := 0;
+  v_power INT;
 BEGIN
+  total_power := 0;
+
   SELECT s.repo_owner || '/' || s.repo_name, rc.data
   INTO v_owner_repo, v_repo_data
   FROM sprints s
@@ -23,10 +35,145 @@ BEGIN
     ON rc.owner_repo = s.repo_owner || '/' || s.repo_name
   WHERE s.id = p_sprint_id;
 
-  IF NOT FOUND OR v_repo_data IS NULL THEN
+  IF v_repo_data IS NULL THEN
     RETURN;
   END IF;
 
+  SELECT elem->>'login', COALESCE((elem->>'power')::INT, 0)
+  INTO card_mythic, v_power
+  FROM user_collections uc
+  JOIN LATERAL jsonb_array_elements(v_repo_data) elem
+    ON elem->>'login' = uc.contributor_login
+  WHERE uc.user_id = p_user_id
+    AND uc.owner_repo = v_owner_repo
+    AND uc.count > 0
+  ORDER BY COALESCE((elem->>'power')::INT, 0) DESC, elem->>'login'
+  LIMIT 1;
+  total_power := total_power + COALESCE(v_power, 0);
+
+  SELECT elem->>'login', COALESCE((elem->>'power')::INT, 0)
+  INTO card_legendary, v_power
+  FROM user_collections uc
+  JOIN LATERAL jsonb_array_elements(v_repo_data) elem
+    ON elem->>'login' = uc.contributor_login
+  WHERE uc.user_id = p_user_id
+    AND uc.owner_repo = v_owner_repo
+    AND uc.count > 0
+    AND elem->>'rarity' IN ('common', 'rare', 'epic', 'legendary')
+    AND (card_mythic IS NULL OR elem->>'login' <> card_mythic)
+  ORDER BY COALESCE((elem->>'power')::INT, 0) DESC, elem->>'login'
+  LIMIT 1;
+  total_power := total_power + COALESCE(v_power, 0);
+
+  SELECT elem->>'login', COALESCE((elem->>'power')::INT, 0)
+  INTO card_epic, v_power
+  FROM user_collections uc
+  JOIN LATERAL jsonb_array_elements(v_repo_data) elem
+    ON elem->>'login' = uc.contributor_login
+  WHERE uc.user_id = p_user_id
+    AND uc.owner_repo = v_owner_repo
+    AND uc.count > 0
+    AND elem->>'rarity' IN ('common', 'rare', 'epic')
+    AND (card_mythic IS NULL OR elem->>'login' <> card_mythic)
+    AND (card_legendary IS NULL OR elem->>'login' <> card_legendary)
+  ORDER BY COALESCE((elem->>'power')::INT, 0) DESC, elem->>'login'
+  LIMIT 1;
+  total_power := total_power + COALESCE(v_power, 0);
+
+  SELECT elem->>'login', COALESCE((elem->>'power')::INT, 0)
+  INTO card_rare, v_power
+  FROM user_collections uc
+  JOIN LATERAL jsonb_array_elements(v_repo_data) elem
+    ON elem->>'login' = uc.contributor_login
+  WHERE uc.user_id = p_user_id
+    AND uc.owner_repo = v_owner_repo
+    AND uc.count > 0
+    AND elem->>'rarity' IN ('common', 'rare')
+    AND (card_mythic IS NULL OR elem->>'login' <> card_mythic)
+    AND (card_legendary IS NULL OR elem->>'login' <> card_legendary)
+    AND (card_epic IS NULL OR elem->>'login' <> card_epic)
+  ORDER BY COALESCE((elem->>'power')::INT, 0) DESC, elem->>'login'
+  LIMIT 1;
+  total_power := total_power + COALESCE(v_power, 0);
+
+  SELECT elem->>'login', COALESCE((elem->>'power')::INT, 0)
+  INTO card_common, v_power
+  FROM user_collections uc
+  JOIN LATERAL jsonb_array_elements(v_repo_data) elem
+    ON elem->>'login' = uc.contributor_login
+  WHERE uc.user_id = p_user_id
+    AND uc.owner_repo = v_owner_repo
+    AND uc.count > 0
+    AND elem->>'rarity' = 'common'
+    AND (card_mythic IS NULL OR elem->>'login' <> card_mythic)
+    AND (card_legendary IS NULL OR elem->>'login' <> card_legendary)
+    AND (card_epic IS NULL OR elem->>'login' <> card_epic)
+    AND (card_rare IS NULL OR elem->>'login' <> card_rare)
+  ORDER BY COALESCE((elem->>'power')::INT, 0) DESC, elem->>'login'
+  LIMIT 1;
+  total_power := total_power + COALESCE(v_power, 0);
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public;
+
+REVOKE ALL ON FUNCTION sprint_lineup_for_user(UUID, UUID) FROM PUBLIC;
+
+-- Live dashboard/repo-view numbers for the calling user. No writes.
+CREATE OR REPLACE FUNCTION sprint_live_status(p_sprint_id UUID)
+RETURNS TABLE (
+  total_power INT,
+  participants INT,
+  card_common TEXT,
+  card_rare TEXT,
+  card_epic TEXT,
+  card_legendary TEXT,
+  card_mythic TEXT
+) AS $$
+DECLARE
+  v_owner_repo TEXT;
+  v_user_id UUID := auth.uid();
+  v_lineup RECORD;
+BEGIN
+  SELECT s.repo_owner || '/' || s.repo_name INTO v_owner_repo
+  FROM sprints s WHERE s.id = p_sprint_id;
+
+  IF v_owner_repo IS NULL THEN
+    RETURN;
+  END IF;
+
+  SELECT COUNT(DISTINCT uc.user_id)::INT INTO participants
+  FROM user_collections uc
+  WHERE uc.owner_repo = v_owner_repo
+    AND uc.count > 0;
+
+  IF v_user_id IS NULL THEN
+    total_power := 0;
+    RETURN NEXT;
+    RETURN;
+  END IF;
+
+  SELECT * INTO v_lineup FROM sprint_lineup_for_user(p_sprint_id, v_user_id);
+
+  total_power := COALESCE(v_lineup.total_power, 0);
+  card_common := v_lineup.card_common;
+  card_rare := v_lineup.card_rare;
+  card_epic := v_lineup.card_epic;
+  card_legendary := v_lineup.card_legendary;
+  card_mythic := v_lineup.card_mythic;
+  RETURN NEXT;
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public;
+
+REVOKE ALL ON FUNCTION sprint_live_status(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION sprint_live_status(UUID) TO anon, authenticated, service_role;
+
+-- Writes a finalized-scoring entry. Only called from finalize_sprint.
+CREATE OR REPLACE FUNCTION refresh_sprint_entry(
+  p_sprint_id UUID,
+  p_user_id UUID
+) RETURNS VOID AS $$
+DECLARE
+  v_lineup RECORD;
+BEGIN
   -- Finalized entries are immutable.
   IF EXISTS (
     SELECT 1
@@ -38,84 +185,10 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Fill the lineup from the top down. Each lower slot excludes cards already
-  -- used by a higher slot and enforces its maximum rarity.
-  SELECT elem->>'login', COALESCE((elem->>'power')::INT, 0)
-  INTO v_card_mythic, v_card_power
-  FROM user_collections uc
-  JOIN LATERAL jsonb_array_elements(v_repo_data) elem
-    ON elem->>'login' = uc.contributor_login
-  WHERE uc.user_id = p_user_id
-    AND uc.owner_repo = v_owner_repo
-    AND uc.count > 0
-  ORDER BY COALESCE((elem->>'power')::INT, 0) DESC, elem->>'login'
-  LIMIT 1;
-  v_total_power := v_total_power + COALESCE(v_card_power, 0);
+  SELECT * INTO v_lineup FROM sprint_lineup_for_user(p_sprint_id, p_user_id);
 
-  SELECT elem->>'login', COALESCE((elem->>'power')::INT, 0)
-  INTO v_card_legendary, v_card_power
-  FROM user_collections uc
-  JOIN LATERAL jsonb_array_elements(v_repo_data) elem
-    ON elem->>'login' = uc.contributor_login
-  WHERE uc.user_id = p_user_id
-    AND uc.owner_repo = v_owner_repo
-    AND uc.count > 0
-    AND elem->>'rarity' IN ('common', 'rare', 'epic', 'legendary')
-    AND (v_card_mythic IS NULL OR elem->>'login' <> v_card_mythic)
-  ORDER BY COALESCE((elem->>'power')::INT, 0) DESC, elem->>'login'
-  LIMIT 1;
-  v_total_power := v_total_power + COALESCE(v_card_power, 0);
-
-  SELECT elem->>'login', COALESCE((elem->>'power')::INT, 0)
-  INTO v_card_epic, v_card_power
-  FROM user_collections uc
-  JOIN LATERAL jsonb_array_elements(v_repo_data) elem
-    ON elem->>'login' = uc.contributor_login
-  WHERE uc.user_id = p_user_id
-    AND uc.owner_repo = v_owner_repo
-    AND uc.count > 0
-    AND elem->>'rarity' IN ('common', 'rare', 'epic')
-    AND (v_card_mythic IS NULL OR elem->>'login' <> v_card_mythic)
-    AND (v_card_legendary IS NULL OR elem->>'login' <> v_card_legendary)
-  ORDER BY COALESCE((elem->>'power')::INT, 0) DESC, elem->>'login'
-  LIMIT 1;
-  v_total_power := v_total_power + COALESCE(v_card_power, 0);
-
-  SELECT elem->>'login', COALESCE((elem->>'power')::INT, 0)
-  INTO v_card_rare, v_card_power
-  FROM user_collections uc
-  JOIN LATERAL jsonb_array_elements(v_repo_data) elem
-    ON elem->>'login' = uc.contributor_login
-  WHERE uc.user_id = p_user_id
-    AND uc.owner_repo = v_owner_repo
-    AND uc.count > 0
-    AND elem->>'rarity' IN ('common', 'rare')
-    AND (v_card_mythic IS NULL OR elem->>'login' <> v_card_mythic)
-    AND (v_card_legendary IS NULL OR elem->>'login' <> v_card_legendary)
-    AND (v_card_epic IS NULL OR elem->>'login' <> v_card_epic)
-  ORDER BY COALESCE((elem->>'power')::INT, 0) DESC, elem->>'login'
-  LIMIT 1;
-  v_total_power := v_total_power + COALESCE(v_card_power, 0);
-
-  SELECT elem->>'login', COALESCE((elem->>'power')::INT, 0)
-  INTO v_card_common, v_card_power
-  FROM user_collections uc
-  JOIN LATERAL jsonb_array_elements(v_repo_data) elem
-    ON elem->>'login' = uc.contributor_login
-  WHERE uc.user_id = p_user_id
-    AND uc.owner_repo = v_owner_repo
-    AND uc.count > 0
-    AND elem->>'rarity' = 'common'
-    AND (v_card_mythic IS NULL OR elem->>'login' <> v_card_mythic)
-    AND (v_card_legendary IS NULL OR elem->>'login' <> v_card_legendary)
-    AND (v_card_epic IS NULL OR elem->>'login' <> v_card_epic)
-    AND (v_card_rare IS NULL OR elem->>'login' <> v_card_rare)
-  ORDER BY COALESCE((elem->>'power')::INT, 0) DESC, elem->>'login'
-  LIMIT 1;
-  v_total_power := v_total_power + COALESCE(v_card_power, 0);
-
-  -- No valid owned card means the user no longer participates.
-  IF v_card_mythic IS NULL THEN
+  -- No owned card for the featured repo means no entry.
+  IF v_lineup.card_mythic IS NULL THEN
     DELETE FROM sprint_entries
     WHERE sprint_id = p_sprint_id
       AND user_id = p_user_id
@@ -137,12 +210,12 @@ BEGIN
   VALUES (
     p_sprint_id,
     p_user_id,
-    v_card_common,
-    v_card_rare,
-    v_card_epic,
-    v_card_legendary,
-    v_card_mythic,
-    v_total_power,
+    v_lineup.card_common,
+    v_lineup.card_rare,
+    v_lineup.card_epic,
+    v_lineup.card_legendary,
+    v_lineup.card_mythic,
+    v_lineup.total_power,
     NOW()
   )
   ON CONFLICT (sprint_id, user_id) DO UPDATE SET
@@ -158,47 +231,6 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 REVOKE ALL ON FUNCTION refresh_sprint_entry(UUID, UUID) FROM PUBLIC;
 
-CREATE OR REPLACE FUNCTION sync_active_sprint_entries()
-RETURNS TRIGGER AS $$
-DECLARE
-  v_user_id UUID;
-  v_owner_repo TEXT;
-  v_sprint_id UUID;
-BEGIN
-  IF TG_OP = 'DELETE' THEN
-    v_user_id := OLD.user_id;
-    v_owner_repo := OLD.owner_repo;
-  ELSE
-    v_user_id := NEW.user_id;
-    v_owner_repo := NEW.owner_repo;
-  END IF;
-
-  FOR v_sprint_id IN
-    SELECT s.id
-    FROM sprints s
-    WHERE s.repo_owner || '/' || s.repo_name = v_owner_repo
-      AND s.starts_at <= NOW()
-      AND s.ends_at > NOW()
-  LOOP
-    PERFORM refresh_sprint_entry(v_sprint_id, v_user_id);
-  END LOOP;
-
-  IF TG_OP = 'DELETE' THEN
-    RETURN OLD;
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
-REVOKE ALL ON FUNCTION sync_active_sprint_entries() FROM PUBLIC;
-
-DROP TRIGGER IF EXISTS sync_active_sprint_entries_trigger ON user_collections;
-CREATE TRIGGER sync_active_sprint_entries_trigger
-AFTER INSERT OR UPDATE OR DELETE ON user_collections
-FOR EACH ROW
-EXECUTE FUNCTION sync_active_sprint_entries();
-
--- New sprints immediately include everyone who already owns a card for the repo.
 CREATE OR REPLACE FUNCTION create_sprint(
   p_type TEXT,
   p_starts_at TIMESTAMPTZ,
@@ -207,7 +239,6 @@ CREATE OR REPLACE FUNCTION create_sprint(
 DECLARE
   v_cooldown_days INT;
   v_repo RECORD;
-  v_user RECORD;
   v_sprint_id UUID;
 BEGIN
   IF current_setting('role', true) NOT IN ('service_role', 'postgres') THEN
@@ -226,6 +257,7 @@ BEGIN
     RETURN NULL;
   END IF;
 
+  -- Cooldowns apply across sprint types because the eligible pools overlap.
   SELECT rc.owner_repo INTO v_repo
   FROM repo_cache rc
   WHERE (
@@ -263,15 +295,6 @@ BEGIN
     p_ends_at
   );
 
-  FOR v_user IN
-    SELECT DISTINCT uc.user_id
-    FROM user_collections uc
-    WHERE uc.owner_repo = v_repo.owner_repo
-      AND uc.count > 0
-  LOOP
-    PERFORM refresh_sprint_entry(v_sprint_id, v_user.user_id);
-  END LOOP;
-
   INSERT INTO sprint_repo_cooldowns (repo_owner, repo_name, type, last_used_at)
   VALUES (
     split_part(v_repo.owner_repo, '/', 1),
@@ -286,8 +309,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Finalization rebuilds every lineup once more so rankings cannot miss a
--- collection update even if an earlier trigger invocation failed.
+-- Finalization is where entries come from: everyone owning a card for the
+-- featured repo is scored with their strongest lineup.
 CREATE OR REPLACE FUNCTION finalize_sprint(p_sprint_id UUID) RETURNS VOID AS $$
 DECLARE
   v_sprint RECORD;
@@ -331,17 +354,10 @@ BEGIN
   END IF;
 
   FOR rec IN
-    SELECT DISTINCT candidate.user_id
-    FROM (
-      SELECT uc.user_id
-      FROM user_collections uc
-      WHERE uc.owner_repo = v_sprint.repo_owner || '/' || v_sprint.repo_name
-        AND uc.count > 0
-      UNION
-      SELECT se.user_id
-      FROM sprint_entries se
-      WHERE se.sprint_id = p_sprint_id
-    ) candidate
+    SELECT DISTINCT uc.user_id
+    FROM user_collections uc
+    WHERE uc.owner_repo = v_sprint.repo_owner || '/' || v_sprint.repo_name
+      AND uc.count > 0
   LOOP
     PERFORM refresh_sprint_entry(p_sprint_id, rec.user_id);
   END LOOP;
@@ -398,25 +414,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Backfill automatic entries for any sprint active when this migration runs.
-DO $$
-DECLARE
-  rec RECORD;
-BEGIN
-  FOR rec IN
-    SELECT DISTINCT s.id AS sprint_id, uc.user_id
-    FROM sprints s
-    JOIN user_collections uc
-      ON uc.owner_repo = s.repo_owner || '/' || s.repo_name
-    WHERE s.starts_at <= NOW()
-      AND s.ends_at > NOW()
-      AND uc.count > 0
-  LOOP
-    PERFORM refresh_sprint_entry(rec.sprint_id, rec.user_id);
-  END LOOP;
-END;
-$$;
-
+-- The commit step is gone.
 DROP FUNCTION IF EXISTS commit_sprint_lineup(
   UUID,
   UUID,

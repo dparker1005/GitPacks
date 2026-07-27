@@ -21,44 +21,23 @@ export async function GET() {
     const daily = sprints?.find((s: any) => s.type === 'daily') || null;
     const weekly = sprints?.find((s: any) => s.type === 'weekly') || null;
 
-    // Automatic participants are stored as entries with their participation timestamp.
+    // Power and participant counts are derived live from collections — nothing
+    // is written to sprint_entries until the sprint is finalized.
     const sprintIds = [daily?.id, weekly?.id].filter(Boolean);
-    let participantCounts: Record<string, number> = {};
-
-    if (sprintIds.length > 0) {
-      for (const sid of sprintIds) {
-        const { count } = await supabase
-          .from('sprint_entries')
-          .select('id', { count: 'exact', head: true })
-          .eq('sprint_id', sid)
-          .not('committed_at', 'is', null);
-        participantCounts[sid] = count || 0;
-      }
-    }
-
-    // Try to get the current user's automatically managed entries.
-    let userEntries: Record<string, any> = {};
+    const liveStatus: Record<string, any> = {};
     let unclaimedCount = 0;
 
     try {
       const authSupabase = await getSupabaseServer();
+
+      for (const sid of sprintIds) {
+        const { data } = await authSupabase.rpc('sprint_live_status', { p_sprint_id: sid });
+        liveStatus[sid] = Array.isArray(data) ? data[0] : data;
+      }
+
       const { data: { user } } = await authSupabase.auth.getUser();
 
       if (user) {
-        if (sprintIds.length > 0) {
-          const { data: entries } = await authSupabase
-            .from('sprint_entries')
-            .select('sprint_id, card_common, card_rare, card_epic, card_legendary, card_mythic, total_power, committed_at')
-            .eq('user_id', user.id)
-            .in('sprint_id', sprintIds);
-
-          if (entries) {
-            for (const e of entries) {
-              userEntries[e.sprint_id] = e;
-            }
-          }
-        }
-
         // Check for unclaimed rewards
         const { count } = await authSupabase
           .from('sprint_entries')
@@ -82,15 +61,14 @@ export async function GET() {
       type: s.type,
       startsAt: s.starts_at,
       endsAt: s.ends_at,
-      participants: participantCounts[s.id] || 0,
-      myEntry: userEntries[s.id] ? {
-        totalPower: userEntries[s.id].total_power,
-        participatedAt: userEntries[s.id].committed_at,
-        cardCommon: userEntries[s.id].card_common,
-        cardRare: userEntries[s.id].card_rare,
-        cardEpic: userEntries[s.id].card_epic,
-        cardLegendary: userEntries[s.id].card_legendary,
-        cardMythic: userEntries[s.id].card_mythic,
+      participants: liveStatus[s.id]?.participants || 0,
+      myPower: liveStatus[s.id]?.total_power || 0,
+      myLineup: liveStatus[s.id] ? {
+        cardCommon: liveStatus[s.id].card_common,
+        cardRare: liveStatus[s.id].card_rare,
+        cardEpic: liveStatus[s.id].card_epic,
+        cardLegendary: liveStatus[s.id].card_legendary,
+        cardMythic: liveStatus[s.id].card_mythic,
       } : null,
     } : null;
 

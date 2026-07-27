@@ -1334,8 +1334,8 @@
     .sprint-card-repo { font-family:'Rajdhani',sans-serif; font-size:0.88rem; font-weight:600; color:#7873f5; background:none; border:none; padding:0; cursor:pointer; text-align:left; transition:color 0.2s; text-decoration:none; display:inline-block; }
     .sprint-card-repo:hover { color:#4adede; }
     .sprint-card-details { display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin-top:4px; font-family:'Rajdhani',sans-serif; font-size:0.75rem; color:#aaa; }
-    .sprint-participating { color:#4ade80; font-weight:700; }
-    .sprint-no-cards { color:#ff6ec7; }
+    .sprint-power-active { color:#4ade80; font-weight:700; }
+    .sprint-power-zero { color:#888; }
     .sprint-separator { color:#555; }
     .sprint-participants { color:#aaa; }
     .sprint-timer { color:#bbb; }
@@ -1369,9 +1369,6 @@
     .sprint-total-label { font-family:'Orbitron',sans-serif; font-size:0.6rem; font-weight:700; color:#888; letter-spacing:2px; text-transform:uppercase; }
     .sprint-total-value { font-family:'Orbitron',sans-serif; font-size:1rem; font-weight:900; background:linear-gradient(135deg,#7873f5,#4adede); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
     .sprint-total-max { font-family:'Rajdhani',sans-serif; font-size:0.8rem; font-weight:600; color:#888; -webkit-text-fill-color:#888; }
-
-    .sprint-auto-msg { font-family:'Rajdhani',sans-serif; font-size:0.82rem; color:#999; text-align:center; margin-top:9px; }
-    .sprint-auto-msg.participating { color:#4ade80; font-weight:600; }
 
     /* ===== LANDING PAGE: HOW IT WORKS + FEATURES ===== */
     .landing-how { margin-top:60px; max-width:600px; margin-left:auto; margin-right:auto; }

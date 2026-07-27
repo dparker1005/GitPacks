@@ -1227,10 +1227,8 @@ function renderSprints(section, data) {
     }
 
     const repoName = `${sprint.repoOwner}/${sprint.repoName}`;
-    const hasEntry = sprint.myEntry && sprint.myEntry.totalPower > 0;
-    const power = hasEntry ? sprint.myEntry.totalPower : 0;
-    const statusText = hasEntry ? `Participating &middot; ${power} PWR` : 'No cards yet';
-    const statusClass = hasEntry ? 'sprint-participating' : 'sprint-no-cards';
+    const power = sprint.myPower || 0;
+    const statusClass = power > 0 ? 'sprint-power-active' : 'sprint-power-zero';
     const endsAt = new Date(sprint.endsAt).getTime();
     const remaining = endsAt - Date.now();
     const timeText = remaining > 0 ? formatSprintTime(remaining) : 'Ending...';
@@ -1242,7 +1240,7 @@ function renderSprints(section, data) {
       </div>
       <a class="sprint-card-repo" href="?repo=${repoName}" data-sprint-repo="${repoName}">${repoName} &rarr;</a>
       <div class="sprint-card-details">
-        <span class="${statusClass}">${statusText}</span>
+        <span class="${statusClass}">${power} PWR</span>
         <span class="sprint-separator">&middot;</span>
         <span class="sprint-participants">${sprint.participants === 0 ? 'No participants yet' : sprint.participants + ' participant' + (sprint.participants !== 1 ? 's' : '')}</span>
         <span class="sprint-separator">&middot;</span>
@@ -1261,7 +1259,7 @@ function renderSprints(section, data) {
       ${unclaimedBadge}
       <button class="sprint-past-btn" id="sprint-past-btn">Past Sprints</button>
     </div>
-    <div class="sprints-desc">Own a card on the featured repo to participate automatically. Your best lineup updates as your collection grows.</div>
+    <div class="sprints-desc">Collect cards from the featured repo to raise your power. Everyone holding cards is scored when the sprint ends.</div>
     <div class="sprints-cards">
       ${sprintCardHTML(daily, 'Daily Sprint', maxDaily)}
       ${sprintCardHTML(weekly, 'Weekly Sprint', maxWeekly)}
@@ -1388,7 +1386,7 @@ function renderSprintPanel(sprint) {
   const maxPacks = isDaily ? 4 : 12;
 
   return `<div class="sprint-repo-panel">
-    <div class="panel-desc">Own any card from this repo to participate automatically. Your strongest eligible lineup updates whenever your collection changes.</div>
+    <div class="panel-desc">Your strongest card in each rarity slot is scored when the sprint ends. Collect more cards from this repo to raise your power.</div>
     <div class="sprint-repo-header">
       <span class="sprint-type-badge ${sprint.type}">${typeLabel}</span>
       <span class="sprint-packs-tooltip-wrap">
@@ -1414,9 +1412,6 @@ function renderSprintPanel(sprint) {
     <div class="sprint-lineup-total">
       <span class="sprint-total-label">Total Power</span>
       <span class="sprint-total-value">${lineupPower} <span class="sprint-total-max">/ ${maxPower} max</span></span>
-    </div>
-    <div class="sprint-auto-msg ${lineupPower > 0 ? 'participating' : ''}">
-      ${lineupPower > 0 ? 'You are participating automatically with this lineup.' : 'Collect any card from this repo to enter automatically.'}
     </div>
   </div>`;
 }
