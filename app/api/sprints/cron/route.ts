@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { triggerFullRefresh } from '@/app/lib/refresh-coordinator';
 
 function getServiceSupabase() {
   return createClient(
@@ -19,6 +20,7 @@ export async function GET(request: NextRequest) {
     const supabase = getServiceSupabase();
     const results: string[] = [];
     const now = new Date();
+    const newSprintIds: string[] = [];
 
     // 1. Finalize recently ended sprints (within last 48h to avoid scanning all history)
     const cutoff = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
@@ -72,6 +74,7 @@ export async function GET(request: NextRequest) {
         results.push(`create daily: ERROR ${error.message}`);
       } else if (newId) {
         results.push(`create daily: OK (${newId})`);
+        newSprintIds.push(newId);
       } else {
         results.push('create daily: no eligible repo found');
       }
@@ -106,11 +109,26 @@ export async function GET(request: NextRequest) {
         results.push(`create weekly: ERROR ${error.message}`);
       } else if (newId) {
         results.push(`create weekly: OK (${newId})`);
+        newSprintIds.push(newId);
       } else {
         results.push('create weekly: no eligible repo found');
       }
     } else {
       results.push('create weekly: already active');
+    }
+
+    // 4. Pull fresh GitHub data for newly featured repos so the sprint is
+    // scored on current contributor stats rather than an old cache row.
+    if (newSprintIds.length > 0) {
+      const { data: newSprints } = await supabase
+        .from('sprints')
+        .select('repo_owner, repo_name')
+        .in('id', newSprintIds);
+      const origin = request.nextUrl.origin;
+      await Promise.all((newSprints || []).map(async (s: any) => {
+        await triggerFullRefresh(origin, s.repo_owner, s.repo_name);
+        results.push(`refresh ${s.repo_owner}/${s.repo_name}: done`);
+      }));
     }
 
     return NextResponse.json({ ok: true, results });

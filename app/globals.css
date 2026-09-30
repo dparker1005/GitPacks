@@ -1298,6 +1298,7 @@
     .stars-trade-btn:hover { background:rgba(120,115,245,0.18); border-color:rgba(120,115,245,0.5); }
     .stars-trade-btn:disabled { opacity:0.5; cursor:default; }
     .repo-stars-hint { display:block; font-family:'Rajdhani',sans-serif; font-size:0.72rem; color:#4adede; opacity:0.8; margin-top:4px; }
+    .repo-ach-hint { display:block; font-family:'Rajdhani',sans-serif; font-size:0.72rem; color:#facc15; margin-top:4px; }
 
     /* ===== BETA TAG ===== */
     .beta-tag { font-family:'Orbitron',sans-serif; font-size:0.5rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#ff6ec7; background:rgba(255,110,199,0.15); border:1px solid rgba(255,110,199,0.35); border-radius:4px; padding:1px 5px; vertical-align:middle; position:relative; top:-1px; }

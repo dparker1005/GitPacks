@@ -1,6 +1,20 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
-import { supabase } from '@/app/lib/repo-cache';
+import { supabase, getCachedRepoData } from '@/app/lib/repo-cache';
+
+// Best possible lineup power for a repo: fill slots top-down (mythic-or-lower
+// down to common-only) with the strongest unused card, same as live scoring.
+function maxLineupPower(contributors: any[]): number {
+  const RARITY_IDX: Record<string, number> = { common: 0, rare: 1, epic: 2, legendary: 3, mythic: 4 };
+  const sorted = [...contributors].sort((a, b) => (b.power || 0) - (a.power || 0));
+  const used = new Set<string>();
+  let total = 0;
+  for (const maxIdx of [4, 3, 2, 1, 0]) {
+    const pick = sorted.find(c => !used.has(c.login) && RARITY_IDX[c.rarity] <= maxIdx);
+    if (pick) { used.add(pick.login); total += pick.power || 0; }
+  }
+  return total;
+}
 
 export async function GET() {
   try {
@@ -25,7 +39,13 @@ export async function GET() {
     // is written to sprint_entries until the sprint is finalized.
     const sprintIds = [daily?.id, weekly?.id].filter(Boolean);
     const liveStatus: Record<string, any> = {};
+    const maxPower: Record<string, number> = {};
     let unclaimedCount = 0;
+
+    await Promise.all([daily, weekly].filter(Boolean).map(async (s: any) => {
+      const data = await getCachedRepoData(`${s.repo_owner}/${s.repo_name}`);
+      maxPower[s.id] = Array.isArray(data) ? maxLineupPower(data) : 0;
+    }));
 
     try {
       const authSupabase = await getSupabaseServer();
@@ -63,6 +83,7 @@ export async function GET() {
       endsAt: s.ends_at,
       participants: liveStatus[s.id]?.participants || 0,
       myPower: liveStatus[s.id]?.total_power || 0,
+      maxPower: maxPower[s.id] || 0,
       myLineup: liveStatus[s.id] ? {
         cardCommon: liveStatus[s.id].card_common,
         cardRare: liveStatus[s.id].card_rare,

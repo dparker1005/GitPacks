@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
 import { supabase as anonSupabase } from '@/app/lib/repo-cache';
 import { refreshUserScores } from '@/app/lib/scoring';
+import { countClaimableMilestones } from '@/app/lib/achievements';
 
 export async function GET() {
   const supabase = await getSupabaseServer();
@@ -47,8 +48,10 @@ export async function GET() {
   const meta = user.user_metadata || {};
   const githubUsername = meta.user_name || meta.preferred_username || '';
 
-  // Fetch repo cache card counts + timestamps, scores + timestamps, stars, completions, and contributor rarities in parallel
-  const [cacheResult, scoresResult, starsResult, completionsResult, rarityResult] = await Promise.all([
+  // Fetch repo cache card counts + timestamps, scores + timestamps, stars, completions,
+  // the user's own contributor cards, claimed achievements, and active sprints in parallel
+  const now = new Date().toISOString();
+  const [cacheResult, scoresResult, starsResult, completionsResult, selfCardsResult, achievementsResult, sprintsResult] = await Promise.all([
     anonSupabase
       .from('repo_cache')
       .select('owner_repo, card_count, fetched_at')
@@ -69,8 +72,28 @@ export async function GET() {
       .eq('user_id', user.id)
       .in('owner_repo', repoNames),
     githubUsername
-      ? anonSupabase.rpc('get_user_contributor_rarities', { github_login: githubUsername })
+      ? anonSupabase.rpc('get_user_contributor_cards', { github_login: githubUsername })
       : Promise.resolve({ data: [] }),
+    (async () => {
+      // Paginated for the same 1000-row cap as collections above
+      let rows: any[] = [];
+      for (let start = 0; ; start += PAGE_SIZE) {
+        const { data } = await supabase
+          .from('user_achievements')
+          .select('owner_repo, stat_type, threshold')
+          .eq('user_id', user.id)
+          .range(start, start + PAGE_SIZE - 1);
+        if (!data || data.length === 0) break;
+        rows = rows.concat(data);
+        if (data.length < PAGE_SIZE) break;
+      }
+      return { data: rows };
+    })(),
+    anonSupabase
+      .from('sprints')
+      .select('repo_owner, repo_name')
+      .lte('starts_at', now)
+      .gt('ends_at', now),
   ]);
 
   const cacheData = cacheResult.data;
@@ -100,8 +123,20 @@ export async function GET() {
     completionsMap[c.owner_repo] = { is_complete: c.is_complete, insured: c.insured };
   });
   const rarityMap: Record<string, string> = {};
-  (rarityResult.data || []).forEach((r: any) => {
-    rarityMap[r.owner_repo] = r.rarity;
+  (selfCardsResult.data || []).forEach((r: any) => {
+    rarityMap[r.owner_repo] = r.card?.rarity;
+  });
+
+  // Unclaimed achievement packs per repo. Active sprint repos block claims, so they never count.
+  const claimedByRepo: Record<string, Set<string>> = {};
+  (achievementsResult.data || []).forEach((a: any) => {
+    (claimedByRepo[a.owner_repo] ||= new Set()).add(`${a.stat_type}:${a.threshold}`);
+  });
+  const sprintRepos = new Set((sprintsResult.data || []).map((s: any) => `${s.repo_owner}/${s.repo_name}`.toLowerCase()));
+  const claimableMap: Record<string, number> = {};
+  (selfCardsResult.data || []).forEach((r: any) => {
+    if (sprintRepos.has(r.owner_repo)) return;
+    claimableMap[r.owner_repo] = countClaimableMilestones(r.card, r.card_count || 0, claimedByRepo[r.owner_repo] || new Set());
   });
 
   const result = repoNames.map(name => {
@@ -122,6 +157,7 @@ export async function GET() {
       my_rarity: rarityMap[name] || null,
       stars: starsMap[name] || 0,
       was_complete: comp && !comp.is_complete ? true : false,
+      claimable_achievements: claimableMap[name] || 0,
     };
   });
 

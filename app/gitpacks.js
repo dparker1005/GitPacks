@@ -395,11 +395,12 @@ async function loadPopularRepos(featuredRepo) {
         r.my_rarity = ur ? ur.my_rarity : null;
         r.stars = ur ? ur.stars : 0;
         r.was_complete = ur ? ur.was_complete : false;
+        r.claimable_achievements = ur ? ur.claimable_achievements : 0;
       });
       // Add user repos not in the popular list
       userRepos.forEach(ur => {
         if (!repoNameSet.has(ur.name.toLowerCase())) {
-          repos.push({ name: ur.name, cards: ur.cards, collected: ur.collected, pct: ur.pct, base_points: ur.base_points, completion_bonus: ur.completion_bonus, total_points: ur.total_points, my_rarity: ur.my_rarity, stars: ur.stars, was_complete: ur.was_complete });
+          repos.push({ name: ur.name, cards: ur.cards, collected: ur.collected, pct: ur.pct, base_points: ur.base_points, completion_bonus: ur.completion_bonus, total_points: ur.total_points, my_rarity: ur.my_rarity, stars: ur.stars, was_complete: ur.was_complete, claimable_achievements: ur.claimable_achievements });
         }
       });
     }
@@ -408,11 +409,16 @@ async function loadPopularRepos(featuredRepo) {
     const otherRepos = repos.filter(r => r.collected === 0).sort((a, b) => b.cards - a.cards);
     _yourReposForSearch = yourRepos;
 
-    // Split yourRepos into completed and in-progress for logged-in dashboard
-    const completedRepos = yourRepos.filter(r => r.cards > 0 && r.collected >= r.cards);
+    // Split yourRepos into completed and in-progress for logged-in dashboard.
+    // Repos with unclaimed achievement packs are pinned to the top of each list.
+    const byClaimable = (a, b) => (b.claimable_achievements > 0) - (a.claimable_achievements > 0);
+    const completedRepos = yourRepos.filter(r => r.cards > 0 && r.collected >= r.cards)
+      .sort((a, b) => byClaimable(a, b));
     const inProgressRepos = yourRepos.filter(r => r.collected > 0 && (r.cards === 0 || r.collected < r.cards))
       .sort((a, b) => {
-        // Broken sets pinned to top so the user notices and can re-complete them.
+        const c = byClaimable(a, b);
+        if (c) return c;
+        // Broken sets pinned next so the user notices and can re-complete them.
         if (!!a.was_complete !== !!b.was_complete) return a.was_complete ? -1 : 1;
         return b.pct - a.pct;
       });
@@ -455,9 +461,12 @@ async function loadPopularRepos(featuredRepo) {
       const starsHint = isComplete && tradablePacks > 0
         ? `<div class="repo-stars-hint">&starf; ${r.stars} &rarr; ${tradablePacks} pack${tradablePacks !== 1 ? 's' : ''}</div>`
         : '';
+      const achHint = r.claimable_achievements > 0
+        ? `<div class="repo-ach-hint">&#x1f3c6; ${r.claimable_achievements} achievement pack${r.claimable_achievements !== 1 ? 's' : ''} to claim</div>`
+        : '';
       const isBroken = !isComplete && r.was_complete;
       return `<a class="popular-repo-btn scored${isComplete ? ' repo-complete' : ''}${isBroken ? ' repo-broken' : ''}" href="?repo=${r.name}" data-repo="${r.name}">
-          <span class="popular-repo-name">${r.name}${myRarityBadge(r)}${progressBar}${starsHint}</span>
+          <span class="popular-repo-name">${r.name}${myRarityBadge(r)}${progressBar}${achHint}${starsHint}</span>
           <span class="popular-repo-meta-stacked">
             <span class="popular-repo-progress">${r.collected}/${r.cards} cards</span>
             ${pointsHTML}
@@ -1240,7 +1249,7 @@ function renderSprints(section, data) {
       </div>
       <a class="sprint-card-repo" href="?repo=${repoName}" data-sprint-repo="${repoName}">${repoName} &rarr;</a>
       <div class="sprint-card-details">
-        <span class="${statusClass}">${power} PWR</span>
+        <span class="${statusClass}">${power} PWR${sprint.maxPower ? ` <span class="sprint-total-max">/ ${sprint.maxPower} max</span>` : ''}</span>
         <span class="sprint-separator">&middot;</span>
         <span class="sprint-participants">${sprint.participants === 0 ? 'No participants yet' : sprint.participants + ' participant' + (sprint.participants !== 1 ? 's' : '')}</span>
         <span class="sprint-separator">&middot;</span>
@@ -1347,12 +1356,15 @@ function renderSprintPanel(sprint) {
   const allSorted = [...allContributors].sort((a, b) => b.power - a.power);
   const maxUsed = new Set();
   let maxPower = 0;
-  for (const maxRarity of [4, 3, 2, 1, 0]) {
+  const slotMax = {}; // best possible power per slot, to spot underpowered slots
+  SLOT_LABELS.forEach((slot, i) => {
+    const maxRarity = 4 - i;
+    slotMax[slot.key] = 0;
     for (const c of allSorted) {
       if (maxUsed.has(c.login)) continue;
-      if (RARITY_IDX[c.rarity] <= maxRarity) { maxUsed.add(c.login); maxPower += c.power; break; }
+      if (RARITY_IDX[c.rarity] <= maxRarity) { maxUsed.add(c.login); maxPower += c.power; slotMax[slot.key] = c.power; break; }
     }
-  }
+  });
 
   let lineupHTML = '';
   let lineupPower = 0;
@@ -1367,13 +1379,13 @@ function renderSprintPanel(sprint) {
       lineupHTML += `<div class="sprint-lineup-slot">
         <span class="sprint-slot-label" style="color:${slot.color}">${slot.label}</span>
         <span class="sprint-slot-card">${card.login} <span class="sprint-card-rarity" style="color:${rarityColor};border-color:${rarityColor}40">${card.rarity}</span></span>
-        <span class="sprint-slot-power">${card.power} PWR</span>
+        <span class="sprint-slot-power">${card.power} <span class="sprint-total-max">/ ${slotMax[slot.key]}</span> PWR</span>
       </div>`;
     } else {
       lineupHTML += `<div class="sprint-lineup-slot sprint-slot-empty">
         <span class="sprint-slot-label" style="color:${slot.color}">${slot.label}</span>
         <span class="sprint-slot-card sprint-slot-none">No card</span>
-        <span class="sprint-slot-power">—</span>
+        <span class="sprint-slot-power">— <span class="sprint-total-max">/ ${slotMax[slot.key]}</span></span>
       </div>`;
     }
   }
@@ -2199,7 +2211,7 @@ function renderRepoInfo(owner, repo) {
         const isEarned = info.value >= t;
 
         if (isLocked) {
-          const repoSizeTiers = [1, 20, 40, 60, 100];
+          const repoSizeTiers = [10, 20, 40, 60, 100];
           const neededCards = repoSizeTiers[i] || '?';
           slots += `<span class="ach-slot locked" title="Unlock with ${neededCards}+ card repo">
             <span class="ach-slot-lock">&#x1f512;</span>

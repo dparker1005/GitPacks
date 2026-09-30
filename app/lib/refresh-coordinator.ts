@@ -150,7 +150,7 @@ async function bumpFetchedAt(ownerRepo: string): Promise<void> {
  * canonical fetch path — the same code that serves user-facing refreshes runs
  * here, and any future fix to that path automatically benefits the coordinator.
  */
-async function triggerFullRefresh(origin: string, owner: string, repo: string): Promise<void> {
+export async function triggerFullRefresh(origin: string, owner: string, repo: string): Promise<void> {
   let res: Response;
   try {
     res = await fetch(`${origin}/api/repo/${owner}/${repo}?refresh=true`, {
