@@ -1839,7 +1839,10 @@ loadPackState();
 loadReferralInfo();
 
 // Auto-load from URL param, otherwise show repo browser
-const urlRepo = new URLSearchParams(window.location.search).get('repo');
+// Only accept owner/repo-shaped values; these get interpolated into HTML.
+const REPO_PARAM_RE = /^[\w.-]+\/[\w.-]+$/;
+const _rawUrlRepo = new URLSearchParams(window.location.search).get('repo');
+const urlRepo = _rawUrlRepo && REPO_PARAM_RE.test(_rawUrlRepo) ? _rawUrlRepo : null;
 const urlCard = new URLSearchParams(window.location.search).get('card');
 if (urlRepo && !_currentUser && urlCard) {
   // Logged-out user with shared card link — show lightweight card overlay
@@ -1860,7 +1863,8 @@ if (urlRepo && !_currentUser && urlCard) {
 
 // Handle browser back/forward between homepage and repo views
 window.addEventListener('popstate', () => {
-  const repo = new URLSearchParams(window.location.search).get('repo');
+  const rawRepo = new URLSearchParams(window.location.search).get('repo');
+  const repo = rawRepo && REPO_PARAM_RE.test(rawRepo) ? rawRepo : null;
   if (repo && (!repoLoaded || currentRepoName !== repo)) {
     if (input) input.value = repo;
     loadRepo(false, repo);
@@ -2623,7 +2627,7 @@ async function openPack() {
     </div>
     ${oddsHTML}`;
   document.body.appendChild(overlay);
-
+  overlay._pendingPicks = [...picks];
 
   const packWrapper = overlay.querySelector('#pack-wrapper');
   const instruction = overlay.querySelector('.pack-instruction');
@@ -2632,13 +2636,13 @@ async function openPack() {
     packWrapper.classList.add('tearing');
     instruction.style.display = 'none';
     overlay.querySelector('#pack-burst').innerHTML = '<div class="burst-ring"></div>';
-    setTimeout(() => { packWrapper.style.display = 'none'; revealCards(overlay, picks, null); }, 700);
+    setTimeout(() => { if (!overlay.isConnected) return; packWrapper.style.display = 'none'; revealCards(overlay, picks, null); }, 700);
     clearSpaceAction();
   }
   packWrapper.addEventListener('click', tearPack);
   setSpaceAction(tearPack);
 
-  function closePack() { packOpen = false; overlay.remove(); clearSpaceAction(); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); }
+  function closePack() { packOpen = false; overlay.remove(); clearSpaceAction(); creditUnrevealed(overlay); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); }
   overlay._escHandler = e => { if (e.code === 'Escape') closePack(); };
   document.addEventListener('keydown', overlay._escHandler);
   overlay.querySelector('#pack-close-btn').addEventListener('click', closePack);
@@ -2651,6 +2655,15 @@ async function openPack() {
       if (window.__gpLogin) window.__gpLogin();
     });
   }
+}
+
+// The server grants all 5 cards when a pack is fetched. If the overlay closes
+// before every card is flipped, credit the rest so the library stays in sync.
+function creditUnrevealed(overlay) {
+  const pending = overlay._pendingPicks || [];
+  overlay._pendingPicks = [];
+  pending.forEach(c => { library[c.login] = (library[c.login] || 0) + 1; });
+  if (pending.length && !_currentUser) saveLibrary();
 }
 
 function revealCards(overlay, picks, onComplete) {
@@ -2803,6 +2816,9 @@ function revealCards(overlay, picks, onComplete) {
       }, badgeDelay);
     }
 
+    const pendingIdx = (overlay._pendingPicks || []).indexOf(slot._contributor);
+    if (pendingIdx >= 0) overlay._pendingPicks.splice(pendingIdx, 1);
+
     // For logged-out users, save to localStorage
     if (!_currentUser) {
       library[slot._contributor.login] = (library[slot._contributor.login] || 0) + 1;
@@ -2834,7 +2850,7 @@ function revealCards(overlay, picks, onComplete) {
 
         let anotherOpened = false;
         async function openAnother() {
-          if (anotherOpened) return;
+          if (anotherOpened || !overlay.isConnected) return;
           anotherOpened = true;
           clearSpaceAction();
 
@@ -2866,6 +2882,14 @@ function revealCards(overlay, picks, onComplete) {
               renderTopBarPacks();
             }
           } catch { /* handled below */ }
+
+          if (nextPicks) overlay._pendingPicks = [...nextPicks];
+          if (nextPicks && !overlay.isConnected) {
+            // Closed while the next pack was loading
+            creditUnrevealed(overlay);
+            renderRepoInfoFromCurrent(); renderLibrary();
+            return;
+          }
 
           if (!nextPicks) {
             // Failed to get pack — close overlay gracefully
@@ -2904,7 +2928,7 @@ function revealCards(overlay, picks, onComplete) {
             newWrapper.classList.add('tearing');
             newInstruction.style.display = 'none';
             container.querySelector('#pack-burst').innerHTML = '<div class="burst-ring"></div>';
-            setTimeout(() => { newWrapper.style.display = 'none'; revealCards(overlay, nextPicks, null); }, 700);
+            setTimeout(() => { if (!overlay.isConnected) return; newWrapper.style.display = 'none'; revealCards(overlay, nextPicks, null); }, 700);
             clearSpaceAction();
           }
           newWrapper.addEventListener('click', tearNewPack);
@@ -2912,7 +2936,7 @@ function revealCards(overlay, picks, onComplete) {
 
           // Update close handler to clean up new listeners
           document.removeEventListener('keydown', overlay._escHandler);
-          function closeNewPack() { packOpen = false; overlay.remove(); clearSpaceAction(); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); }
+          function closeNewPack() { packOpen = false; overlay.remove(); clearSpaceAction(); creditUnrevealed(overlay); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); }
           overlay._escHandler = e => { if (e.code === 'Escape') closeNewPack(); };
           document.addEventListener('keydown', overlay._escHandler);
           overlay.querySelector('#pack-close-btn').onclick = closeNewPack;
@@ -2921,7 +2945,7 @@ function revealCards(overlay, picks, onComplete) {
         }
 
         setTimeout(() => {
-          if (!anotherOpened) setSpaceAction(openAnother);
+          if (!anotherOpened && overlay.isConnected) setSpaceAction(openAnother);
         }, 200);
 
         const btnWrap = document.createElement('div');
@@ -2929,7 +2953,7 @@ function revealCards(overlay, picks, onComplete) {
         const doneBtn = document.createElement('button');
         doneBtn.className = 'reveal-done-btn';
         doneBtn.textContent = 'View Library';
-        doneBtn.onclick = () => { packOpen = false; overlay.remove(); clearSpaceAction(); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); };
+        doneBtn.onclick = () => { packOpen = false; overlay.remove(); clearSpaceAction(); creditUnrevealed(overlay); document.removeEventListener('keydown', overlay._escHandler); renderRepoInfoFromCurrent(); renderLibrary(); };
         const anotherBtn = document.createElement('button');
         anotherBtn.className = 'reveal-another-btn';
 
@@ -2981,7 +3005,7 @@ function revealCards(overlay, picks, onComplete) {
     }
     flipNext();
   }
-  setSpaceAction(flipAllViaSpace);
+  if (overlay.isConnected) setSpaceAction(flipAllViaSpace);
 }
 
 // ===== SELF-CARD REVEAL =====
@@ -3156,6 +3180,7 @@ function revealMilestonePack(cards) {
   function closePack() {
     packOpen = false;
     overlay.remove();
+    clearSpaceAction();
     document.removeEventListener('keydown', overlay._escHandler);
     if (_currentUser) loadLibraryFromDB().then(() => { renderRepoInfoFromCurrent(); renderLibrary(); });
   }
@@ -3216,10 +3241,10 @@ function revealMilestonePack(cards) {
           btnWrap.appendChild(nextBtn);
 
           // Space to open next
-          setTimeout(() => setSpaceAction(() => nextBtn.onclick()), 200);
+          setTimeout(() => { if (overlay.isConnected) setSpaceAction(() => nextBtn.onclick()); }, 200);
         } else {
           // No more achievement packs — space closes
-          setTimeout(() => setSpaceAction(closePack), 200);
+          setTimeout(() => { if (overlay.isConnected) setSpaceAction(closePack); }, 200);
         }
 
         overlay.querySelector('.pack-container').appendChild(btnWrap);
@@ -3345,6 +3370,7 @@ async function claimAllMilestones() {
   let flipped = 0;
 
   function flipNext() {
+    if (!overlay.isConnected) return;
     if (flipped >= slots.length) {
       // All done — re-enable card shimmer and show buttons
       area.classList.remove('no-card-effects');
@@ -3747,6 +3773,17 @@ function openFullscreenCard(c) {
     if (balEl) balEl.innerHTML = `&starf; ${starBalance} Stars`;
     const actionsEl = overlay.querySelector('.fs-recycle-actions');
     if (actionsEl && owned <= 1) actionsEl.remove();
+    if (owned > 1) {
+      // Still have dupes: re-arm the buttons with updated counts
+      const yld = REVERT_YIELD[c.rarity] || 1;
+      const rb = overlay.querySelector('#fs-revert');
+      if (rb) { rb.disabled = false; rb.innerHTML = `Revert 1 (+${yld} &starf;)`; }
+      const rab = overlay.querySelector('#fs-revert-all');
+      if (rab) {
+        if (owned > 2) { rab.disabled = false; rab.innerHTML = `Revert ${owned - 1} (+${(owned - 1) * yld} &starf;)`; }
+        else rab.remove();
+      }
+    }
     renderRepoInfoFromCurrent();
     renderLibrary();
   }

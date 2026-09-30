@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     .eq('owner_repo', ownerRepo)
     .gt('total_points', 0)
     .order('total_points', { ascending: false })
+    .order('user_id') // stable tiebreak so pages don't overlap or skip tied users
     .range(offset, offset + limit - 1);
 
   if (error) {
@@ -47,8 +48,24 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Competition ranking (ties share the best rank), matching /api/score's
+  // "1 + users with more points". Only the page's first row needs a count.
+  let firstRank = offset + 1;
+  if (offset > 0 && rows.length > 0) {
+    const { count: above } = await supabase
+      .from('leaderboard_scores')
+      .select('user_id', { count: 'exact', head: true })
+      .eq('owner_repo', ownerRepo)
+      .gt('total_points', rows[0].total_points);
+    firstRank = (above ?? offset) + 1;
+  }
+  const ranks: number[] = [];
+  rows.forEach((row: any, i: number) => {
+    ranks.push(i > 0 && row.total_points === rows[i - 1].total_points ? ranks[i - 1] : (i === 0 ? firstRank : offset + i + 1));
+  });
+
   const entries = rows.map((row: any, i: number) => ({
-    rank: offset + i + 1,
+    rank: ranks[i],
     github_username: row.profiles?.github_username || '',
     avatar_url: row.profiles?.avatar_url || '',
     total_points: row.total_points,

@@ -34,7 +34,10 @@ export async function GET() {
       updates.last_seen_at = new Date().toISOString();
     }
     if (Object.keys(updates).length) {
-      await supabase.from('profiles').update(updates).eq('id', user.id);
+      let q = supabase.from('profiles').update(updates).eq('id', user.id);
+      // Only if no concurrent request already applied this regen
+      if (regen.updated) q = q.eq('last_regen_at', profile.last_regen_at);
+      await q;
     }
 
     const nextRegenAt = regen.readyPacks < MAX_PACKS

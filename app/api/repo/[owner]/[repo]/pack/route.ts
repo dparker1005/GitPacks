@@ -9,7 +9,7 @@ import { refreshUserScores } from '@/app/lib/scoring';
 import { REGEN_INTERVAL_MS, MAX_PACKS, calculateRegen } from '@/app/lib/constants';
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ owner: string; repo: string }> }
 ) {
   const { owner, repo } = await params;
@@ -34,8 +34,7 @@ export async function GET(
     return NextResponse.json({ error: 'No contributor data available' }, { status: 404 });
   }
 
-  const countParam = request.nextUrl.searchParams.get('count');
-  const count = countParam ? Math.max(1, Math.min(parseInt(countParam, 10) || 5, 30)) : 5;
+  const count = 5;
 
   // Check auth — if logged in, apply pack limits and pity
   const supabase = await getSupabaseServer();
@@ -93,7 +92,9 @@ export async function GET(
     await supabase
       .from('profiles')
       .update({ ready_packs: regen.readyPacks, last_regen_at: new Date(regen.lastRegenAt).toISOString() })
-      .eq('id', user.id);
+      .eq('id', user.id)
+      // Only if no concurrent request already applied this regen
+      .eq('last_regen_at', profile.last_regen_at);
   }
 
   // Atomically decrement pack count (race-safe)
