@@ -1,11 +1,10 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from './supabase-admin';
 
 /**
  * Atomically add cards to a user's collection using the add_cards RPC.
  * Cards are aggregated by login before sending to minimize DB work.
  */
 export async function addCards(
-  supabase: SupabaseClient,
   userId: string,
   ownerRepo: string,
   cardLogins: string[]
@@ -21,7 +20,7 @@ export async function addCards(
     count,
   }));
 
-  const { error } = await supabase.rpc('add_cards', {
+  const { error } = await getSupabaseAdmin().rpc('add_cards', {
     p_user_id: userId,
     p_owner_repo: ownerRepo,
     p_cards: cards,

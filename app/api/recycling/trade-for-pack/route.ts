@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
+import { getSupabaseAdmin } from '@/app/lib/supabase-admin';
 
 const TRADE_COST = 100;
 
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing owner_repo' }, { status: 400 });
     }
 
-    const { data: result, error: rpcError } = await supabase.rpc('trade_stars_for_pack', {
+    const { data: result, error: rpcError } = await getSupabaseAdmin().rpc('trade_stars_for_pack', {
       p_user_id: user.id,
       p_owner_repo: owner_repo.toLowerCase(),
       p_cost: TRADE_COST,

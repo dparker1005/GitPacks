@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
+import { getSupabaseAdmin } from '@/app/lib/supabase-admin';
 import { getCachedRepoData } from '@/app/lib/repo-cache';
 import { refreshUserScores } from '@/app/lib/scoring';
 import { CHERRY_PICK_COST, getContributorRarity } from '@/app/lib/recycling';
@@ -40,7 +41,7 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid rarity' }, { status: 400 });
   }
 
-  const { data, error } = await supabase.rpc('cherry_pick_card', {
+  const { data, error } = await getSupabaseAdmin().rpc('cherry_pick_card', {
     p_user_id: user.id,
     p_owner_repo: ownerRepo,
     p_login: login,
@@ -62,7 +63,7 @@ export async function POST(
     );
   }
 
-  await refreshUserScores(supabase, user.id);
+  await refreshUserScores(user.id);
 
   return NextResponse.json({
     success: true,

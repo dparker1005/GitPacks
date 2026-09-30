@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from './supabase-admin';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -40,7 +41,7 @@ export async function setCachedRepo(
   const contributorLogins = Array.isArray(repoData)
     ? repoData.map((c: any) => c.login?.toLowerCase()).filter(Boolean)
     : [];
-  await supabase
+  await getSupabaseAdmin()
     .from('repo_cache')
     .upsert(
       {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { getSupabaseAdmin } from '@/app/lib/supabase-admin';
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
@@ -48,8 +49,10 @@ export async function GET(request: NextRequest) {
 
         const isNewUser = !existingProfile;
 
+        const admin = getSupabaseAdmin();
+
         // Create profile if needed
-        await supabase.from('profiles').upsert({
+        await admin.from('profiles').upsert({
           id: user.id,
           github_username: username,
           avatar_url: meta.avatar_url || '',
@@ -57,17 +60,17 @@ export async function GET(request: NextRequest) {
           referral_code: username || undefined,
         }, { onConflict: 'id', ignoreDuplicates: true });
 
-        // Always store/refresh the GitHub token (works for new and returning users)
+        // Always store/refresh the GitHub token (works for new and returning users).
+        // Kept out of profiles, which is publicly readable.
         if (providerToken) {
-          await supabase.from('profiles')
-            .update({ github_token: providerToken })
-            .eq('id', user.id);
+          await admin.from('user_github_tokens')
+            .upsert({ user_id: user.id, token: providerToken, updated_at: new Date().toISOString() });
         }
 
         // Process referral for new users only
         const ref = searchParams.get('gpref');
         if (isNewUser && ref) {
-          await supabase.rpc('process_referral', {
+          await admin.rpc('process_referral', {
             p_new_user_id: user.id,
             p_referral_code: ref,
           });

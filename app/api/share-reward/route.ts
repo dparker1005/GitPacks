@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
+import { getSupabaseAdmin } from '@/app/lib/supabase-admin';
 
 export async function POST() {
   try {
@@ -10,7 +11,7 @@ export async function POST() {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const { data: result, error: rpcError } = await supabase.rpc('claim_share_reward', {
+    const { data: result, error: rpcError } = await getSupabaseAdmin().rpc('claim_share_reward', {
       p_user_id: user.id,
     });
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
+import { getSupabaseAdmin } from '@/app/lib/supabase-admin';
 import { supabase as anonSupabase } from '@/app/lib/repo-cache';
 import { getGitHubToken, gitHubHeaders } from '@/app/lib/github-token';
 
@@ -25,7 +26,7 @@ export async function GET() {
 
   const username = profile.github_username;
   const usernameLower = username.toLowerCase();
-  const ghToken = await getGitHubToken(supabase, user.id);
+  const ghToken = await getGitHubToken(user.id);
   const headers = gitHubHeaders(ghToken);
 
   try {
@@ -96,7 +97,7 @@ export async function GET() {
 
       // Cache the discovered repos for next time
       const uniqueRepos = [...new Set(allEventRepos)];
-      await supabase
+      await getSupabaseAdmin()
         .from('user_contributed_repos_cache')
         .upsert({
           user_id: user.id,

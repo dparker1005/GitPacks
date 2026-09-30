@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getCachedRepoData } from '@/app/lib/repo-cache';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
+import { getSupabaseAdmin } from '@/app/lib/supabase-admin';
 import { getOrCreateProfile } from '@/app/lib/profile';
 import { selectPackCards, Contributor } from '@/app/lib/pack-cards';
 import { addCards } from '@/app/lib/collection';
@@ -89,7 +90,7 @@ export async function GET(
   );
 
   if (regen.updated) {
-    await supabase
+    await getSupabaseAdmin()
       .from('profiles')
       .update({ ready_packs: regen.readyPacks, last_regen_at: new Date(regen.lastRegenAt).toISOString() })
       .eq('id', user.id)
@@ -98,7 +99,7 @@ export async function GET(
   }
 
   // Atomically decrement pack count (race-safe)
-  const { data: decrementResult, error: decrementError } = await supabase.rpc('decrement_pack', {
+  const { data: decrementResult, error: decrementError } = await getSupabaseAdmin().rpc('decrement_pack', {
     p_user_id: user.id,
     p_max_packs: MAX_PACKS,
   });
@@ -170,16 +171,16 @@ export async function GET(
     packs_since_mythic: gotMythic ? 0 : packsSinceMythic + 1,
   };
 
-  const { error: pityErr } = await supabase
+  const { error: pityErr } = await getSupabaseAdmin()
     .from('user_packs')
     .upsert(newPityData, { onConflict: 'user_id, owner_repo' });
 
   // 7. Save cards to collection atomically
   const cardLogins = cards.map(c => c.login);
-  const { error: saveErr } = await addCards(supabase, user.id, cacheKey, cardLogins);
+  const { error: saveErr } = await addCards(user.id, cacheKey, cardLogins);
 
   // 8. Refresh scores (non-blocking — don't fail the pack open if scoring errors)
-  const { error: scoreErr } = await refreshUserScores(supabase, user.id);
+  const { error: scoreErr } = await refreshUserScores(user.id);
 
   const nextRegenAt = readyPacks < MAX_PACKS ? lastRegenAt + REGEN_INTERVAL_MS : null;
   const dbErrors = [

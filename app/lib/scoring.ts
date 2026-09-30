@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from './supabase-admin';
 
 export const RARITY_POINTS: Record<string, number> = {
   common: 1,
@@ -13,10 +13,9 @@ export const RARITY_POINTS: Record<string, number> = {
  * Call this after pack opening, achievement claims, or any card-granting event.
  */
 export async function refreshUserScores(
-  supabase: SupabaseClient,
   userId: string
 ): Promise<{ error: string | null }> {
-  const { error } = await supabase.rpc('refresh_user_scores', {
+  const { error } = await getSupabaseAdmin().rpc('refresh_user_scores', {
     p_user_id: userId,
   });
   return { error: error ? error.message : null };

@@ -1,20 +1,20 @@
-import { SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from './supabase-admin';
 
 /**
  * Get a GitHub API token for the given user, falling back to the server token.
  * This distributes rate limits across users (5,000/hr each) instead of sharing one pool.
  */
 export async function getGitHubToken(
-  supabase: SupabaseClient,
   userId: string
 ): Promise<string | undefined> {
   try {
-    const { data } = await supabase
-      .from('profiles')
-      .select('github_token')
-      .eq('id', userId)
+    // Tokens live in a table only the service role can read.
+    const { data } = await getSupabaseAdmin()
+      .from('user_github_tokens')
+      .select('token')
+      .eq('user_id', userId)
       .single();
-    if (data?.github_token) return data.github_token;
+    if (data?.token) return data.token;
   } catch {
     // Fall through to server token
   }

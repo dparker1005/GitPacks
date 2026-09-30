@@ -35,7 +35,7 @@ export async function GET(
     .single();
 
   if (repoCache && (!existingScore || new Date(existingScore.updated_at) < new Date(repoCache.fetched_at))) {
-    await refreshUserScores(supabase, user.id);
+    await refreshUserScores(user.id);
   }
 
   // Fetch score

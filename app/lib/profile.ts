@@ -1,4 +1,5 @@
 import type { User } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from './supabase-admin';
 
 export interface Profile {
   id: string;
@@ -32,7 +33,7 @@ export async function getOrCreateProfile(
 
   const meta = user.user_metadata || {};
   const username = meta.user_name || meta.preferred_username || '';
-  await supabase.from('profiles').upsert(
+  await getSupabaseAdmin().from('profiles').upsert(
     {
       id: user.id,
       github_username: username,

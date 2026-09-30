@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCachedRepoData, supabase as publicSupabase } from '@/app/lib/repo-cache';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
+import { getSupabaseAdmin } from '@/app/lib/supabase-admin';
 import { getOrCreateProfile } from '@/app/lib/profile';
 import { selectPackCards, Contributor } from '@/app/lib/pack-cards';
 import { addCards } from '@/app/lib/collection';
@@ -76,16 +77,16 @@ export async function GET(
       .single();
 
     if (!existingSelfCard) {
-      await supabase
+      await getSupabaseAdmin()
         .from('user_self_cards')
         .upsert(
           { user_id: user.id, owner_repo: ownerRepo },
           { onConflict: 'user_id, owner_repo', ignoreDuplicates: true }
         );
 
-      await addCards(supabase, user.id, ownerRepo, [contributor.login]);
+      await addCards(user.id, ownerRepo, [contributor.login]);
       selfCard = contributor;
-      await refreshUserScores(supabase, user.id);
+      await refreshUserScores(user.id);
     }
 
     // Compute milestones with per-stat cap
@@ -242,7 +243,7 @@ export async function POST(
     }
 
     // Insert achievements (check for errors to avoid granting cards on duplicate claims)
-    const { error: insertErr } = await supabase.from('user_achievements').insert(
+    const { error: insertErr } = await getSupabaseAdmin().from('user_achievements').insert(
       milestonesToClaim.map(m => ({
         user_id: user.id,
         owner_repo: ownerRepo,
@@ -262,10 +263,10 @@ export async function POST(
     }
 
     const cardLogins = allDrawnCards.map(c => c.login);
-    await addCards(supabase, user.id, ownerRepo, cardLogins);
+    await addCards(user.id, ownerRepo, cardLogins);
 
     // Refresh scores after granting achievement cards
-    await refreshUserScores(supabase, user.id);
+    await refreshUserScores(user.id);
 
     return NextResponse.json({
       cards: allDrawnCards,

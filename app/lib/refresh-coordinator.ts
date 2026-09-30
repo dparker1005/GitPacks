@@ -20,6 +20,7 @@
 
 import { gitHubHeaders } from './github-token';
 import { supabase } from './repo-cache';
+import { getSupabaseAdmin } from './supabase-admin';
 
 const COOLDOWN_MINUTES = 5;
 const COOLDOWN_KEY = 'last_repo_refresh';
@@ -34,7 +35,7 @@ const COOLDOWN_KEY = 'last_repo_refresh';
  */
 export async function tryClaimRefreshSlot(): Promise<boolean> {
   const cutoffIso = new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000).toISOString();
-  const { data, error } = await supabase
+  const { data, error } = await getSupabaseAdmin()
     .from('system_state')
     .update({ updated_at: new Date().toISOString() })
     .eq('key', COOLDOWN_KEY)
@@ -117,7 +118,7 @@ async function touchCacheRow(
   commitSha: string | null,
   issueNumber: number | null,
 ): Promise<void> {
-  await supabase
+  await getSupabaseAdmin()
     .from('repo_cache')
     .update({
       fetched_at: new Date().toISOString(),
@@ -135,7 +136,7 @@ async function touchCacheRow(
  * retries on the next lap.
  */
 async function bumpFetchedAt(ownerRepo: string): Promise<void> {
-  await supabase
+  await getSupabaseAdmin()
     .from('repo_cache')
     .update({ fetched_at: new Date().toISOString() })
     .eq('owner_repo', ownerRepo);

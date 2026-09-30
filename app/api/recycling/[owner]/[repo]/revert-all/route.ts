@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
+import { getSupabaseAdmin } from '@/app/lib/supabase-admin';
 import { getCachedRepoData } from '@/app/lib/repo-cache';
 import { refreshUserScores } from '@/app/lib/scoring';
 import { REVERT_YIELD, getContributorRarity } from '@/app/lib/recycling';
@@ -52,7 +53,7 @@ export async function POST(
 
   const totalCardsReverted = rpcCards.reduce((sum: number, c: any) => sum + c.count, 0);
 
-  const { data: starsEarned, error } = await supabase.rpc('revert_cards', {
+  const { data: starsEarned, error } = await getSupabaseAdmin().rpc('revert_cards', {
     p_user_id: user.id,
     p_owner_repo: ownerRepo,
     p_cards: rpcCards,
@@ -62,7 +63,7 @@ export async function POST(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  await refreshUserScores(supabase, user.id);
+  await refreshUserScores(user.id);
 
   return NextResponse.json({
     starsEarned: starsEarned ?? 0,

@@ -106,7 +106,7 @@ export async function GET() {
     return !score || new Date(score.updated_at) < new Date(cache.fetched_at);
   });
   if (isStale) {
-    await refreshUserScores(supabase, user.id);
+    await refreshUserScores(user.id);
     const refreshed = await anonSupabase
       .from('leaderboard_scores')
       .select('owner_repo, base_points, completion_bonus, total_points, unique_cards, total_cards_in_repo, updated_at')

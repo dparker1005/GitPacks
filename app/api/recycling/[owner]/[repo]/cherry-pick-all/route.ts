@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
+import { getSupabaseAdmin } from '@/app/lib/supabase-admin';
 import { getCachedRepoData } from '@/app/lib/repo-cache';
 import { refreshUserScores } from '@/app/lib/scoring';
 import { CHERRY_PICK_COST } from '@/app/lib/recycling';
@@ -49,7 +50,7 @@ export async function POST(
     return NextResponse.json({ error: 'No missing cards' }, { status: 400 });
   }
 
-  const { data, error } = await supabase.rpc('cherry_pick_all', {
+  const { data, error } = await getSupabaseAdmin().rpc('cherry_pick_all', {
     p_user_id: user.id,
     p_owner_repo: ownerRepo,
     p_cards: missingCards,
@@ -67,7 +68,7 @@ export async function POST(
     );
   }
 
-  await refreshUserScores(supabase, user.id);
+  await refreshUserScores(user.id);
 
   return NextResponse.json({
     success: true,

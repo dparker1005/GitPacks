@@ -796,7 +796,7 @@ export async function GET(
   try {
     const supabase = await getSupabaseServer();
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) ghToken = await getGitHubToken(supabase, user.id);
+    if (user) ghToken = await getGitHubToken(user.id);
   } catch { /* anonymous — server token */ }
 
   if (!refresh) {

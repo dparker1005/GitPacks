@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
+import { getSupabaseAdmin } from '@/app/lib/supabase-admin';
 import { getOrCreateProfile } from '@/app/lib/profile';
 import { detectGitHubEvents, ELIGIBLE_DAILY_EVENTS } from '@/app/lib/dailies';
 import { getGitHubToken } from '@/app/lib/github-token';
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Always do a fresh check on claim to prevent cheating
-    const ghToken = await getGitHubToken(supabase, user.id);
+    const ghToken = await getGitHubToken(user.id);
     const detected = await detectGitHubEvents(profile.github_username, ghToken);
 
     if (!detected.includes(event_type)) {
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     // Update detection cache with fresh results
     const todayUTC = new Date().toISOString().slice(0, 10);
-    await supabase
+    await getSupabaseAdmin()
       .from('daily_detections')
       .upsert({
         user_id: user.id,
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
       }, { onConflict: 'user_id' });
 
     // Atomic claim
-    const { data: claimResult, error: claimError } = await supabase.rpc('claim_daily', {
+    const { data: claimResult, error: claimError } = await getSupabaseAdmin().rpc('claim_daily', {
       p_user_id: user.id,
       p_event_type: event_type,
     });

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
+import { getSupabaseAdmin } from '@/app/lib/supabase-admin';
 import { getOrCreateProfile } from '@/app/lib/profile';
 import { detectGitHubEvents, getTodayUTC, getMidnightUTC, MAX_DAILY_CLAIMS } from '@/app/lib/dailies';
 import { getGitHubToken } from '@/app/lib/github-token';
@@ -21,11 +22,11 @@ export async function POST() {
     const todayUTC = getTodayUTC();
 
     // Always fresh fetch on manual refresh
-    const ghToken = await getGitHubToken(supabase, user.id);
+    const ghToken = await getGitHubToken(user.id);
     const detected = await detectGitHubEvents(profile.github_username, ghToken);
     const lastCheckedAt = new Date().toISOString();
 
-    await supabase
+    await getSupabaseAdmin()
       .from('daily_detections')
       .upsert({
         user_id: user.id,

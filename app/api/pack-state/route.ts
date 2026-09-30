@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
+import { getSupabaseAdmin } from '@/app/lib/supabase-admin';
 import { getOrCreateProfile } from '@/app/lib/profile';
 import { REGEN_INTERVAL_MS, MAX_PACKS, calculateRegen } from '@/app/lib/constants';
 
@@ -34,7 +35,7 @@ export async function GET() {
       updates.last_seen_at = new Date().toISOString();
     }
     if (Object.keys(updates).length) {
-      let q = supabase.from('profiles').update(updates).eq('id', user.id);
+      let q = getSupabaseAdmin().from('profiles').update(updates).eq('id', user.id);
       // Only if no concurrent request already applied this regen
       if (regen.updated) q = q.eq('last_regen_at', profile.last_regen_at);
       await q;
