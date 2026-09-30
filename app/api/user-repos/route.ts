@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
 import { supabase as anonSupabase } from '@/app/lib/repo-cache';
-import { refreshUserScores } from '@/app/lib/scoring';
+import { refreshUserRepoScores } from '@/app/lib/scoring';
 import { countClaimableMilestones } from '@/app/lib/achievements';
 
 export async function GET() {
@@ -12,31 +12,17 @@ export async function GET() {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
-  // Fetch all rows — Supabase default limit is 1000, so paginate to avoid truncation
-  let collections: any[] = [];
-  let from = 0;
+  // Per-repo card counts in one grouped call (RLS-scoped to this user)
   const PAGE_SIZE = 1000;
-  let error: any = null;
-  while (true) {
-    const { data, error: pageError } = await supabase
-      .from('user_collections')
-      .select('owner_repo, contributor_login')
-      .eq('user_id', user.id)
-      .range(from, from + PAGE_SIZE - 1);
-    if (pageError) { error = pageError; break; }
-    if (!data || data.length === 0) break;
-    collections = collections.concat(data);
-    if (data.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
-  }
+  const { data: counts, error } = await supabase.rpc('user_repo_card_counts');
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   const repoMap: Record<string, number> = {};
-  (collections || []).forEach((row: any) => {
-    repoMap[row.owner_repo] = (repoMap[row.owner_repo] || 0) + 1;
+  (counts || []).forEach((row: any) => {
+    repoMap[row.owner_repo] = row.cards;
   });
 
   const repoNames = Object.keys(repoMap);
@@ -100,13 +86,13 @@ export async function GET() {
   let scoresData = scoresResult.data;
   const starsData = starsResult.data;
 
-  // Lazy refresh: if any repo's score is older than its cache, recalculate all scores
-  const isStale = (cacheData || []).some((cache: any) => {
+  // Lazy refresh: recalculate only the repos whose score is older than their cache
+  const staleRepos = (cacheData || []).filter((cache: any) => {
     const score = (scoresData || []).find((s: any) => s.owner_repo === cache.owner_repo);
     return !score || new Date(score.updated_at) < new Date(cache.fetched_at);
-  });
-  if (isStale) {
-    await refreshUserScores(user.id);
+  }).map((cache: any) => cache.owner_repo);
+  if (staleRepos.length > 0) {
+    await refreshUserRepoScores(user.id, staleRepos);
     const refreshed = await anonSupabase
       .from('leaderboard_scores')
       .select('owner_repo, base_points, completion_bonus, total_points, unique_cards, total_cards_in_repo, updated_at')

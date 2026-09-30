@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
-import { refreshUserScores } from '@/app/lib/scoring';
+import { refreshUserRepoScores } from '@/app/lib/scoring';
 
 export async function GET(
   request: NextRequest,
@@ -35,7 +35,7 @@ export async function GET(
     .single();
 
   if (repoCache && (!existingScore || new Date(existingScore.updated_at) < new Date(repoCache.fetched_at))) {
-    await refreshUserScores(user.id);
+    await refreshUserRepoScores(user.id, [ownerRepo]);
   }
 
   // Fetch score

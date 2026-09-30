@@ -6,7 +6,7 @@ import { getSupabaseAdmin } from '@/app/lib/supabase-admin';
 import { getOrCreateProfile } from '@/app/lib/profile';
 import { selectPackCards, Contributor } from '@/app/lib/pack-cards';
 import { addCards } from '@/app/lib/collection';
-import { refreshUserScores } from '@/app/lib/scoring';
+import { refreshUserRepoScores } from '@/app/lib/scoring';
 import { REGEN_INTERVAL_MS, MAX_PACKS, calculateRegen } from '@/app/lib/constants';
 
 export async function GET(
@@ -20,7 +20,13 @@ export async function GET(
   }
 
   const cacheKey = `${owner}/${repo}`.toLowerCase();
-  const cached = await getCachedRepoData(cacheKey);
+
+  // Independent round trips: repo data and the auth check run in parallel
+  const supabase = await getSupabaseServer();
+  const [cached, { data: { user } }] = await Promise.all([
+    getCachedRepoData(cacheKey),
+    supabase.auth.getUser(),
+  ]);
 
   if (!cached) {
     return NextResponse.json(
@@ -37,10 +43,7 @@ export async function GET(
 
   const count = 5;
 
-  // Check auth — if logged in, apply pack limits and pity
-  const supabase = await getSupabaseServer();
-  const { data: { user } } = await supabase.auth.getUser();
-
+  // If logged in, apply pack limits and pity
   if (!user) {
     // Logged-out: limited to 1 pack via cookie
     const cookieStore = await cookies();
@@ -171,16 +174,17 @@ export async function GET(
     packs_since_mythic: gotMythic ? 0 : packsSinceMythic + 1,
   };
 
-  const { error: pityErr } = await getSupabaseAdmin()
-    .from('user_packs')
-    .upsert(newPityData, { onConflict: 'user_id, owner_repo' });
-
-  // 7. Save cards to collection atomically
+  // 7. Save pity counters and cards (independent writes, run in parallel)
   const cardLogins = cards.map(c => c.login);
-  const { error: saveErr } = await addCards(user.id, cacheKey, cardLogins);
+  const [{ error: pityErr }, { error: saveErr }] = await Promise.all([
+    getSupabaseAdmin()
+      .from('user_packs')
+      .upsert(newPityData, { onConflict: 'user_id, owner_repo' }),
+    addCards(user.id, cacheKey, cardLogins),
+  ]);
 
-  // 8. Refresh scores (non-blocking — don't fail the pack open if scoring errors)
-  const { error: scoreErr } = await refreshUserScores(user.id);
+  // 8. Refresh this repo's score (don't fail the pack open if scoring errors)
+  const { error: scoreErr } = await refreshUserRepoScores(user.id, [cacheKey]);
 
   const nextRegenAt = readyPacks < MAX_PACKS ? lastRegenAt + REGEN_INTERVAL_MS : null;
   const dbErrors = [

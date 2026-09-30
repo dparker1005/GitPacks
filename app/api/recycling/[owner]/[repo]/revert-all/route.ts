@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
 import { getSupabaseAdmin } from '@/app/lib/supabase-admin';
 import { getCachedRepoData } from '@/app/lib/repo-cache';
-import { refreshUserScores } from '@/app/lib/scoring';
+import { refreshUserRepoScores } from '@/app/lib/scoring';
 import { REVERT_YIELD, getContributorRarity } from '@/app/lib/recycling';
 
 export async function POST(
@@ -63,7 +63,7 @@ export async function POST(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  await refreshUserScores(user.id);
+  await refreshUserRepoScores(user.id, [ownerRepo]);
 
   return NextResponse.json({
     starsEarned: starsEarned ?? 0,

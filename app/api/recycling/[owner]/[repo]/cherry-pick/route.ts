@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/app/lib/supabase-server';
 import { getSupabaseAdmin } from '@/app/lib/supabase-admin';
 import { getCachedRepoData } from '@/app/lib/repo-cache';
-import { refreshUserScores } from '@/app/lib/scoring';
+import { refreshUserRepoScores } from '@/app/lib/scoring';
 import { CHERRY_PICK_COST, getContributorRarity } from '@/app/lib/recycling';
 
 export async function POST(
@@ -63,7 +63,7 @@ export async function POST(
     );
   }
 
-  await refreshUserScores(user.id);
+  await refreshUserRepoScores(user.id, [ownerRepo]);
 
   return NextResponse.json({
     success: true,

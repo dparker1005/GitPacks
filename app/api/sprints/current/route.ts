@@ -42,37 +42,42 @@ export async function GET() {
     const maxPower: Record<string, number> = {};
     let unclaimedCount = 0;
 
-    await Promise.all([daily, weekly].filter(Boolean).map(async (s: any) => {
+    // Everything below is independent — run it all in parallel
+    const loadMaxPower = [daily, weekly].filter(Boolean).map(async (s: any) => {
       const data = await getCachedRepoData(`${s.repo_owner}/${s.repo_name}`);
       maxPower[s.id] = Array.isArray(data) ? maxLineupPower(data) : 0;
-    }));
+    });
 
-    try {
-      const authSupabase = await getSupabaseServer();
+    const loadUserState = (async () => {
+      try {
+        const authSupabase = await getSupabaseServer();
 
-      for (const sid of sprintIds) {
-        const { data } = await authSupabase.rpc('sprint_live_status', { p_sprint_id: sid });
-        liveStatus[sid] = Array.isArray(data) ? data[0] : data;
+        await Promise.all([
+          ...sprintIds.map(async (sid) => {
+            const { data } = await authSupabase.rpc('sprint_live_status', { p_sprint_id: sid });
+            liveStatus[sid] = Array.isArray(data) ? data[0] : data;
+          }),
+          (async () => {
+            const { data: { user } } = await authSupabase.auth.getUser();
+            if (!user) return;
+            // Check for unclaimed rewards
+            const { count } = await authSupabase
+              .from('sprint_entries')
+              .select('id', { count: 'exact', head: true })
+              .eq('user_id', user.id)
+              .eq('packs_claimed', false)
+              .not('packs_won', 'is', null)
+              .gt('packs_won', 0)
+              .not('committed_at', 'is', null);
+            unclaimedCount = count || 0;
+          })(),
+        ]);
+      } catch {
+        // Not authenticated — that's fine, sprints are viewable by everyone
       }
+    })();
 
-      const { data: { user } } = await authSupabase.auth.getUser();
-
-      if (user) {
-        // Check for unclaimed rewards
-        const { count } = await authSupabase
-          .from('sprint_entries')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('packs_claimed', false)
-          .not('packs_won', 'is', null)
-          .gt('packs_won', 0)
-          .not('committed_at', 'is', null);
-
-        unclaimedCount = count || 0;
-      }
-    } catch {
-      // Not authenticated — that's fine, sprints are viewable by everyone
-    }
+    await Promise.all([...loadMaxPower, loadUserState]);
 
     const formatSprint = (s: any) => s ? {
       id: s.id,

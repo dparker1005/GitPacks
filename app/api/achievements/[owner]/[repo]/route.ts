@@ -5,7 +5,7 @@ import { getSupabaseAdmin } from '@/app/lib/supabase-admin';
 import { getOrCreateProfile } from '@/app/lib/profile';
 import { selectPackCards, Contributor } from '@/app/lib/pack-cards';
 import { addCards } from '@/app/lib/collection';
-import { refreshUserScores } from '@/app/lib/scoring';
+import { refreshUserRepoScores } from '@/app/lib/scoring';
 import { MILESTONE_DEFS, getMaxMilestonesPerStat, getEarnedThresholds } from '@/app/lib/achievements';
 
 async function isSprintRepo(ownerRepo: string): Promise<boolean> {
@@ -86,7 +86,7 @@ export async function GET(
 
       await addCards(user.id, ownerRepo, [contributor.login]);
       selfCard = contributor;
-      await refreshUserScores(user.id);
+      await refreshUserRepoScores(user.id, [ownerRepo]);
     }
 
     // Compute milestones with per-stat cap
@@ -266,7 +266,7 @@ export async function POST(
     await addCards(user.id, ownerRepo, cardLogins);
 
     // Refresh scores after granting achievement cards
-    await refreshUserScores(user.id);
+    await refreshUserRepoScores(user.id, [ownerRepo]);
 
     return NextResponse.json({
       cards: allDrawnCards,

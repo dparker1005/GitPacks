@@ -2534,67 +2534,73 @@ async function openPack() {
 
   packOpen = true;
   const [owner, repo] = currentRepoName.split('/');
-  let response, data;
-  try {
-    response = await fetch(`/api/repo/${owner}/${repo}/pack`);
 
-    // If server cache expired (404), re-fetch repo data to repopulate it, then retry once
-    if (response.status === 404) {
-      try {
-        const repoResult = await fetchRepoStream(`/api/repo/${owner}/${repo}`);
-        allContributors = repoResult.data;
-        response = await fetch(`/api/repo/${owner}/${repo}/pack`);
-      } catch { /* fall through — pack call already failed, surface that error */ }
-    }
+  // Fetch the pack while the sealed pack is already on screen; the player's
+  // click to tear it usually covers the network time. Resolves to { picks } or
+  // { onError } — error UI runs only after the overlay is gone.
+  async function fetchPicks() {
+    let response, data;
+    try {
+      response = await fetch(`/api/repo/${owner}/${repo}/pack`);
 
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      if (response.status === 429) {
-        if (errData.requiresAuth) {
-          // Guest pack limit reached
-          guestPacksRemaining = 0;
-          localStorage.setItem('gp_guest_limit_reached', '1');
-          localStorage.setItem('gp_guest_packs_remaining', '0');
-          renderTopBarPacks();
-          renderRepoInfoFromCurrent();
-        } else {
-          // No packs available (logged-in user)
-          packState = { readyPacks: 0, bonusPacks: 0, maxPacks: 2, nextRegenAt: errData.nextRegenAt };
-          renderRepoInfoFromCurrent();
-        }
-      } else {
-        flashPackError('Something went wrong. Try again.');
+      // If server cache expired (404), re-fetch repo data to repopulate it, then retry once
+      if (response.status === 404) {
+        try {
+          const repoResult = await fetchRepoStream(`/api/repo/${owner}/${repo}`);
+          allContributors = repoResult.data;
+          response = await fetch(`/api/repo/${owner}/${repo}/pack`);
+        } catch { /* fall through — pack call already failed, surface that error */ }
       }
-      packOpen = false;
-      return;
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        return { onError: () => {
+          if (response.status === 429) {
+            if (errData.requiresAuth) {
+              // Guest pack limit reached
+              guestPacksRemaining = 0;
+              localStorage.setItem('gp_guest_limit_reached', '1');
+              localStorage.setItem('gp_guest_packs_remaining', '0');
+              renderTopBarPacks();
+              renderRepoInfoFromCurrent();
+            } else {
+              // No packs available (logged-in user)
+              packState = { readyPacks: 0, bonusPacks: 0, maxPacks: 2, nextRegenAt: errData.nextRegenAt };
+              renderRepoInfoFromCurrent();
+            }
+          } else {
+            flashPackError('Something went wrong. Try again.');
+          }
+        } };
+      }
+
+      data = await response.json();
+    } catch (err) {
+      console.error('[GHTC] openPack fetch error:', err);
+      return { onError: () => flashPackError('Network error. Check your connection and try again.') };
     }
 
-    data = await response.json();
-  } catch (err) {
-    console.error('[GHTC] openPack fetch error:', err);
-    flashPackError('Network error. Check your connection and try again.');
-    packOpen = false;
-    return;
-  }
-
-  // Handle response: update pack state immediately so buttons show correct count
-  let picks;
-  if (Array.isArray(data)) {
-    picks = data;
-  } else {
-    picks = data.cards;
-    if (data.packState) {
-      packState = data.packState;
+    // Handle response: update pack state immediately so buttons show correct count
+    let picks;
+    if (Array.isArray(data)) {
+      picks = data;
+    } else {
+      picks = data.cards;
+      if (data.packState) {
+        packState = data.packState;
+      }
+      if (data.guestPacksRemaining !== undefined) {
+        guestPacksRemaining = data.guestPacksRemaining;
+        localStorage.setItem('gp_guest_packs_remaining', String(guestPacksRemaining));
+      }
     }
-    if (data.guestPacksRemaining !== undefined) {
-      guestPacksRemaining = data.guestPacksRemaining;
-      localStorage.setItem('gp_guest_packs_remaining', String(guestPacksRemaining));
+    renderTopBarPacks();
+    if (_currentUser && getActiveSprintForRepo(currentRepoName)) {
+      loadSprints();
     }
+    return { picks };
   }
-  renderTopBarPacks();
-  if (_currentUser && getActiveSprintForRepo(currentRepoName)) {
-    loadSprints();
-  }
+  const picksPromise = fetchPicks();
 
   const overlay = document.createElement('div');
   overlay.className = 'pack-overlay';
@@ -2627,7 +2633,24 @@ async function openPack() {
     </div>
     ${oddsHTML}`;
   document.body.appendChild(overlay);
-  overlay._pendingPicks = [...picks];
+
+  let picks = null;
+  picksPromise.then(res => {
+    if (res.onError) {
+      if (overlay.isConnected) {
+        overlay.remove();
+        clearSpaceAction();
+        document.removeEventListener('keydown', overlay._escHandler);
+      }
+      packOpen = false;
+      res.onError();
+      return;
+    }
+    picks = res.picks;
+    overlay._pendingPicks = [...picks];
+    // Closed before the pack arrived: it was still opened server-side
+    if (!overlay.isConnected) { creditUnrevealed(overlay); renderRepoInfoFromCurrent(); renderLibrary(); }
+  });
 
   const packWrapper = overlay.querySelector('#pack-wrapper');
   const instruction = overlay.querySelector('.pack-instruction');
@@ -2636,8 +2659,13 @@ async function openPack() {
     packWrapper.classList.add('tearing');
     instruction.style.display = 'none';
     overlay.querySelector('#pack-burst').innerHTML = '<div class="burst-ring"></div>';
-    setTimeout(() => { if (!overlay.isConnected) return; packWrapper.style.display = 'none'; revealCards(overlay, picks, null); }, 700);
     clearSpaceAction();
+    // Reveal after the tear animation and once the pack has arrived
+    Promise.all([picksPromise, new Promise(r => setTimeout(r, 700))]).then(() => {
+      if (!overlay.isConnected || !picks) return;
+      packWrapper.style.display = 'none';
+      revealCards(overlay, picks, null);
+    });
   }
   packWrapper.addEventListener('click', tearPack);
   setSpaceAction(tearPack);

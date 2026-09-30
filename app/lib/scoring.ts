@@ -20,3 +20,18 @@ export async function refreshUserScores(
   });
   return { error: error ? error.message : null };
 }
+
+/**
+ * Recompute scores for just the given repos (plus the user's global total).
+ * Use this when an action only touched one repo — much cheaper than a full refresh.
+ */
+export async function refreshUserRepoScores(
+  userId: string,
+  ownerRepos: string[]
+): Promise<{ error: string | null }> {
+  const { error } = await getSupabaseAdmin().rpc('refresh_user_repo_scores', {
+    p_user_id: userId,
+    p_owner_repos: ownerRepos,
+  });
+  return { error: error ? error.message : null };
+}
